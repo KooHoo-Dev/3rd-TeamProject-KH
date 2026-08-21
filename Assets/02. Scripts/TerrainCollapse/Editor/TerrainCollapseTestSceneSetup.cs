@@ -59,7 +59,8 @@ namespace TerrainCollapse.Editor
             playerRenderer.sprite = sprite;
             playerRenderer.color = Color.white;
             player.transform.localScale = Vector3.one;
-            GetOrAdd<TestPlayerController>(player);
+            TestPlayerController playerController = GetOrAdd<TestPlayerController>(player);
+            SetObjectReference(playerController, "terrainManager", manager);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);

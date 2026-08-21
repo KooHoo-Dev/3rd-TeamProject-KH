@@ -3,11 +3,22 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 붕괴 Chunk의 물리 낙하, 지면 접촉, 안정화 판정과 플레이어 탈출 처리
+    // 붕괴 Chunk의 물리 낙하, 지면 접촉, 안정화 판정과 플레이어 매몰과 탈출 처리
+
+    /// <summary>낙하 지형과 캐릭터 접촉 처리 결과</summary>
+    public enum FallingTerrainContactResult
+    {
+        Ignored,
+        Escaped,
+        NoEscapeSpace
+    }
     
+    /// <summary>낙하 지형 접촉 시 탈출 또는 매몰 여부를 결정하는 대상</summary>
     public interface IFallingTerrainEscapeTarget
     {
-        bool TryEscapeFromFallingTerrain(Bounds terrainBounds, float terrainCellSize);
+        FallingTerrainContactResult ResolveFallingTerrainContact(
+            Bounds terrainBounds,
+            float terrainCellSize);
     }
 
     /// <summary>커스텀 Grid 셀 묶음의 물리 낙하와 안정화 상태를 관리</summary>
@@ -122,7 +133,16 @@ namespace TerrainCollapse
             {
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
-                    target.TryEscapeFromFallingTerrain(WorldBounds, CellSize);
+                    FallingTerrainContactResult result =
+                        target.ResolveFallingTerrainContact(WorldBounds, CellSize);
+
+                    // 탈출 공간이 없을 때 캐릭터가 Chunk를 받치지 않도록 충돌 해제
+                    if (result == FallingTerrainContactResult.NoEscapeSpace)
+                    {
+                        Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
+                        groundContacts.Remove(collision.collider);
+                    }
+                    
                     break;
                 }
             }
