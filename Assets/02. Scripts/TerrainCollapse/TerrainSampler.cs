@@ -1,9 +1,29 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
-    /// <summary>안정화된 물리 Chunk를 Cell Center Sampling하여 커스텀 Grid 데이터로 복원한다.</summary>
+    // 안정화된 로컬 물리 Chunk에서 서버에 제안할 최종 Grid 좌표 후보 계산
+
+    [Serializable]
+    public sealed class TerrainPlacementProposal
+    {
+        public long CollapseId;
+        public uint BaseRevision;
+        public List<TerrainCellChange> Changes = new();
+
+        public TerrainPlacementProposal(long collapseId, uint baseRevision,
+            IEnumerable<TerrainCellChange> changes)
+        {
+            CollapseId = collapseId;
+            BaseRevision = baseRevision;
+            Changes.AddRange(changes);
+            Changes.Sort(TerrainCoordinateComparer.CompareChanges);
+        }
+    }
+
+    /// <summary>물리 Chunk의 최종 좌표 후보만 계산한다. Grid 반영은 서버 확정 Batch API의 책임이다.</summary>
     public sealed class TerrainSampler : MonoBehaviour
     {
         [SerializeField] private TerrainGridWorld targetWorld;
@@ -13,8 +33,9 @@ namespace TerrainCollapsePrototype
 
         public void Configure(TerrainGridWorld world) => targetWorld = world;
 
-        public void RebuildFromChunks(IReadOnlyList<FallingChunk> chunks)
+        public IReadOnlyList<TerrainPlacementProposal> CalculatePlacements(IReadOnlyList<FallingChunk> chunks)
         {
+            var proposals = new List<TerrainPlacementProposal>(chunks.Count);
             lastCenters.Clear();
             lastBounds.Clear();
             
@@ -22,15 +43,17 @@ namespace TerrainCollapsePrototype
             {
                 Bounds bounds = chunk.WorldBounds;
                 lastBounds.Add(bounds);
-                RebuildConnectedChunk(chunk, bounds);
+                proposals.Add(CalculateConnectedChunk(chunk, bounds));
             }
+            return proposals;
         }
 
-        private void RebuildConnectedChunk(FallingChunk chunk, Bounds bounds)
+        private TerrainPlacementProposal CalculateConnectedChunk(FallingChunk chunk, Bounds bounds)
         {
             IReadOnlyList<Vector2Int> localCells = chunk.LocalCells;
-            
-            if (localCells.Count == 0) return;
+            var changes = new List<TerrainCellChange>(localCells.Count);
+            if (localCells.Count == 0)
+                return new TerrainPlacementProposal(chunk.CollapseId, targetWorld.Revision, changes);
 
             Vector2Int padding = Vector2Int.one;
             Vector2Int worldMin = targetWorld.WorldToCell(bounds.min) - padding;
@@ -97,12 +120,14 @@ namespace TerrainCollapsePrototype
                 Vector2Int localCell = localCells[i];
                 Vector2Int targetCell = localCell + bestOffset;
                 lastCenters.Add(targetWorld.CellToWorldCenter(targetCell));
-                if (targetWorld.IsOccupied(targetCell) == false) targetWorld.SetCell(targetCell, chunk.CellTypes[i]);
+                changes.Add(new TerrainCellChange(targetCell, chunk.CellTypes[i]));
             }
+            changes.Sort(TerrainCoordinateComparer.CompareChanges);
 
             Debug.Log($"[Terrain Collapse] Chunk grid placement: hits={bestHitCount}/{localCells.Count}, " +
                       $"connections={bestConnectionCount}, overlaps={bestCollisionCount}, " +
                       $"class={bestPlacementClass}, alignmentError={bestAlignmentError:F4}, offset={bestOffset}");
+            return new TerrainPlacementProposal(chunk.CollapseId, targetWorld.Revision, changes);
         }
 
         private static bool IsBetterPlacement(

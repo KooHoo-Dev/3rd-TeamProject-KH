@@ -1,9 +1,12 @@
+// 타일 타입별 Sprite, 색상과 Collider 생성 여부 조회 카탈로그 정의
 using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // 안정화된 로컬 물리 Chunk에서 서버에 제안할 최종 Grid 좌표 후보 계산
+
     [Serializable]
     public sealed class TerrainTileDefinition
     {

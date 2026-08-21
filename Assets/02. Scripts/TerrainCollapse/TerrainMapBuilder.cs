@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,8 +9,10 @@ using UnityEngine.InputSystem;
 using UnityEditor;
 #endif
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // 에디터용 개발 지형 맵 생성, 페인팅과 JSON 파일 저장
+    
     [Serializable]
     public sealed class TerrainMapGenerationSettings
     {
@@ -370,3 +373,4 @@ namespace TerrainCollapsePrototype
         }
     }
 }
+#endif

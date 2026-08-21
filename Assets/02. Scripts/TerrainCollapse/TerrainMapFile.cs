@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // 초기 맵 JSON 형식과 에디터용 테스트 맵 생성 설정 정의
+
     /// <summary>JSON에 저장되는 데이터 기반 지형 맵 형식.</summary>
     [Serializable]
     public sealed class TerrainMapFile
@@ -39,11 +41,14 @@ namespace TerrainCollapsePrototype
             return true;
         }
 
+#if UNITY_EDITOR
         public string ToJson(bool prettyPrint = true) => JsonUtility.ToJson(this, prettyPrint);
+#endif
         public static TerrainMapFile FromJson(string json) => JsonUtility.FromJson<TerrainMapFile>(json);
     }
 
-    /// <summary>에디터 씬 생성과 런타임 폴백이 공유하는 데이터 맵 생성 규칙.</summary>
+#if UNITY_EDITOR
+    /// <summary>에디터용 성능/테스트 맵 생성 규칙.</summary>
     public static class TerrainMapFactory
     {
         public const int PerformanceMapWidth = 100;
@@ -67,4 +72,5 @@ namespace TerrainCollapsePrototype
             return TerrainMapBuilder.Build(settings, null);
         }
     }
+#endif
 }

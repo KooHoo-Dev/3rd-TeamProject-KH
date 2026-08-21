@@ -1,8 +1,11 @@
+#if UNITY_EDITOR
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // 에디터에서 붕괴 상호작용을 시험하기 위한 개발용 2D 플레이어 제어
+
     /// <summary>Kinematic Rigidbody를 직접 이동시키는 붕괴 테스트용 플레이어.</summary>
     [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D), typeof(SpriteRenderer))]
     public sealed class TestPlayerController : MonoBehaviour, IFallingTerrainEscapeTarget
@@ -129,3 +132,4 @@ namespace TerrainCollapsePrototype
         }
     }
 }
+#endif

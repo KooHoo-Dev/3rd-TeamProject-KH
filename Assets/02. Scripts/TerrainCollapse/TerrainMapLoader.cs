@@ -1,7 +1,9 @@
 using UnityEngine;
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // 초기 맵 JSON 검증과 TerrainGridWorld 런타임 Grid 변환 및 로드
+
     /// <summary>TextAsset JSON을 읽어 TerrainGridWorld의 런타임 데이터와 표현을 생성한다.</summary>
     [RequireComponent(typeof(TerrainGridWorld))]
     public sealed class TerrainMapLoader : MonoBehaviour

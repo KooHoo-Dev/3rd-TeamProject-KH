@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // TerrainGridData의 Chunk Mesh와 경계 Collider 표현 및 변경 영역 갱신
+
     /// <summary>
     /// 커스텀 Grid 데이터를 Chunk Mesh와 외곽선 Collider로 표현한다.
     /// 셀마다 GameObject를 만들지 않으며 변경된 Chunk만 지연 갱신한다.
@@ -30,6 +32,7 @@ namespace TerrainCollapsePrototype
         public float CellSize => cellSize;
         public Sprite TerrainSprite => terrainSprite;
         public Color TerrainColor => terrainColor;
+        public uint Revision => data?.Revision ?? 0;
 
         public void ConfigureVisual(Sprite sprite, Color color, TerrainTileCatalog catalog = null)
         {
@@ -55,9 +58,7 @@ namespace TerrainCollapsePrototype
         private void Start()
         {
             if (data != null) return;
-            
-            Debug.LogWarning("[Terrain Collapse] Map Loader가 없어 기본 데이터 맵을 생성합니다.", this);
-            LoadMap(TerrainMapFactory.CreatePerformanceMap());
+            Debug.LogError("[Terrain Collapse] 초기 JSON 또는 Snapshot이 로드되지 않았습니다.", this);
         }
 
         private void EnsureInitialized()
@@ -100,6 +101,31 @@ namespace TerrainCollapsePrototype
             BuildAllChunkMeshes();
             RebuildBoundaryCollider();
             Physics2D.SyncTransforms();
+        }
+
+        /// <summary>중간 참여자가 받은 런타임 Snapshot으로 월드를 교체한다.</summary>
+        public void LoadSnapshot(TerrainSnapshot snapshot)
+        {
+            EnsureInitialized();
+            ClearGeneratedObjects();
+            data = TerrainGridData.FromSnapshot(snapshot);
+            cellSize = data.CellSize;
+            transform.position = data.Origin;
+            BuildAllChunkMeshes();
+            RebuildBoundaryCollider();
+            Physics2D.SyncTransforms();
+        }
+
+        public TerrainSnapshot CreateSnapshot()
+            => data != null ? data.CreateSnapshot() : null;
+
+        /// <summary>서버 확정 변경만 이 API로 일괄 반영한다.</summary>
+        public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
+        {
+            if (data == null) { error = "TerrainGridData가 초기화되지 않았습니다."; return false; }
+            if (data.TryApplyAuthoritativeBatch(batch, out error) == false) return false;
+            foreach (TerrainCellChange change in batch.Changes) MarkCellDirty(change.Coord);
+            return true;
         }
 
         private void ClearGeneratedObjects()

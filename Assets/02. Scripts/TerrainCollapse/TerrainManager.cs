@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
 using UnityEngine.InputSystem;
+#endif
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // 지형 변경 진입점과 부유 그룹 탐색 및 서버 확정 Batch 적용 API 제공
+    
     /// <summary>
     /// 커스텀 TerrainGridData를 지형의 Source of Truth로 관리한다.
     /// 타일 제거 후 4방향 연결 그룹을 찾고 기반과 끊긴 그룹을 물리 Chunk로 넘긴다.
@@ -12,10 +16,14 @@ namespace TerrainCollapsePrototype
     public sealed class TerrainManager : MonoBehaviour
     {
         [SerializeField] private TerrainGridWorld terrainWorld;
+#if UNITY_EDITOR
         [SerializeField] private Camera inputCamera;
+#endif
         [SerializeField] private bool logEvents = true;
 
+#if UNITY_EDITOR
         private InputAction removeTileAction;
+#endif
 
         private static readonly Vector2Int[] Directions =
         {
@@ -24,13 +32,17 @@ namespace TerrainCollapsePrototype
 
         public TerrainGridWorld TerrainWorld => terrainWorld;
         public event Action TerrainChanged;
+        public event Action<TerrainChangeBatch> AuthoritativeBatchApplied;
 
         public void Configure(TerrainGridWorld world, Camera camera)
         {
             terrainWorld = world;
+#if UNITY_EDITOR
             inputCamera = camera;
+#endif
         }
 
+#if UNITY_EDITOR
         private void OnEnable()
         {
             removeTileAction ??= new InputAction("Remove Terrain Cell", InputActionType.Button, "<Pointer>/press");
@@ -59,6 +71,7 @@ namespace TerrainCollapsePrototype
             if (RemoveCell(cell) == false && logEvents)
                 Debug.Log($"[Terrain Collapse] Cell click missed: screen={pointer}, world={world}, cell={cell}");
         }
+#endif
 
         public bool RemoveCell(Vector2Int cell)
         {
@@ -71,10 +84,24 @@ namespace TerrainCollapsePrototype
             return true;
         }
 
+        public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
+        {
+            if (terrainWorld.ApplyAuthoritativeBatch(batch, out error) == false) return false;
+            if (logEvents)
+                Debug.Log($"[Terrain Collapse] Authoritative batch applied: collapse={batch.CollapseId}, " +
+                          $"revision={batch.ResultRevision}, changes={batch.Changes.Count}");
+            AuthoritativeBatchApplied?.Invoke(batch);
+            TerrainChanged?.Invoke();
+            return true;
+        }
+
+        public TerrainSnapshot CreateSnapshot() => terrainWorld.CreateSnapshot();
+
         /// <summary>점유 셀을 BFS로 순회하고 기반암과 연결되지 않은 그룹을 분리한다.</summary>
         public List<List<Vector2Int>> FindFloatingGroups()
         {
             List<Vector2Int> occupiedSnapshot = new(terrainWorld.GetOccupiedCells());
+            occupiedSnapshot.Sort(TerrainCoordinateComparer.Compare);
             HashSet<Vector2Int> visited = new();
             List<List<Vector2Int>> floatingGroups = new();
 
@@ -101,8 +128,14 @@ namespace TerrainCollapsePrototype
                     }
                 }
 
-                if (supported == false) floatingGroups.Add(group);
+                if (supported == false)
+                {
+                    group.Sort(TerrainCoordinateComparer.Compare);
+                    floatingGroups.Add(group);
+                }
             }
+
+            floatingGroups.Sort((left, right) => TerrainCoordinateComparer.Compare(left[0], right[0]));
 
             return floatingGroups;
         }

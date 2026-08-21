@@ -1,14 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // 붕괴 Chunk의 물리 낙하, 지면 접촉, 안정화 판정과 플레이어 탈출 처리
+    
     public interface IFallingTerrainEscapeTarget
     {
         bool TryEscapeFromFallingTerrain(Bounds terrainBounds, float terrainCellSize);
     }
 
-    /// <summary>커스텀 Grid 셀 묶음의 물리 낙하와 안정화 상태를 관리한다.</summary>
+    /// <summary>커스텀 Grid 셀 묶음의 물리 낙하와 안정화 상태를 관리</summary>
     [RequireComponent(typeof(Rigidbody2D), typeof(CompositeCollider2D))]
     public sealed class FallingChunk : MonoBehaviour
     {
@@ -33,6 +35,7 @@ namespace TerrainCollapsePrototype
         private float lastGroundContactTime = float.NegativeInfinity;
         private bool hasTouchedGround;
         private bool settled;
+        private long collapseId;
 
         public bool IsSettled => settled;
         public IReadOnlyList<Vector2Int> LocalCells => localCells;
@@ -40,6 +43,7 @@ namespace TerrainCollapsePrototype
         public Collider2D ShapeCollider => compositeCollider;
         public Bounds WorldBounds => compositeCollider.bounds;
         public float CellSize => cellSize;
+        public long CollapseId => collapseId;
 
         private void Awake()
         {
@@ -56,13 +60,15 @@ namespace TerrainCollapsePrototype
         public void Configure(
             IReadOnlyList<Vector2Int> cells,
             IReadOnlyList<TerrainTileType> types,
-            float size)
+            float size,
+            long id)
         {
             localCells.Clear();
             localCells.AddRange(cells);
             cellTypes.Clear();
             cellTypes.AddRange(types);
             cellSize = size;
+            collapseId = id;
         }
 
         public Vector3 GetLocalCellCenterWorld(Vector2Int localCell)

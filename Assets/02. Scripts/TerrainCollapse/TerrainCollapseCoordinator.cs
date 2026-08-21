@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace TerrainCollapsePrototype
+namespace TerrainCollapse
 {
+    // 지형 변경 후 부유 그룹 탐색과 연쇄 붕괴 실행 순서 조정
+
     public sealed class TerrainCollapseCoordinator : MonoBehaviour
     {
         [SerializeField] private TerrainManager terrainManager;
