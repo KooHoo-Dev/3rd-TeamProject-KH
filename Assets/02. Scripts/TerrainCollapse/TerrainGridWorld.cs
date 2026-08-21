@@ -45,7 +45,11 @@ namespace TerrainCollapse
             => tileCatalog?.Get(type)?.Sprite ?? terrainSprite;
 
         public Color GetTileColor(TerrainTileType type)
-            => tileCatalog?.Get(type)?.Color ?? terrainColor;
+        {
+            TerrainTileDefinition definition = tileCatalog?.Get(type);
+            if (definition != null) return definition.Color;
+            return type == TerrainTileType.Bedrock ? Color.black : terrainColor;
+        }
 
         public bool TileCreatesCollider(TerrainTileType type)
             => tileCatalog?.Get(type)?.CreatesCollider ?? true;

@@ -67,9 +67,25 @@ namespace TerrainCollapse
             float planeDistance = Mathf.Abs(terrainWorld.transform.position.z - camera.transform.position.z);
             Vector3 world = camera.ScreenToWorldPoint(new Vector3(pointer.x, pointer.y, planeDistance));
             Vector2Int cell = terrainWorld.WorldToCell(world);
+            TerrainCell terrainCell = terrainWorld.Data.GetCellOrNull(cell);
 
-            if (RemoveCell(cell) == false && logEvents)
-                Debug.Log($"[Terrain Collapse] Cell click missed: screen={pointer}, world={world}, cell={cell}");
+            if (terrainCell == null)
+            {
+                if (logEvents)
+                    Debug.Log($"[Terrain Collapse] Empty cell clicked: screen={pointer}, " +
+                              $"world={world}, cell={cell}");
+                return;
+            }
+
+            if (terrainCell.Type == TerrainTileType.Bedrock)
+            {
+                if (logEvents)
+                    Debug.Log($"[Terrain Collapse] Bedrock cannot be removed: screen={pointer}, " +
+                              $"world={world}, cell={cell}");
+                return;
+            }
+
+            RemoveCell(cell);
         }
 #endif
 
