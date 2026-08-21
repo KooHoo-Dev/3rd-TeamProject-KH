@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -28,6 +29,7 @@ namespace TerrainCollapse
 
         private readonly RaycastHit2D[] castHits = new RaycastHit2D[16];
         private readonly Collider2D[] overlapHits = new Collider2D[16];
+        private readonly Dictionary<long, FallingTerrainContactResult> resolvedCollapses = new();
         private Rigidbody2D body;
         private BoxCollider2D box;
         private SpriteRenderer spriteRenderer;
@@ -35,7 +37,6 @@ namespace TerrainCollapse
         private bool grounded;
         private bool buried;
         private float burialDamageElapsed;
-        private float lastEscapeTime = float.NegativeInfinity;
         private Coroutine burialRecheckRoutine;
         
         public bool IsBuried => buried;                   // 현재 지형에 매몰된 상태 여부
@@ -129,10 +130,18 @@ namespace TerrainCollapse
         /// <summary>위에서 내려오는 덩어리와 겹치지 않는 가장 가까운 좌우 위치 탐색</summary>
         public FallingTerrainContactResult ResolveFallingTerrainContact(
             Bounds terrainBounds,
-            float terrainCellSize)
+            float terrainCellSize,
+            long collapseId)
         {
-            if (buried || Time.time - lastEscapeTime < Time.fixedDeltaTime)
-                return FallingTerrainContactResult.Ignored;
+            // 같은 붕괴에서는 최초 판정 결과를 재사용해 반복 밀림 방지
+            if (resolvedCollapses.TryGetValue(collapseId, out FallingTerrainContactResult resolved))
+                return resolved;
+
+            if (buried)
+            {
+                resolvedCollapses[collapseId] = FallingTerrainContactResult.NoEscapeSpace;
+                return FallingTerrainContactResult.NoEscapeSpace;
+            }
 
             Bounds playerBounds = box.bounds;
             Bounds chunkBounds = terrainBounds;
@@ -148,19 +157,31 @@ namespace TerrainCollapse
             {
                 float distance = Mathf.Min(probe * escapeProbeStep, maximumDistance);
                 int preferredDirection = transform.position.x <= chunkBounds.center.x ? -1 : 1;
-                if (TryMoveToEmptySpace(preferredDirection * distance) ||
-                    TryMoveToEmptySpace(-preferredDirection * distance))
+                if (TryEscapeFallingPath(preferredDirection * distance, chunkBounds) ||
+                    TryEscapeFallingPath(-preferredDirection * distance, chunkBounds))
                 {
-                    lastEscapeTime = Time.time;
                     velocity.x = 0f;
-                    
+                    resolvedCollapses[collapseId] = FallingTerrainContactResult.Escaped;
+
                     return FallingTerrainContactResult.Escaped;
                 }
             }
 
             EnterBuriedState();
-            
+            resolvedCollapses[collapseId] = FallingTerrainContactResult.NoEscapeSpace;
+
             return FallingTerrainContactResult.NoEscapeSpace;
+        }
+
+        /// <summary>후보 위치가 낙하 영역을 완전히 벗어나고 비어 있을 때만 이동</summary>
+        private bool TryEscapeFallingPath(float offsetX, Bounds terrainBounds)
+        {
+            Bounds candidate = box.bounds;
+            candidate.center += Vector3.right * offsetX;
+            bool outsideFallingPath = candidate.max.x <= terrainBounds.min.x + collisionSkin ||
+                                      candidate.min.x >= terrainBounds.max.x - collisionSkin;
+
+            return outsideFallingPath && TryMoveToEmptySpace(offsetX);
         }
 
         private bool TryMoveToEmptySpace(float offsetX)

@@ -18,7 +18,8 @@ namespace TerrainCollapse
     {
         FallingTerrainContactResult ResolveFallingTerrainContact(
             Bounds terrainBounds,
-            float terrainCellSize);
+            float terrainCellSize,
+            long collapseId);
     }
 
     /// <summary>커스텀 Grid 셀 묶음의 물리 낙하와 안정화 상태를 관리</summary>
@@ -134,7 +135,7 @@ namespace TerrainCollapse
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
                     FallingTerrainContactResult result =
-                        target.ResolveFallingTerrainContact(WorldBounds, CellSize);
+                        target.ResolveFallingTerrainContact(WorldBounds, CellSize, CollapseId);
 
                     // 탈출 공간이 없을 때 캐릭터가 Chunk를 받치지 않도록 충돌 해제
                     if (result == FallingTerrainContactResult.NoEscapeSpace)
