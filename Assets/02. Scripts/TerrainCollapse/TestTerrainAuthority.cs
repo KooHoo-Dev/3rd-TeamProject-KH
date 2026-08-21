@@ -1,9 +1,10 @@
-// 서버 미구현 단계에서 좌표 제안을 즉시 확정 Batch로 되돌리는 에디터 전용 테스트 권위자
 #if UNITY_EDITOR
 using UnityEngine;
 
 namespace TerrainCollapse
 {
+    // 서버 미구현 단계에서 좌표 제안을 즉시 확정 Batch로 되돌리는 에디터 전용 테스트 권위자
+
     public sealed class TestTerrainAuthority : MonoBehaviour
     {
         [SerializeField] private CollapseManager collapseManager;

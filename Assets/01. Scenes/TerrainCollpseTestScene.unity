@@ -500,6 +500,11 @@ MonoBehaviour:
   collisionMask:
     serializedVersion: 2
     m_Bits: 4294967295
+  terrainManager: {fileID: 190307187}
+  burialDamageInterval: 1
+  burialDamagePerTick: 1
+  normalSortingOrder: 2
+  buriedSortingOrder: -1
 --- !u!212 &1971883698
 SpriteRenderer:
   serializedVersion: 2
