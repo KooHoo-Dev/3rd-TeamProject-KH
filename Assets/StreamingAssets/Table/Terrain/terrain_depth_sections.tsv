@@ -1,0 +1,5 @@
+ProfileID	SectionID	SectionOrder	MinDepth	MaxDepth	BaseTileType
+Default	Shallow	0	0	5	Dirt
+Default	Middle	1	6	24	Stone
+Default	Deep	2	25	99	Stone
+CollapseTest	TestGround	0	0	11	Ground

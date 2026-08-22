@@ -1,0 +1,7 @@
+TileType	Name	MineHardness	IsMineable	CanCreateCollider	CanSupportTerrain	DropItemID
+Ground	땅	1	TRUE	TRUE	FALSE	0
+Dirt	흙	1	TRUE	TRUE	FALSE	0
+Stone	돌	3	TRUE	TRUE	FALSE	1
+Bedrock	기반암	0	FALSE	TRUE	TRUE	0
+CoalOre	석탄 광석	2	TRUE	TRUE	FALSE	10
+IronOre	철 광석	3	TRUE	TRUE	FALSE	11
