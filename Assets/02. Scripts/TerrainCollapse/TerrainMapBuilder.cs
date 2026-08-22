@@ -13,41 +13,6 @@ namespace TerrainCollapse
 {
     // 에디터용 개발 지형 맵 생성, 페인팅과 JSON 파일 저장
     
-    [Serializable]
-    public sealed class TerrainMapGenerationSettings
-    {
-        public string Name = "DebugTerrainMap";
-        public int Width = 100;
-        public int Height = 105;
-        public int SolidDepth = 100;
-        public float CellSize = 1f;
-        public Vector2 Origin = new(-50f, -99f);
-        public int BedrockDepth = 1;
-        public TerrainTileType BaseTileType = TerrainTileType.Ground;
-        public bool UseRandomSeed;
-        public int Seed = 12345;
-        public bool AddCollapseTestStructure = true;
-    }
-
-    /// <summary>모든 생성 규칙이 동일한 시드 난수열을 공유하도록 보관하는 Context.</summary>
-    public sealed class TerrainMapGenerationContext
-    {
-        public int Seed { get; }
-        public System.Random Random { get; }
-
-        public TerrainMapGenerationContext(int seed)
-        {
-            Seed = seed;
-            Random = new System.Random(seed);
-        }
-    }
-
-    /// <summary>광물 군집, 동굴 등 독립적인 절차 생성 단계를 추가하기 위한 확장 지점.</summary>
-    public abstract class TerrainMapGenerationRule : ScriptableObject
-    {
-        public abstract void Apply(TerrainMapFile map, TerrainMapGenerationContext context);
-    }
-
     /// <summary>디버깅용 JSON 맵을 생성하며 추후 시드 기반 생성 규칙을 순서대로 합성한다.</summary>
     public sealed class TerrainMapBuilder : MonoBehaviour
     {
@@ -160,7 +125,7 @@ namespace TerrainCollapse
         public void CreateEmptyEditableMap()
         {
             int seed = settings.UseRandomSeed ? Environment.TickCount : settings.Seed;
-            editingMap = CreateEmptyMap(settings, seed);
+            editingMap = TerrainSeedGenerator.CreateEmptyMap(settings, seed);
             targetWorld.LoadMap(editingMap);
             RebuildGridOverlay();
         }
@@ -168,7 +133,7 @@ namespace TerrainCollapse
         [ContextMenu("Generate Editable Map From Rules")]
         public void GenerateEditableMap()
         {
-            editingMap = Build(settings, generationRules);
+            editingMap = TerrainSeedGenerator.Generate(settings, generationRules);
             targetWorld.LoadMap(editingMap);
             RebuildGridOverlay();
         }
@@ -183,7 +148,7 @@ namespace TerrainCollapse
         [ContextMenu("Generate Debug Map JSON")]
         public void GenerateDebugMapJson()
         {
-            TerrainMapFile map = Build(settings, generationRules);
+            TerrainMapFile map = TerrainSeedGenerator.Generate(settings, generationRules);
             SaveMapJson(map);
         }
 
@@ -202,7 +167,7 @@ namespace TerrainCollapse
 
         private TerrainMapFile CaptureCurrentGrid()
         {
-            TerrainMapFile map = CreateEmptyMap(settings, editingMap.Seed);
+            TerrainMapFile map = TerrainSeedGenerator.CreateEmptyMap(settings, editingMap.Seed);
             map.Name = editingMap.Name;
             foreach (Vector2Int coord in targetWorld.GetOccupiedCells())
             {
@@ -283,83 +248,6 @@ namespace TerrainCollapse
             if (painterMode) Time.timeScale = previousTimeScale;
             if (gridMesh != null) Destroy(gridMesh);
             if (gridMaterial != null) Destroy(gridMaterial);
-        }
-
-        public static TerrainMapFile Build(
-            TerrainMapGenerationSettings settings,
-            IReadOnlyList<TerrainMapGenerationRule> rules)
-        {
-            int seed = settings.UseRandomSeed ? Environment.TickCount : settings.Seed;
-            TerrainMapGenerationContext context = new(seed);
-            TerrainMapFile map = CreateEmptyMap(settings, seed);
-            FillBaseTerrain(map, settings);
-
-            if (settings.AddCollapseTestStructure)
-                AddCollapseTestStructure(map, settings);
-
-            if (rules != null)
-            {
-                foreach (TerrainMapGenerationRule rule in rules)
-                    rule.Apply(map, context);
-            }
-
-            return map;
-        }
-
-        private static TerrainMapFile CreateEmptyMap(TerrainMapGenerationSettings settings, int seed)
-        {
-            TerrainMapFile map = new()
-            {
-                Name = settings.Name,
-                Seed = seed,
-                Width = settings.Width,
-                Height = settings.Height,
-                CellSize = settings.CellSize,
-                Origin = settings.Origin,
-                Tiles = new List<TerrainTileType>(settings.Width * settings.Height)
-            };
-
-            for (int i = 0; i < settings.Width * settings.Height; i++)
-                map.Tiles.Add(TerrainTileType.Empty);
-            return map;
-        }
-
-        private static void FillBaseTerrain(TerrainMapFile map, TerrainMapGenerationSettings settings)
-        {
-            int depth = Mathf.Clamp(settings.SolidDepth, 0, settings.Height);
-            int bedrockDepth = Mathf.Clamp(settings.BedrockDepth, 0, depth);
-            for (int y = 0; y < depth; y++)
-            for (int x = 0; x < settings.Width; x++)
-            {
-                TerrainTileType type = y < bedrockDepth
-                    ? TerrainTileType.Bedrock
-                    : settings.BaseTileType;
-                map.SetTile(new Vector2Int(x, y), type);
-            }
-        }
-
-        private static void AddCollapseTestStructure(
-            TerrainMapFile map,
-            TerrainMapGenerationSettings settings)
-        {
-            int centerX = settings.Width / 2;
-            int surfaceY = settings.SolidDepth - 1;
-            for (int y = 4; y <= 5; y++)
-            for (int x = -4; x <= 2; x++)
-                SetTileInsideBounds(map, new Vector2Int(centerX + x, surfaceY + y), settings.BaseTileType);
-
-            for (int y = 1; y <= 3; y++)
-            for (int x = -1; x <= 0; x++)
-                SetTileInsideBounds(map, new Vector2Int(centerX + x, surfaceY + y), settings.BaseTileType);
-        }
-
-        private static void SetTileInsideBounds(
-            TerrainMapFile map,
-            Vector2Int coord,
-            TerrainTileType type)
-        {
-            bool inside = coord.x >= 0 && coord.x < map.Width && coord.y >= 0 && coord.y < map.Height;
-            if (inside) map.SetTile(coord, type);
         }
 
         private static string ResolveOutputPath(string configuredPath)

@@ -69,7 +69,7 @@ namespace TerrainCollapse
                 BaseTileType = TerrainTileType.Ground,
                 AddCollapseTestStructure = true
             };
-            return TerrainMapBuilder.Build(settings, null);
+            return TerrainSeedGenerator.Generate(settings);
         }
     }
 #endif
