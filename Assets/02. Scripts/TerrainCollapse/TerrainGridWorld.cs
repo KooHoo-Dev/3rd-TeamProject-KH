@@ -19,6 +19,7 @@ namespace TerrainCollapse
         [SerializeField] private Sprite terrainSprite;
         [SerializeField] private Color terrainColor = Color.white;
         [SerializeField] private TerrainTileCatalog tileCatalog;
+        [SerializeField] private bool isDebugTileColorEnabled;
         
         private static readonly Vector2Int[] NoCells = new Vector2Int[0];
         private readonly Dictionary<Vector2Int, MeshFilter> chunkViews = new();
@@ -48,8 +49,22 @@ namespace TerrainCollapse
         {
             TerrainTileDefinition definition = tileCatalog?.Get(type);
             if (definition != null) return definition.Color;
+            if (isDebugTileColorEnabled) return GetDebugTileColor(type);
             return type == TerrainTileType.Bedrock ? Color.black : terrainColor;
         }
+
+        private static Color GetDebugTileColor(TerrainTileType type)
+            => type switch
+            {
+                TerrainTileType.Ground => new Color(0.35f, 0.75f, 0.3f),
+                TerrainTileType.Dirt => new Color(0.55f, 0.3f, 0.12f),
+                TerrainTileType.Stone => new Color(0.55f, 0.58f, 0.62f),
+                TerrainTileType.Bedrock => new Color(0.05f, 0.05f, 0.05f),
+                TerrainTileType.DeepStone => new Color(0.28f, 0.3f, 0.38f),
+                TerrainTileType.CoalOre => new Color(0.18f, 0.2f, 0.24f),
+                TerrainTileType.IronOre => new Color(0.85f, 0.38f, 0.12f),
+                _ => Color.magenta
+            };
 
         public bool TileCreatesCollider(TerrainTileType type)
             => tileCatalog?.Get(type)?.CreatesCollider ?? true;

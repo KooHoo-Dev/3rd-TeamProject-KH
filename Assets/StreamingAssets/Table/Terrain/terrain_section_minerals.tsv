@@ -1,4 +1,3 @@
 ProfileID	SectionID	MineralOrder	MineralTileType	ClusterDensity	MinClusterSize	MaxClusterSize
-Default	Middle	0	CoalOre	0.02	3	8
-Default	Deep	0	CoalOre	0.015	3	8
-Default	Deep	1	IronOre	0.01	2	6
+Default	Rock	0	CoalOre	0.02	3	8
+Default	Deep	0	IronOre	0.01	2	6

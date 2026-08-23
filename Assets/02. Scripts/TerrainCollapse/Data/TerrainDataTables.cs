@@ -162,7 +162,7 @@ namespace TerrainCollapse
             foreach (List<TerrainDepthSectionDef> profileDefs in defsByProfile.Values)
             {
                 profileDefs.Sort((left, right) => left.SectionOrder.CompareTo(right.SectionOrder));
-                ValidateOverlap(profileDefs);
+                ValidateSectionRatios(profileDefs);
             }
         }
 
@@ -187,23 +187,32 @@ namespace TerrainCollapse
             if (string.IsNullOrWhiteSpace(dto.ProfileID) || string.IsNullOrWhiteSpace(dto.SectionID))
                 throw new InvalidDataException("ProfileID와 SectionID는 비어 있을 수 없습니다");
             
-            if (dto.SectionOrder < 0 || dto.MinDepth < 0 || dto.MaxDepth < dto.MinDepth)
-                throw new InvalidDataException($"섹션 순서 또는 깊이 범위가 올바르지 않습니다: {dto.SectionID}");
+            if (dto.SectionOrder < 0 || dto.MinDepthRatio < 0f || dto.MaxDepthRatio > 1f ||
+                dto.MaxDepthRatio <= dto.MinDepthRatio)
+                throw new InvalidDataException($"섹션 순서 또는 깊이 비율이 올바르지 않습니다: {dto.SectionID}");
             
             if (dto.BaseTileType == TerrainTileType.Empty)
                 throw new InvalidDataException($"BaseTileType은 Empty일 수 없습니다: {dto.SectionID}");
         }
 
-        private static void ValidateOverlap(IReadOnlyList<TerrainDepthSectionDef> profileDefs)
+        private static void ValidateSectionRatios(IReadOnlyList<TerrainDepthSectionDef> profileDefs)
         {
-            for (int i = 0; i < profileDefs.Count; i++)
-                for (int j = i + 1; j < profileDefs.Count; j++)
-                {
-                    TerrainDepthSectionDef left = profileDefs[i];
-                    TerrainDepthSectionDef right = profileDefs[j];
-                    if (left.MinDepth <= right.MaxDepth && right.MinDepth <= left.MaxDepth)
-                        throw new InvalidDataException($"깊이 섹션이 겹칩니다: {left.Profile.ProfileID}/{left.SectionID}/{right.SectionID}");
-                }
+            if (profileDefs.Count == 0) return;
+            string profileID = profileDefs[0].Profile.ProfileID;
+
+            if (Mathf.Approximately(profileDefs[0].MinDepthRatio, 0f) == false)
+                throw new InvalidDataException($"첫 깊이 섹션은 0에서 시작해야 합니다: {profileID}");
+
+            for (int i = 1; i < profileDefs.Count; i++)
+            {
+                TerrainDepthSectionDef previous = profileDefs[i - 1];
+                TerrainDepthSectionDef current = profileDefs[i];
+                if (Mathf.Approximately(previous.MaxDepthRatio, current.MinDepthRatio) == false)
+                    throw new InvalidDataException($"깊이 섹션 비율이 이어지지 않습니다: {profileID}/{previous.SectionID}/{current.SectionID}");
+            }
+
+            if (Mathf.Approximately(profileDefs[^1].MaxDepthRatio, 1f) == false)
+                throw new InvalidDataException($"마지막 깊이 섹션은 1에서 끝나야 합니다: {profileID}");
         }
     }
 

@@ -50,7 +50,13 @@ namespace TerrainCollapse
 
         private void Start()
         {
-            Load();
+            EnsureLoaded();
+        }
+
+        /// <summary>미로드 상태에서만 전체 지형 테이블 로드</summary>
+        public void EnsureLoaded()
+        {
+            if (IsReady == false) Load();
         }
 
         /// <summary>참조 의존 순서에 따른 전체 지형 테이블 로드</summary>

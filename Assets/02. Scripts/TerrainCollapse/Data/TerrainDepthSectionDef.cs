@@ -10,8 +10,8 @@ namespace TerrainCollapse
         public string ProfileID;
         public string SectionID;
         public int SectionOrder;
-        public int MinDepth;
-        public int MaxDepth;
+        public float MinDepthRatio;
+        public float MaxDepthRatio;
         public TerrainTileType BaseTileType;
     }
 
@@ -20,8 +20,8 @@ namespace TerrainCollapse
         public TerrainSeedProfileDef Profile { get; }
         public string SectionID { get; }
         public int SectionOrder { get; }
-        public int MinDepth { get; }
-        public int MaxDepth { get; }
+        public float MinDepthRatio { get; }
+        public float MaxDepthRatio { get; }
         public TerrainTileDef BaseTile { get; }
 
         public TerrainDepthSectionDef(
@@ -32,9 +32,17 @@ namespace TerrainCollapse
             Profile = profile;
             SectionID = dto.SectionID;
             SectionOrder = dto.SectionOrder;
-            MinDepth = dto.MinDepth;
-            MaxDepth = dto.MaxDepth;
+            MinDepthRatio = dto.MinDepthRatio;
+            MaxDepthRatio = dto.MaxDepthRatio;
             BaseTile = baseTile;
+        }
+
+        public bool ContainsDepthRatio(float depthRatio)
+        {
+            if (depthRatio < MinDepthRatio) return false;
+            return MaxDepthRatio >= 1f
+                ? depthRatio <= MaxDepthRatio
+                : depthRatio < MaxDepthRatio;
         }
     }
 }

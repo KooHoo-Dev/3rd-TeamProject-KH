@@ -4,16 +4,33 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 설정과 시드를 기반으로 TerrainMapFile을 생성하는 런타임 지형 생성기
+    // 설정 또는 데이터 테이블 프로필 기반 지형 생성 API를 제공하는 단일 진입점
 
     public static class TerrainSeedGenerator
     {
+        // 데이터 테이블 프로필과 임의 시드로 런타임 맵 생성
+        public static TerrainMapFile Generate(string profileID)
+            => TerrainTableSeedGenerator.Generate(profileID, Environment.TickCount);
+
+        // 데이터 테이블 프로필과 외부 확정 시드로 런타임 맵 생성
+        public static TerrainMapFile Generate(string profileID, int seed)
+            => TerrainTableSeedGenerator.Generate(profileID, seed);
+
+        // 참조가 해석된 프로필과 지형 규칙으로 런타임 맵 생성
+        public static TerrainMapFile Generate(
+            TerrainSeedProfileDef profile,
+            IReadOnlyList<TerrainDepthSectionDef> sections,
+            TerrainSectionMineralTable mineralTable,
+            int seed)
+            => TerrainTableSeedGenerator.Generate(profile, sections, mineralTable, seed);
+
         /// <summary>설정의 고정 또는 랜덤 시드 정책에 따라 런타임 맵 생성</summary>
         public static TerrainMapFile Generate(
             TerrainMapGenerationSettings settings,
             IReadOnlyList<TerrainMapGenerationRule> rules = null)
         {
             int seed = settings.UseRandomSeed ? Environment.TickCount : settings.Seed;
+
             return Generate(settings, rules, seed);
         }
 
@@ -61,6 +78,12 @@ namespace TerrainCollapse
             return map;
         }
 
+        /// <summary>데이터 테이블 프로필 크기에 맞춰 Empty 타일로 채운 맵 생성</summary>
+        public static TerrainMapFile CreateEmptyMap(
+            TerrainSeedProfileDef profile,
+            int seed)
+            => TerrainTableSeedGenerator.CreateEmptyMap(profile, seed);
+
         private static void FillBaseTerrain(
             TerrainMapFile map,
             TerrainMapGenerationSettings settings)
@@ -69,13 +92,13 @@ namespace TerrainCollapse
             int bedrockDepth = Mathf.Clamp(settings.BedrockDepth, 0, depth);
 
             for (int y = 0; y < depth; y++)
-            for (int x = 0; x < settings.Width; x++)
-            {
-                TerrainTileType type = y < bedrockDepth
-                    ? TerrainTileType.Bedrock
-                    : settings.BaseTileType;
-                map.SetTile(new Vector2Int(x, y), type);
-            }
+                for (int x = 0; x < settings.Width; x++)
+                {
+                    TerrainTileType type = y < bedrockDepth
+                        ? TerrainTileType.Bedrock
+                        : settings.BaseTileType;
+                    map.SetTile(new Vector2Int(x, y), type);
+                }
         }
 
         private static void AddCollapseTestStructure(

@@ -19,6 +19,10 @@ namespace TerrainCollapse
         [SerializeField] private TerrainMapGenerationSettings settings = new();
         [SerializeField] private List<TerrainMapGenerationRule> generationRules = new();
         [SerializeField] private string outputPath = "Assets/TerrainCollapseGenerated/DebugTerrainMap.json";
+        [Header("Data Table Generation")]
+        [SerializeField] private string dataTableProfileID = "Default";
+        [SerializeField] private bool useRandomDataTableSeed;
+        [SerializeField] private int dataTableSeed = 12345;
         [Header("Map Painter")]
         [SerializeField] private TerrainGridWorld targetWorld;
         [SerializeField] private TerrainManager terrainManager;
@@ -94,6 +98,7 @@ namespace TerrainCollapse
             GUILayout.EndHorizontal();
             if (GUILayout.Button("Create Empty Grid")) CreateEmptyEditableMap();
             if (GUILayout.Button("Generate From Rules")) GenerateEditableMap();
+            if (GUILayout.Button("Generate From Data Table")) GenerateDataTableMap();
             if (GUILayout.Button("Save Current Grid To JSON")) SavePaintedMapJson();
             if (GUILayout.Button("End Painter Mode")) EndPainterMode();
             GUILayout.Label("Left Drag: Paint / Right Drag: Erase");
@@ -138,6 +143,26 @@ namespace TerrainCollapse
             RebuildGridOverlay();
         }
 
+        [ContextMenu("Generate Editable Map From Data Table")]
+        public void GenerateDataTableMap()
+        {
+            if (Application.isPlaying == false)
+            {
+                Debug.LogWarning("[Terrain Map Builder] 데이터 테이블 맵 생성은 Play Mode에서 실행해야 합니다", this);
+                return;
+            }
+
+            int seed = useRandomDataTableSeed ? Environment.TickCount : dataTableSeed;
+            editingMap = TerrainSeedGenerator.Generate(dataTableProfileID, seed);
+            targetWorld.LoadMap(editingMap);
+            RebuildGridOverlay();
+
+            Debug.Log(
+                $"[Terrain Map Builder] 데이터 테이블 맵 생성 완료: " +
+                $"profile={dataTableProfileID}, seed={seed}",
+                this);
+        }
+
         [ContextMenu("Save Painted Map JSON")]
         public void SavePaintedMapJson()
         {
@@ -167,8 +192,7 @@ namespace TerrainCollapse
 
         private TerrainMapFile CaptureCurrentGrid()
         {
-            TerrainMapFile map = TerrainSeedGenerator.CreateEmptyMap(settings, editingMap.Seed);
-            map.Name = editingMap.Name;
+            TerrainMapFile map = CreateEmptyCaptureMap();
             foreach (Vector2Int coord in targetWorld.GetOccupiedCells())
             {
                 if (IsInsideMap(coord) == false) continue;
@@ -176,6 +200,25 @@ namespace TerrainCollapse
                 map.SetTile(coord, type);
             }
             editingMap = map;
+            return map;
+        }
+
+        private TerrainMapFile CreateEmptyCaptureMap()
+        {
+            TerrainMapFile map = new()
+            {
+                Name = editingMap.Name,
+                Seed = editingMap.Seed,
+                Width = editingMap.Width,
+                Height = editingMap.Height,
+                CellSize = editingMap.CellSize,
+                Origin = editingMap.Origin,
+                Tiles = new List<TerrainTileType>(editingMap.Width * editingMap.Height)
+            };
+
+            for (int i = 0; i < editingMap.Width * editingMap.Height; i++)
+                map.Tiles.Add(TerrainTileType.Empty);
+
             return map;
         }
 
