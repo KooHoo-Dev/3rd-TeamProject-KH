@@ -11,6 +11,7 @@ namespace TerrainCollapse
         Dirt = 2,
         Stone = 3,
         Bedrock = 4,
+        DeepStone = 5,
         CoalOre = 10,
         IronOre = 11
     }

@@ -34,6 +34,7 @@ namespace TerrainCollapse.Editor
 
             Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
             SetObjectReference(world, "terrainSprite", sprite);
+            SetBool(world, "isDebugTileColorEnabled", true);
             SetObjectReference(loader, "mapJson", AssetDatabase.LoadAssetAtPath<TextAsset>(MapPath));
             SetObjectReference(loader, "targetWorld", world);
             SetObjectReference(manager, "terrainWorld", world);
@@ -83,6 +84,13 @@ namespace TerrainCollapse.Editor
         {
             var serializedObject = new SerializedObject(target);
             serializedObject.FindProperty(propertyName).objectReferenceValue = value;
+            serializedObject.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void SetBool(Object target, string propertyName, bool value)
+        {
+            var serializedObject = new SerializedObject(target);
+            serializedObject.FindProperty(propertyName).boolValue = value;
             serializedObject.ApplyModifiedPropertiesWithoutUndo();
         }
     }
