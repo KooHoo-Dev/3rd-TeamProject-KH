@@ -9,6 +9,7 @@ namespace TerrainCollapse
     {
         public string ProfileID;
         public string SectionID;
+        public int MineralOrder;
         public TerrainTileType MineralTileType;
         public float ClusterDensity; // 섹션 내 각 셀에서 군집 생성을 시도할 확률
         public int MinClusterSize;
@@ -20,6 +21,7 @@ namespace TerrainCollapse
         public TerrainSeedProfileDef Profile { get; }
         public TerrainDepthSectionDef Section { get; }
         public TerrainTileDef MineralTile { get; }
+        public int MineralOrder { get; }
         public float ClusterDensity { get; }
         public int MinClusterSize { get; }
         public int MaxClusterSize { get; }
@@ -33,6 +35,7 @@ namespace TerrainCollapse
             Profile = profile;
             Section = section;
             MineralTile = mineralTile;
+            MineralOrder = dto.MineralOrder;
             ClusterDensity = dto.ClusterDensity;
             MinClusterSize = dto.MinClusterSize;
             MaxClusterSize = dto.MaxClusterSize;
