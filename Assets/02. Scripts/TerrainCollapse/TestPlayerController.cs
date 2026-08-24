@@ -73,6 +73,7 @@ namespace TerrainCollapse
             if (buried)
             {
                 TickBurialDamage();
+                
                 return;
             }
 
@@ -157,6 +158,7 @@ namespace TerrainCollapse
             {
                 float distance = Mathf.Min(probe * escapeProbeStep, maximumDistance);
                 int preferredDirection = transform.position.x <= chunkBounds.center.x ? -1 : 1;
+                
                 if (TryEscapeFallingPath(preferredDirection * distance, chunkBounds) ||
                     TryEscapeFallingPath(-preferredDirection * distance, chunkBounds))
                 {
@@ -256,7 +258,7 @@ namespace TerrainCollapse
         }
 
         /// <summary>채굴 또는 서버 확정 변경 이후 매몰 해제 가능 여부 재검사 예약</summary>
-        private void HandleTerrainChanged()
+        private void HandleTerrainChanged(TerrainChangeReason _)
         {
             if (buried == false) return;
             

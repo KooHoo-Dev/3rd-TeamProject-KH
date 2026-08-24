@@ -32,7 +32,10 @@ namespace TerrainCollapse
                 baseRevision + 1,
                 proposal.Changes);
 
-            if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
+            if (terrainManager.ApplyAuthoritativeBatch(
+                    batch,
+                    TerrainChangeReason.CollapsePlacement,
+                    out string error) == false)
                 Debug.LogError($"[Terrain Collapse Test Authority] Batch 적용 실패: {error}", this);
         }
     }

@@ -16,6 +16,13 @@ namespace TerrainCollapse
         EmptyCell,
         NotMineable
     }
+
+    public enum TerrainChangeReason
+    {
+        Excavation,
+        AuthoritativeBatch,
+        CollapsePlacement
+    }
     
     /// <summary>
     /// 커스텀 TerrainGridData를 지형의 Source of Truth로 관리한다.
@@ -41,7 +48,7 @@ namespace TerrainCollapse
         public bool IsReady => terrainWorld != null && terrainWorld.Data != null;
         public float CellSize => terrainWorld != null ? terrainWorld.CellSize : 0f;
         public uint Revision => terrainWorld != null ? terrainWorld.Revision : 0;
-        public event Action TerrainChanged;
+        public event Action<TerrainChangeReason> TerrainChanged;
         public event Action<TerrainChangeBatch> AuthoritativeBatchApplied;
 
         public void Configure(TerrainGridWorld world, Camera camera)
@@ -136,7 +143,7 @@ namespace TerrainCollapse
             
             if (logEvents) Debug.Log($"[Terrain Collapse] Cell Destroy: {cell}");
 
-            TerrainChanged?.Invoke();
+            TerrainChanged?.Invoke(TerrainChangeReason.Excavation);
             
             return TerrainRemoveResult.Removed;
         }
@@ -145,10 +152,17 @@ namespace TerrainCollapse
         public bool RemoveCell(Vector2Int cell) => RequestRemoveCell(cell) == TerrainRemoveResult.Removed;
 
         public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
+            => ApplyAuthoritativeBatch(batch, TerrainChangeReason.AuthoritativeBatch, out error);
+
+        public bool ApplyAuthoritativeBatch(
+            TerrainChangeBatch batch,
+            TerrainChangeReason reason,
+            out string error)
         {
             if (terrainWorld == null)
             {
                 error = "TerrainGridWorld 참조가 없습니다.";
+                
                 return false;
             }
 
@@ -156,13 +170,14 @@ namespace TerrainCollapse
             if (logEvents)
                 Debug.Log($"[Terrain Collapse] Authoritative batch applied: collapse={batch.CollapseId}, " +
                           $"revision={batch.ResultRevision}, changes={batch.Changes.Count}");
+            
             AuthoritativeBatchApplied?.Invoke(batch);
-            TerrainChanged?.Invoke();
+            TerrainChanged?.Invoke(reason);
+            
             return true;
         }
 
-        public TerrainSnapshot CreateSnapshot()
-            => terrainWorld != null ? terrainWorld.CreateSnapshot() : null;
+        public TerrainSnapshot CreateSnapshot() => terrainWorld != null ? terrainWorld.CreateSnapshot() : null;
 
         /// <summary>점유 셀을 BFS로 순회하고 기반암과 연결되지 않은 그룹을 분리한다.</summary>
         public List<List<Vector2Int>> FindFloatingGroups()
@@ -188,12 +203,14 @@ namespace TerrainCollapse
                 {
                     Vector2Int cell = queue.Dequeue();
                     group.Add(cell);
+                    
                     if (TryGetTileType(cell, out TerrainTileType type))
                         supported |= type == TerrainTileType.Bedrock;
 
                     foreach (Vector2Int direction in Directions)
                     {
                         Vector2Int next = cell + direction;
+                        
                         if (terrainWorld.IsOccupied(next) && visited.Add(next)) queue.Enqueue(next);
                     }
                 }

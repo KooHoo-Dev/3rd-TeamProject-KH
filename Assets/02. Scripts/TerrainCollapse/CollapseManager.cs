@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 부유 지형의 Rigidbody2D Chunk 전환과 안정화 후 서버 확정용 배치 후보 생성
+    // 부유 지형의 개별 Rigidbody2D Chunk 전환과 완료 즉시 Grid 재배치 처리
     
     /// <summary>Custom Grid → 물리 Chunk → Grid Sampling → Custom Grid 전환 총괄</summary>
     public sealed class CollapseManager : MonoBehaviour
@@ -15,13 +15,15 @@ namespace TerrainCollapse
         [SerializeField] private float gravityScale = 2f;
         [SerializeField] private float chunkMass = 100f;
         [SerializeField] private float initialSeparationDistance = 0.05f;
+        [SerializeField] private float outOfBoundsDistance = 20f;
 
         private readonly List<FallingChunk> activeChunks = new();
-        private bool rebuilding;
+        private readonly HashSet<FallingChunk> rebuildingChunks = new();
         private long nextCollapseId = 1;
 
-        public bool IsRebuilding => rebuilding;
-        public event Action RebuildCompleted;
+        public bool IsRebuilding => rebuildingChunks.Count > 0;
+        public bool HasActiveChunks => activeChunks.Count > 0;
+        public event Action<long> RebuildCompleted;
         public event Action<TerrainPlacementProposal> PlacementProposed;
 
         public void Configure(TerrainGridWorld world, TerrainSampler sampler)
@@ -38,12 +40,12 @@ namespace TerrainCollapse
         public void CreateChunk(IReadOnlyList<Vector2Int> cells, long collapseId)
         {
             if (cells == null || cells.Count == 0) return;
+            
             TerrainGridWorld source = terrainGridWorld;
             Vector2Int anchor = cells[0];
 
-            GameObject root = new($"FallingChunk_{activeChunks.Count + 1}",
+            GameObject root = new($"FallingChunk_{collapseId}",
                 typeof(Rigidbody2D), typeof(CompositeCollider2D), typeof(FallingChunk));
-            // 최초 꼭짓점 접촉이 Box2D 제약으로 남지 않도록 물리 생성 위치를 소폭 아래로 분리
             root.transform.position = source.CellToWorldCorner(anchor) + Vector3.down * initialSeparationDistance;
 
             Rigidbody2D body = root.GetComponent<Rigidbody2D>();
@@ -56,8 +58,8 @@ namespace TerrainCollapse
             CompositeCollider2D composite = root.GetComponent<CompositeCollider2D>();
             composite.geometryType = CompositeCollider2D.GeometryType.Polygons;
 
-            List<Vector2Int> localCells = new (cells.Count);
-            List<TerrainTileType> cellTypes = new (cells.Count);
+            List<Vector2Int> localCells = new(cells.Count);
+            List<TerrainTileType> cellTypes = new(cells.Count);
             
             foreach (Vector2Int worldCell in cells)
             {
@@ -71,10 +73,11 @@ namespace TerrainCollapse
 
             Physics2D.SyncTransforms();
             FallingChunk chunk = root.GetComponent<FallingChunk>();
-            chunk.Configure(localCells, cellTypes, source.CellSize, collapseId);
-            
+            float minimumWorldY = source.transform.position.y - outOfBoundsDistance;
+            chunk.Configure(localCells, cellTypes, source.CellSize, collapseId, minimumWorldY);
             activeChunks.Add(chunk);
-            Debug.Log($"[Terrain Collapse] Chunk Created: {cells.Count} cells");
+            
+            Debug.Log($"[Terrain Collapse] Chunk Created: id={collapseId}, cells={cells.Count}");
         }
 
         private static void CreateChunkCell(
@@ -101,33 +104,44 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (rebuilding == false
-                && activeChunks.Count > 0
-                && activeChunks.TrueForAll(chunk => chunk.IsSettled))
-                StartCoroutine(RebuildCycle());
+            for (int i = activeChunks.Count - 1; i >= 0; i--)
+            {
+                FallingChunk chunk = activeChunks[i];
+                if (chunk == null)
+                {
+                    activeChunks.RemoveAt(i);
+                    continue;
+                }
+
+                if (chunk.IsComplete && rebuildingChunks.Add(chunk))
+                    StartCoroutine(RebuildChunk(chunk));
+            }
         }
 
-        private IEnumerator RebuildCycle()
+        private IEnumerator RebuildChunk(FallingChunk chunk)
         {
-            rebuilding = true;
-            Debug.Log("[Terrain Collapse] Sampling Started");
+            long collapseId = chunk.CollapseId;
+            Debug.Log($"[Terrain Collapse] Chunk Sampling Started: id={collapseId}");
 
-            IReadOnlyList<TerrainPlacementProposal> proposals = terrainSampler.CalculatePlacements(activeChunks);
-            foreach (TerrainPlacementProposal proposal in proposals) PlacementProposed?.Invoke(proposal);
-            Debug.Log("[Terrain Collapse] Sampling Finished");
+            if (chunk.IsExpired == false)
+            {
+                IReadOnlyList<TerrainPlacementProposal> proposals =
+                    terrainSampler.CalculatePlacements(new[] { chunk });
+                
+                foreach (TerrainPlacementProposal proposal in proposals)
+                    PlacementProposed?.Invoke(proposal);
+            }
+            else Debug.LogWarning($"[Terrain Collapse] Expired Chunk discarded: id={collapseId}");
 
-            foreach (FallingChunk chunk in activeChunks)
-                Destroy(chunk.gameObject);
-
-            activeChunks.Clear();
+            activeChunks.Remove(chunk);
+            rebuildingChunks.Remove(chunk);
+            Destroy(chunk.gameObject);
 
             yield return new WaitForFixedUpdate();
 
             Physics2D.SyncTransforms();
-            Debug.Log("[Terrain Collapse] Custom Grid Rebuilt");
-
-            rebuilding = false;
-            RebuildCompleted?.Invoke();
+            Debug.Log($"[Terrain Collapse] Chunk Grid Rebuilt: id={collapseId}");
+            RebuildCompleted?.Invoke(collapseId);
         }
     }
 }
