@@ -29,7 +29,7 @@ namespace TerrainCollapse
         private Material terrainMaterial;
         private bool colliderDirty;
 
-        public TerrainGridData Data => data;
+        internal TerrainGridData Data => data;
         public float CellSize => cellSize;
         public Sprite TerrainSprite => terrainSprite;
         public Color TerrainColor => terrainColor;
@@ -77,6 +77,7 @@ namespace TerrainCollapse
         private void Start()
         {
             if (data != null) return;
+            
             Debug.LogError("[Terrain Collapse] 초기 JSON 또는 Snapshot이 로드되지 않았습니다.", this);
         }
 
@@ -90,6 +91,7 @@ namespace TerrainCollapse
             if (terrainSprite == null)
             {
                 Debug.LogError("[Terrain Collapse] TerrainGridWorld에 Terrain Sprite가 지정되지 않았습니다.", this);
+                
                 return;
             }
             
@@ -135,15 +137,22 @@ namespace TerrainCollapse
             Physics2D.SyncTransforms();
         }
 
-        public TerrainSnapshot CreateSnapshot()
-            => data != null ? data.CreateSnapshot() : null;
+        public TerrainSnapshot CreateSnapshot() => data?.CreateSnapshot();
 
         /// <summary>서버 확정 변경만 이 API로 일괄 반영한다.</summary>
         public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
         {
-            if (data == null) { error = "TerrainGridData가 초기화되지 않았습니다."; return false; }
+            if (data == null)
+            {
+                error = "TerrainGridData가 초기화되지 않았습니다."; 
+                
+                return false;
+            }
+            
             if (data.TryApplyAuthoritativeBatch(batch, out error) == false) return false;
+            
             foreach (TerrainCellChange change in batch.Changes) MarkCellDirty(change.Coord);
+            
             return true;
         }
 
@@ -178,6 +187,7 @@ namespace TerrainCollapse
             if (dirtyChunks.Count > 0)
             {
                 foreach (Vector2Int chunkCoord in dirtyChunks) RebuildChunkMesh(chunkCoord);
+                
                 dirtyChunks.Clear();
             }
 
@@ -202,20 +212,25 @@ namespace TerrainCollapse
         public Vector3 CellToWorldCenter(Vector2Int coord) => data.CellToWorldCenter(coord);
         public Vector3 CellToWorldCorner(Vector2Int coord) => data.CellToWorldCorner(coord);
 
-        public bool SetOccupied(Vector2Int coord)
-            => SetCell(coord, TerrainTileType.Ground);
+        public bool SetOccupied(Vector2Int coord) => SetCell(coord, TerrainTileType.Ground);
 
         public bool SetCell(Vector2Int coord, TerrainTileType type)
         {
+            if (data == null) return false;
             if (data.SetCell(coord, type) == false) return false;
+            
             MarkCellDirty(coord);
+            
             return true;
         }
 
         public bool RemoveCell(Vector2Int coord)
         {
+            if (data == null) return false;
             if (data.Remove(coord) == false) return false;
+            
             MarkCellDirty(coord);
+            
             return true;
         }
 
@@ -227,7 +242,8 @@ namespace TerrainCollapse
 
         private void BuildAllChunkMeshes()
         {
-            var chunks = new HashSet<Vector2Int>();
+            HashSet<Vector2Int> chunks = new();
+            
             foreach (Vector2Int coord in data.OccupiedCoords) chunks.Add(ToChunkCoord(coord));
             foreach (Vector2Int chunkCoord in chunks) RebuildChunkMesh(chunkCoord);
         }

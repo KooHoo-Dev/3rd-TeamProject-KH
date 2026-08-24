@@ -25,7 +25,7 @@ namespace TerrainCollapse
         /// <summary>로컬 좌표 제안을 현재 Revision 기준의 서버 확정 Batch처럼 즉시 적용</summary>
         private void HandlePlacementProposed(TerrainPlacementProposal proposal)
         {
-            uint baseRevision = terrainManager.TerrainWorld.Revision;
+            uint baseRevision = terrainManager.Revision;
             var batch = new TerrainChangeBatch(
                 proposal.CollapseId,
                 baseRevision,

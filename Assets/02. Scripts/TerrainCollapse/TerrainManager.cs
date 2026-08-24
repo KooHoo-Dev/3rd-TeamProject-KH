@@ -8,6 +8,14 @@ using UnityEngine.InputSystem;
 namespace TerrainCollapse
 {
     // 지형 변경 진입점과 부유 그룹 탐색 및 서버 확정 Batch 적용 API 제공
+
+    public enum TerrainRemoveResult
+    {
+        Removed,
+        TerrainNotReady,
+        EmptyCell,
+        NotMineable
+    }
     
     /// <summary>
     /// 커스텀 TerrainGridData를 지형의 Source of Truth로 관리한다.
@@ -30,7 +38,9 @@ namespace TerrainCollapse
             Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
         };
 
-        public TerrainGridWorld TerrainWorld => terrainWorld;
+        public bool IsReady => terrainWorld != null && terrainWorld.Data != null;
+        public float CellSize => terrainWorld != null ? terrainWorld.CellSize : 0f;
+        public uint Revision => terrainWorld != null ? terrainWorld.Revision : 0;
         public event Action TerrainChanged;
         public event Action<TerrainChangeBatch> AuthoritativeBatchApplied;
 
@@ -67,41 +77,81 @@ namespace TerrainCollapse
             float planeDistance = Mathf.Abs(terrainWorld.transform.position.z - camera.transform.position.z);
             Vector3 world = camera.ScreenToWorldPoint(new Vector3(pointer.x, pointer.y, planeDistance));
             Vector2Int cell = terrainWorld.WorldToCell(world);
-            TerrainCell terrainCell = terrainWorld.Data.GetCellOrNull(cell);
+            TerrainRemoveResult result = RequestRemoveCell(cell);
 
-            if (terrainCell == null)
-            {
-                if (logEvents)
-                    Debug.Log($"[Terrain Collapse] Empty cell clicked: screen={pointer}, " +
-                              $"world={world}, cell={cell}");
-                return;
-            }
-
-            if (terrainCell.Type == TerrainTileType.Bedrock)
-            {
-                if (logEvents)
-                    Debug.Log($"[Terrain Collapse] Bedrock cannot be removed: screen={pointer}, " +
-                              $"world={world}, cell={cell}");
-                return;
-            }
-
-            RemoveCell(cell);
+            if (logEvents && result == TerrainRemoveResult.EmptyCell)
+                Debug.Log($"[Terrain Collapse] Empty cell clicked: screen={pointer}, " +
+                          $"world={world}, cell={cell}");
+            else if (logEvents && result == TerrainRemoveResult.NotMineable)
+                Debug.Log($"[Terrain Collapse] Tile cannot be mined: screen={pointer}, " +
+                          $"world={world}, cell={cell}");
         }
 #endif
 
-        public bool RemoveCell(Vector2Int cell)
-        {
-            TerrainCell terrainCell = terrainWorld.Data.GetCellOrNull(cell);
-            if (terrainCell != null && terrainCell.Type == TerrainTileType.Bedrock) return false;
-            if (terrainWorld.RemoveCell(cell) == false) return false;
-            if (logEvents) Debug.Log($"[Terrain Collapse] Cell Destroy: {cell}");
+        // 지정 Grid 좌표의 지형 존재 여부 조회
+        public bool HasTerrain(Vector2Int cell) => IsReady && terrainWorld.IsOccupied(cell);
 
-            TerrainChanged?.Invoke();
+        /// <summary>지정 Grid 좌표의 타일 종류 조회 시도</summary>
+        public bool TryGetTileType(Vector2Int cell, out TerrainTileType type)
+        {
+            type = TerrainTileType.Empty;
+            
+            if (IsReady == false) return false;
+
+            TerrainCell terrainCell = terrainWorld.Data.GetCellOrNull(cell);
+            
+            if (terrainCell == null) return false;
+
+            type = terrainCell.Type;
+            
             return true;
         }
 
+        /// <summary>월드 좌표의 Grid 좌표 변환 시도</summary>
+        public bool TryWorldToCell(Vector3 worldPosition, out Vector2Int cell)
+        {
+            cell = default;
+            
+            if (IsReady == false) return false;
+
+            cell = terrainWorld.WorldToCell(worldPosition);
+            
+            return true;
+        }
+
+        /// <summary>지정 Grid 좌표의 채굴 가능 지형 제거 요청</summary>
+        public TerrainRemoveResult RequestRemoveCell(Vector2Int cell)
+        {
+            if (TryGetTileType(cell, out TerrainTileType type) == false)
+                return IsReady ? TerrainRemoveResult.EmptyCell : TerrainRemoveResult.TerrainNotReady;
+
+            TerrainDataManager dataManager = TerrainDataManager.Instance;
+            dataManager.EnsureLoaded();
+            
+            if (dataManager.TryGetTileDef(type, out TerrainTileDef tileDef) == false ||
+                tileDef.IsMineable == false)
+                return TerrainRemoveResult.NotMineable;
+
+            if (terrainWorld.RemoveCell(cell) == false) return TerrainRemoveResult.EmptyCell;
+            
+            if (logEvents) Debug.Log($"[Terrain Collapse] Cell Destroy: {cell}");
+
+            TerrainChanged?.Invoke();
+            
+            return TerrainRemoveResult.Removed;
+        }
+
+        // 기존 bool 반환 호출부 호환용 안전 제거 요청
+        public bool RemoveCell(Vector2Int cell) => RequestRemoveCell(cell) == TerrainRemoveResult.Removed;
+
         public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
         {
+            if (terrainWorld == null)
+            {
+                error = "TerrainGridWorld 참조가 없습니다.";
+                return false;
+            }
+
             if (terrainWorld.ApplyAuthoritativeBatch(batch, out error) == false) return false;
             if (logEvents)
                 Debug.Log($"[Terrain Collapse] Authoritative batch applied: collapse={batch.CollapseId}, " +
@@ -111,11 +161,14 @@ namespace TerrainCollapse
             return true;
         }
 
-        public TerrainSnapshot CreateSnapshot() => terrainWorld.CreateSnapshot();
+        public TerrainSnapshot CreateSnapshot()
+            => terrainWorld != null ? terrainWorld.CreateSnapshot() : null;
 
         /// <summary>점유 셀을 BFS로 순회하고 기반암과 연결되지 않은 그룹을 분리한다.</summary>
         public List<List<Vector2Int>> FindFloatingGroups()
         {
+            if (IsReady == false) return new List<List<Vector2Int>>();
+
             List<Vector2Int> occupiedSnapshot = new(terrainWorld.GetOccupiedCells());
             occupiedSnapshot.Sort(TerrainCoordinateComparer.Compare);
             HashSet<Vector2Int> visited = new();
@@ -135,7 +188,8 @@ namespace TerrainCollapse
                 {
                     Vector2Int cell = queue.Dequeue();
                     group.Add(cell);
-                    supported |= terrainWorld.Data.GetCellOrNull(cell).Type == TerrainTileType.Bedrock;
+                    if (TryGetTileType(cell, out TerrainTileType type))
+                        supported |= type == TerrainTileType.Bedrock;
 
                     foreach (Vector2Int direction in Directions)
                     {
