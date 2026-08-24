@@ -35,6 +35,7 @@ namespace TerrainCollapse.Editor
             Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
             SetObjectReference(world, "terrainSprite", sprite);
             SetBool(world, "isDebugTileColorEnabled", true);
+            SetBool(world, "isDurabilityTextEnabled", true);
             SetObjectReference(loader, "mapJson", AssetDatabase.LoadAssetAtPath<TextAsset>(MapPath));
             SetObjectReference(loader, "targetWorld", world);
             SetObjectReference(manager, "terrainWorld", world);

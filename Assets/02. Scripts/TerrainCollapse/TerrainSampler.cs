@@ -45,6 +45,7 @@ namespace TerrainCollapse
                 lastBounds.Add(bounds);
                 proposals.Add(CalculateConnectedChunk(chunk, bounds));
             }
+            
             return proposals;
         }
 
@@ -120,13 +121,18 @@ namespace TerrainCollapse
                 Vector2Int localCell = localCells[i];
                 Vector2Int targetCell = localCell + bestOffset;
                 lastCenters.Add(targetWorld.CellToWorldCenter(targetCell));
-                changes.Add(new TerrainCellChange(targetCell, chunk.CellTypes[i]));
+                changes.Add(new TerrainCellChange(
+                    targetCell,
+                    chunk.CellTypes[i],
+                    chunk.CellDurabilities[i]));
             }
+            
             changes.Sort(TerrainCoordinateComparer.CompareChanges);
 
             Debug.Log($"[Terrain Collapse] Chunk grid placement: hits={bestHitCount}/{localCells.Count}, " +
                       $"connections={bestConnectionCount}, overlaps={bestCollisionCount}, " +
                       $"class={bestPlacementClass}, alignmentError={bestAlignmentError:F4}, offset={bestOffset}");
+            
             return new TerrainPlacementProposal(chunk.CollapseId, targetWorld.Revision, changes);
         }
 
@@ -139,6 +145,7 @@ namespace TerrainCollapse
             if (hitCount != bestHitCount) return hitCount > bestHitCount;
             if (Mathf.Approximately(alignmentError, bestAlignmentError) == false) return alignmentError < bestAlignmentError;
             if (connectionCount != bestConnectionCount) return connectionCount > bestConnectionCount;
+            
             return collisionCount < bestCollisionCount;
         }
 
@@ -149,6 +156,7 @@ namespace TerrainCollapse
             if (targetWorld.IsOccupied(cell + Vector2Int.down)) count++;
             if (targetWorld.IsOccupied(cell + Vector2Int.left)) count++;
             if (targetWorld.IsOccupied(cell + Vector2Int.right)) count++;
+            
             return count;
         }
 

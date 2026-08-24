@@ -60,13 +60,16 @@ namespace TerrainCollapse
 
             List<Vector2Int> localCells = new(cells.Count);
             List<TerrainTileType> cellTypes = new(cells.Count);
+            List<int> cellDurabilities = new(cells.Count);
             
             foreach (Vector2Int worldCell in cells)
             {
                 Vector2Int localCell = worldCell - anchor;
-                TerrainTileType type = source.Data.GetCellOrNull(worldCell).Type;
+                TerrainCell sourceCell = source.Data.GetCellOrNull(worldCell);
+                TerrainTileType type = sourceCell.Type;
                 localCells.Add(localCell);
                 cellTypes.Add(type);
+                cellDurabilities.Add(sourceCell.CurrentDurability);
                 CreateChunkCell(root.transform, localCell, type, source);
                 source.RemoveCell(worldCell);
             }
@@ -74,7 +77,13 @@ namespace TerrainCollapse
             Physics2D.SyncTransforms();
             FallingChunk chunk = root.GetComponent<FallingChunk>();
             float minimumWorldY = source.transform.position.y - outOfBoundsDistance;
-            chunk.Configure(localCells, cellTypes, source.CellSize, collapseId, minimumWorldY);
+            chunk.Configure(
+                localCells,
+                cellTypes,
+                cellDurabilities,
+                source.CellSize,
+                collapseId,
+                minimumWorldY);
             activeChunks.Add(chunk);
             
             Debug.Log($"[Terrain Collapse] Chunk Created: id={collapseId}, cells={cells.Count}");

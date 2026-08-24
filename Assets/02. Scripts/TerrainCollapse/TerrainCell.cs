@@ -21,13 +21,26 @@ namespace TerrainCollapse
     {
         public Vector2Int Coord { get; }
         public TerrainTileType Type { get; private set; }
+        public int CurrentDurability { get; private set; }
 
-        public TerrainCell(Vector2Int coord, TerrainTileType type)
+        public TerrainCell(Vector2Int coord, TerrainTileType type, int durability)
         {
             Coord = coord;
             Type = type;
+            CurrentDurability = Mathf.Max(0, durability);
         }
 
-        public void ChangeType(TerrainTileType type) => Type = type;
+        public void ChangeType(TerrainTileType type, int durability)
+        {
+            Type = type;
+            CurrentDurability = Mathf.Max(0, durability);
+        }
+
+        public int Damage(int amount)
+        {
+            if (amount <= 0) return CurrentDurability;
+            CurrentDurability = Mathf.Max(0, CurrentDurability - amount);
+            return CurrentDurability;
+        }
     }
 }

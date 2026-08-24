@@ -14,7 +14,8 @@ namespace TerrainCollapse
         Removed,
         TerrainNotReady,
         EmptyCell,
-        NotMineable
+        NotMineable,
+        Damaged,
     }
 
     public enum TerrainChangeReason
@@ -49,6 +50,7 @@ namespace TerrainCollapse
         public float CellSize => terrainWorld != null ? terrainWorld.CellSize : 0f;
         public uint Revision => terrainWorld != null ? terrainWorld.Revision : 0;
         public event Action<TerrainChangeReason> TerrainChanged;
+        public event Action<Vector2Int, int> TerrainDurabilityChanged;
         public event Action<TerrainChangeBatch> AuthoritativeBatchApplied;
 
         public void Configure(TerrainGridWorld world, Camera camera)
@@ -114,6 +116,21 @@ namespace TerrainCollapse
             return true;
         }
 
+        public bool TryGetDurability(Vector2Int cell, out int durability)
+        {
+            durability = 0;
+            
+            if (IsReady == false) return false;
+
+            TerrainCell terrainCell = terrainWorld.Data.GetCellOrNull(cell);
+            
+            if (terrainCell == null) return false;
+
+            durability = terrainCell.CurrentDurability;
+            
+            return true;
+        }
+
         /// <summary>월드 좌표의 Grid 좌표 변환 시도</summary>
         public bool TryWorldToCell(Vector3 worldPosition, out Vector2Int cell)
         {
@@ -139,8 +156,22 @@ namespace TerrainCollapse
                 tileDef.IsMineable == false)
                 return TerrainRemoveResult.NotMineable;
 
-            if (terrainWorld.RemoveCell(cell) == false) return TerrainRemoveResult.EmptyCell;
-            
+            if (terrainWorld.TryDamageCell(
+                    cell,
+                    1,
+                    out int remainingDurability,
+                    out bool isDestroyed) == false)
+                return TerrainRemoveResult.EmptyCell;
+
+            TerrainDurabilityChanged?.Invoke(cell, remainingDurability);
+            if (isDestroyed == false)
+            {
+                if (logEvents)
+                    Debug.Log($"[Terrain Collapse] Cell Damaged: {cell}, durability={remainingDurability}");
+                
+                return TerrainRemoveResult.Damaged;
+            }
+
             if (logEvents) Debug.Log($"[Terrain Collapse] Cell Destroy: {cell}");
 
             TerrainChanged?.Invoke(TerrainChangeReason.Excavation);
@@ -149,7 +180,12 @@ namespace TerrainCollapse
         }
 
         // 기존 bool 반환 호출부 호환용 안전 제거 요청
-        public bool RemoveCell(Vector2Int cell) => RequestRemoveCell(cell) == TerrainRemoveResult.Removed;
+        public bool RemoveCell(Vector2Int cell)
+        {
+            TerrainRemoveResult result = RequestRemoveCell(cell);
+            
+            return result == TerrainRemoveResult.Damaged || result == TerrainRemoveResult.Removed;
+        }
 
         public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
             => ApplyAuthoritativeBatch(batch, TerrainChangeReason.AuthoritativeBatch, out error);

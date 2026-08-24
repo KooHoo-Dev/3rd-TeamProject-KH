@@ -1,4 +1,4 @@
-TileType	Name	MineHardness	IsMineable	CanCreateCollider	CanSupportTerrain	DropItemID
+TileType	Name	MaxDurability	IsMineable	CanCreateCollider	CanSupportTerrain	DropItemID
 Ground	땅	1	TRUE	TRUE	FALSE	0
 Dirt	흙	1	TRUE	TRUE	FALSE	0
 Stone	돌	3	TRUE	TRUE	FALSE	1

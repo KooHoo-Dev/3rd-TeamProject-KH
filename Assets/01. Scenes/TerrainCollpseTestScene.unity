@@ -282,6 +282,7 @@ MonoBehaviour:
   terrainColor: {r: 1, g: 1, b: 1, a: 1}
   tileCatalog: {fileID: 0}
   isDebugTileColorEnabled: 1
+  isDurabilityTextEnabled: 1
 --- !u!50 &190307190
 Rigidbody2D:
   serializedVersion: 5
