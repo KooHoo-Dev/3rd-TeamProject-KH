@@ -9,7 +9,7 @@ namespace TerrainCollapse
     {
         public TerrainTileType TileType;
         public string Name;
-        public int MineHardness;
+        public int MaxDurability;
         public bool IsMineable;
         public bool CanCreateCollider;
         public bool CanSupportTerrain;
@@ -20,7 +20,7 @@ namespace TerrainCollapse
     {
         public TerrainTileType TileType { get; }
         public string Name { get; }
-        public int MineHardness { get; }
+        public int MaxDurability { get; }
         public bool IsMineable { get; }
         public bool CanCreateCollider { get; }
         public bool CanSupportTerrain { get; }
@@ -30,7 +30,7 @@ namespace TerrainCollapse
         {
             TileType = dto.TileType;
             Name = dto.Name;
-            MineHardness = dto.MineHardness;
+            MaxDurability = dto.MaxDurability;
             IsMineable = dto.IsMineable;
             CanCreateCollider = dto.CanCreateCollider;
             CanSupportTerrain = dto.CanSupportTerrain;

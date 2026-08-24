@@ -79,6 +79,9 @@ namespace TerrainCollapse
         // 타일 종류에 해당하는 Def 조회
         public TerrainTileDef GetTileDef(TerrainTileType tileType) => Tiles.Get(tileType);
 
+        public bool TryGetTileDef(TerrainTileType tileType, out TerrainTileDef tileDef)
+            => Tiles.TryGet(tileType, out tileDef);
+
         // 프로필 ID에 해당하는 Def 조회
         public TerrainSeedProfileDef GetSeedProfileDef(string profileID)
             => SeedProfiles.Get(profileID);

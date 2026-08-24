@@ -1,6 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+#if UNITY_EDITOR
+using TMPro;
+#endif
 
 namespace TerrainCollapse
 {
@@ -20,16 +23,22 @@ namespace TerrainCollapse
         [SerializeField] private Color terrainColor = Color.white;
         [SerializeField] private TerrainTileCatalog tileCatalog;
         [SerializeField] private bool isDebugTileColorEnabled;
+#if UNITY_EDITOR
+        [SerializeField] private bool isDurabilityTextEnabled;
+#endif
         
         private static readonly Vector2Int[] NoCells = new Vector2Int[0];
         private readonly Dictionary<Vector2Int, MeshFilter> chunkViews = new();
         private readonly HashSet<Vector2Int> dirtyChunks = new();
         private readonly List<GameObject> colliderSegments = new();
+#if UNITY_EDITOR
+        private readonly Dictionary<Vector2Int, TextMeshPro> durabilityLabels = new();
+#endif
         private TerrainGridData data;
         private Material terrainMaterial;
         private bool colliderDirty;
 
-        public TerrainGridData Data => data;
+        internal TerrainGridData Data => data;
         public float CellSize => cellSize;
         public Sprite TerrainSprite => terrainSprite;
         public Color TerrainColor => terrainColor;
@@ -42,14 +51,15 @@ namespace TerrainCollapse
             tileCatalog = catalog;
         }
 
-        public Sprite GetTileSprite(TerrainTileType type)
-            => tileCatalog?.Get(type)?.Sprite ?? terrainSprite;
+        public Sprite GetTileSprite(TerrainTileType type) => tileCatalog?.Get(type)?.Sprite ?? terrainSprite;
 
         public Color GetTileColor(TerrainTileType type)
         {
             TerrainTileDefinition definition = tileCatalog?.Get(type);
+            
             if (definition != null) return definition.Color;
             if (isDebugTileColorEnabled) return GetDebugTileColor(type);
+            
             return type == TerrainTileType.Bedrock ? Color.black : terrainColor;
         }
 
@@ -77,6 +87,7 @@ namespace TerrainCollapse
         private void Start()
         {
             if (data != null) return;
+            
             Debug.LogError("[Terrain Collapse] 초기 JSON 또는 Snapshot이 로드되지 않았습니다.", this);
         }
 
@@ -90,6 +101,7 @@ namespace TerrainCollapse
             if (terrainSprite == null)
             {
                 Debug.LogError("[Terrain Collapse] TerrainGridWorld에 Terrain Sprite가 지정되지 않았습니다.", this);
+                
                 return;
             }
             
@@ -113,12 +125,16 @@ namespace TerrainCollapse
                     Vector2Int coord = new(x, y);
                     TerrainTileType type = map.GetTile(coord);
                     
-                    if (type != TerrainTileType.Empty) data.SetCell(coord, type);
+                    if (type != TerrainTileType.Empty)
+                        data.SetCell(coord, type, GetMaxDurability(type));
                 }
             }
 
             BuildAllChunkMeshes();
             RebuildBoundaryCollider();
+#if UNITY_EDITOR
+            RebuildDurabilityLabels();
+#endif
             Physics2D.SyncTransforms();
         }
 
@@ -132,18 +148,34 @@ namespace TerrainCollapse
             transform.position = data.Origin;
             BuildAllChunkMeshes();
             RebuildBoundaryCollider();
+#if UNITY_EDITOR
+            RebuildDurabilityLabels();
+#endif
             Physics2D.SyncTransforms();
         }
 
-        public TerrainSnapshot CreateSnapshot()
-            => data != null ? data.CreateSnapshot() : null;
+        public TerrainSnapshot CreateSnapshot() => data?.CreateSnapshot();
 
         /// <summary>서버 확정 변경만 이 API로 일괄 반영한다.</summary>
         public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
         {
-            if (data == null) { error = "TerrainGridData가 초기화되지 않았습니다."; return false; }
+            if (data == null)
+            {
+                error = "TerrainGridData가 초기화되지 않았습니다."; 
+                
+                return false;
+            }
+            
             if (data.TryApplyAuthoritativeBatch(batch, out error) == false) return false;
-            foreach (TerrainCellChange change in batch.Changes) MarkCellDirty(change.Coord);
+            
+            foreach (TerrainCellChange change in batch.Changes)
+            {
+                MarkCellDirty(change.Coord);
+#if UNITY_EDITOR
+                RefreshDurabilityLabel(change.Coord);
+#endif
+            }
+            
             return true;
         }
 
@@ -152,7 +184,6 @@ namespace TerrainCollapse
             foreach (MeshFilter filter in chunkViews.Values)
             {
                 if (filter == null) continue;
-                
                 if (filter.sharedMesh != null) Destroy(filter.sharedMesh);
                 
                 Destroy(filter.gameObject);
@@ -171,6 +202,9 @@ namespace TerrainCollapse
             
             colliderSegments.Clear();
             colliderDirty = false;
+#if UNITY_EDITOR
+            ClearDurabilityLabels();
+#endif
         }
 
         private void LateUpdate()
@@ -178,6 +212,7 @@ namespace TerrainCollapse
             if (dirtyChunks.Count > 0)
             {
                 foreach (Vector2Int chunkCoord in dirtyChunks) RebuildChunkMesh(chunkCoord);
+                
                 dirtyChunks.Clear();
             }
 
@@ -202,22 +237,130 @@ namespace TerrainCollapse
         public Vector3 CellToWorldCenter(Vector2Int coord) => data.CellToWorldCenter(coord);
         public Vector3 CellToWorldCorner(Vector2Int coord) => data.CellToWorldCorner(coord);
 
-        public bool SetOccupied(Vector2Int coord)
-            => SetCell(coord, TerrainTileType.Ground);
+        public bool SetOccupied(Vector2Int coord) => SetCell(coord, TerrainTileType.Ground);
 
         public bool SetCell(Vector2Int coord, TerrainTileType type)
+            => SetCell(coord, type, GetMaxDurability(type));
+
+        public bool SetCell(Vector2Int coord, TerrainTileType type, int durability)
         {
-            if (data.SetCell(coord, type) == false) return false;
+            if (data == null) return false;
+            if (data.SetCell(coord, type, durability) == false) return false;
+            
             MarkCellDirty(coord);
+#if UNITY_EDITOR
+            RefreshDurabilityLabel(coord);
+#endif
+            
+            return true;
+        }
+
+        public bool TryDamageCell(
+            Vector2Int coord,
+            int amount,
+            out int remainingDurability,
+            out bool isDestroyed)
+        {
+            remainingDurability = 0;
+            isDestroyed = false;
+            
+            if (data == null || data.TryDamage(
+                    coord,
+                    amount,
+                    out remainingDurability,
+                    out isDestroyed) == false)
+                return false;
+
+            if (isDestroyed) MarkCellDirty(coord);
+            
+#if UNITY_EDITOR
+            RefreshDurabilityLabel(coord);
+#endif
+            
             return true;
         }
 
         public bool RemoveCell(Vector2Int coord)
         {
+            if (data == null) return false;
             if (data.Remove(coord) == false) return false;
+            
             MarkCellDirty(coord);
+#if UNITY_EDITOR
+            RefreshDurabilityLabel(coord);
+#endif
+            
             return true;
         }
+
+        private static int GetMaxDurability(TerrainTileType type)
+        {
+            if (type == TerrainTileType.Empty) return 0;
+
+            TerrainDataManager dataManager = TerrainDataManager.Instance;
+            dataManager.EnsureLoaded();
+            
+            return dataManager.TryGetTileDef(type, out TerrainTileDef tileDef)
+                ? tileDef.MaxDurability
+                : 1;
+        }
+
+#if UNITY_EDITOR
+        private void RebuildDurabilityLabels()
+        {
+            ClearDurabilityLabels();
+            
+            if (isDurabilityTextEnabled == false || data == null) return;
+
+            foreach (Vector2Int coord in data.OccupiedCoords)
+                RefreshDurabilityLabel(coord);
+        }
+
+        private void RefreshDurabilityLabel(Vector2Int coord)
+        {
+            if (isDurabilityTextEnabled == false) return;
+
+            TerrainCell cell = data?.GetCellOrNull(coord);
+            
+            if (cell == null)
+            {
+                if (durabilityLabels.Remove(coord, out TextMeshPro removedLabel) && removedLabel != null)
+                    Destroy(removedLabel.gameObject);
+                
+                return;
+                
+            }
+
+            if (durabilityLabels.TryGetValue(coord, out TextMeshPro label) == false || label == null)
+            {
+                GameObject labelObject = new($"Durability_{coord.x}_{coord.y}", typeof(TextMeshPro));
+                labelObject.transform.SetParent(transform, false);
+                label = labelObject.GetComponent<TextMeshPro>();
+                label.alignment = TextAlignmentOptions.Center;
+                label.enableAutoSizing = true;
+                label.fontSizeMin = 0.1f;
+                label.fontSizeMax = 4f;
+                label.color = Color.white;
+                label.renderer.sortingOrder = 2;
+                durabilityLabels[coord] = label;
+            }
+
+            label.text = cell.CurrentDurability.ToString();
+            label.rectTransform.sizeDelta = Vector2.one * cellSize * 0.85f;
+            label.transform.localPosition = new Vector3(
+                (coord.x + 0.5f) * cellSize,
+                (coord.y + 0.5f) * cellSize,
+                -0.1f);
+        }
+
+        private void ClearDurabilityLabels()
+        {
+            foreach (TextMeshPro label in durabilityLabels.Values)
+                if (label != null) Destroy(label.gameObject);
+
+            durabilityLabels.Clear();
+        }
+#endif
 
         private void MarkCellDirty(Vector2Int coord)
         {
@@ -227,7 +370,8 @@ namespace TerrainCollapse
 
         private void BuildAllChunkMeshes()
         {
-            var chunks = new HashSet<Vector2Int>();
+            HashSet<Vector2Int> chunks = new();
+            
             foreach (Vector2Int coord in data.OccupiedCoords) chunks.Add(ToChunkCoord(coord));
             foreach (Vector2Int chunkCoord in chunks) RebuildChunkMesh(chunkCoord);
         }
@@ -253,6 +397,7 @@ namespace TerrainCollapse
                 if (chunkViews.Remove(chunkCoord, out MeshFilter emptyFilter) && emptyFilter != null)
                 {
                     if (emptyFilter.sharedMesh != null) Destroy(emptyFilter.sharedMesh);
+                    
                     Destroy(emptyFilter.gameObject);
                 }
                 
@@ -352,6 +497,7 @@ namespace TerrainCollapse
             foreach (Vector2Int cell in data.OccupiedCoords)
             {
                 TerrainTileType type = data.GetCellOrNull(cell).Type;
+                
                 if (TileCreatesCollider(type) == false) continue;
                 if (HasCollidableCell(cell + Vector2Int.down) == false) AddEdge(horizontal, cell.y, cell.x);
                 if (HasCollidableCell(cell + Vector2Int.up) == false) AddEdge(horizontal, cell.y + 1, cell.x);
@@ -369,6 +515,7 @@ namespace TerrainCollapse
         private bool HasCollidableCell(Vector2Int coord)
         {
             TerrainCell cell = data.GetCellOrNull(coord);
+            
             return cell != null && TileCreatesCollider(cell.Type);
         }
 

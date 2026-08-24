@@ -31,12 +31,14 @@ namespace TerrainCollapse
         [SerializeField] private float settleDuration = 0.3f;
         [SerializeField] private float groundContactGraceDuration = 0.15f;
         [SerializeField] private float maximumSettleWait = 2f;
+        [SerializeField] private float maximumLifetime = 15f;
         [SerializeField] private float forcedSettleVelocityThreshold = 0.5f;
         [SerializeField, Range(0f, 1f)] private float minimumSupportingNormalY = 0.8f;
         [SerializeField] private float minimumSupportContactWidth = 0.02f;
 
         private readonly List<Vector2Int> localCells = new();
         private readonly List<TerrainTileType> cellTypes = new();
+        private readonly List<int> cellDurabilities = new();
         private readonly HashSet<Collider2D> groundContacts = new();
         private Rigidbody2D body;
         private CompositeCollider2D compositeCollider;
@@ -45,13 +47,19 @@ namespace TerrainCollapse
         private float stableTime;
         private float timeSinceFirstGroundContact;
         private float lastGroundContactTime = float.NegativeInfinity;
+        private float lifetime;
+        private float minimumWorldY;
         private bool hasTouchedGround;
         private bool settled;
+        private bool expired;
         private long collapseId;
 
         public bool IsSettled => settled;
+        public bool IsExpired => expired;
+        public bool IsComplete => settled || expired;
         public IReadOnlyList<Vector2Int> LocalCells => localCells;
         public IReadOnlyList<TerrainTileType> CellTypes => cellTypes;
+        public IReadOnlyList<int> CellDurabilities => cellDurabilities;
         public Collider2D ShapeCollider => compositeCollider;
         public Bounds WorldBounds => compositeCollider.bounds;
         public float CellSize => cellSize;
@@ -72,15 +80,20 @@ namespace TerrainCollapse
         public void Configure(
             IReadOnlyList<Vector2Int> cells,
             IReadOnlyList<TerrainTileType> types,
+            IReadOnlyList<int> durabilities,
             float size,
-            long id)
+            long id,
+            float minimumY)
         {
             localCells.Clear();
             localCells.AddRange(cells);
             cellTypes.Clear();
             cellTypes.AddRange(types);
+            cellDurabilities.Clear();
+            cellDurabilities.AddRange(durabilities);
             cellSize = size;
             collapseId = id;
+            minimumWorldY = minimumY;
         }
 
         public Vector3 GetLocalCellCenterWorld(Vector2Int localCell)
@@ -94,7 +107,20 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
-            if (settled) return;
+            if (IsComplete) return;
+
+            lifetime += Time.fixedDeltaTime;
+            
+            if (lifetime >= maximumLifetime || transform.position.y <= minimumWorldY)
+            {
+                expired = true;
+                body.linearVelocity = Vector2.zero;
+                body.angularVelocity = 0f;
+                body.bodyType = RigidbodyType2D.Kinematic;
+                Debug.LogWarning($"[Terrain Collapse] Chunk Expired: {name}, lifetime={lifetime:F2}");
+                
+                return;
+            }
 
             bool recentGround = groundContacts.Count > 0 ||
                                 Time.time - lastGroundContactTime <= groundContactGraceDuration;

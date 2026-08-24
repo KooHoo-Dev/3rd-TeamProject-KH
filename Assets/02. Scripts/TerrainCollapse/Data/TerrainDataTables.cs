@@ -26,8 +26,11 @@ namespace TerrainCollapse
                 if (dto.TileType == TerrainTileType.Empty)
                     throw new InvalidDataException("Empty 타일은 terrain_tiles.tsv에 등록할 수 없습니다");
                 
-                if (dto.MineHardness < 0 || dto.DropItemID < 0)
+                if (dto.MaxDurability < 0 || dto.DropItemID < 0)
                     throw new InvalidDataException($"타일 수치는 0 이상이어야 합니다: {dto.TileType}");
+
+                if (dto.IsMineable && dto.MaxDurability <= 0)
+                    throw new InvalidDataException($"채굴 가능한 타일의 MaxDurability는 1 이상이어야 합니다: {dto.TileType}");
                 
                 if (defs.ContainsKey(dto.TileType))
                     throw new InvalidDataException($"중복 TileType입니다: {dto.TileType}");

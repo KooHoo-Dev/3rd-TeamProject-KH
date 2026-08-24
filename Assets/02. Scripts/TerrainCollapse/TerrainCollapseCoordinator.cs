@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 지형 변경 후 부유 그룹 탐색과 연쇄 붕괴 실행 순서 조정
+    // 외부 지형 변경과 Chunk별 재배치 완료 이후 연쇄 붕괴 재검사 순서 조정
 
     public sealed class TerrainCollapseCoordinator : MonoBehaviour
     {
@@ -42,34 +42,41 @@ namespace TerrainCollapse
             collapseManager.RebuildCompleted -= HandleRebuildCompleted;
         }
 
-        private void HandleTerrainChanged()
+        private void HandleTerrainChanged(TerrainChangeReason reason)
         {
+            if (reason == TerrainChangeReason.CollapsePlacement) return;
+
             chainCount = 0;
             ReleaseFloatingGroups();
         }
 
-        private void HandleRebuildCompleted()
+        private void HandleRebuildCompleted(long _)
         {
-            chainCount++;
-            if (chainCount > maximumChainCount)
+            if (chainCount >= maximumChainCount)
             {
                 Debug.LogError($"[Terrain Collapse] 연쇄 붕괴가 {maximumChainCount}회를 초과해 중단합니다.");
+                
                 return;
             }
 
-            ReleaseFloatingGroups();
+            bool hasNewGroups = ReleaseFloatingGroups();
+            if (hasNewGroups) chainCount++;
+            else if (collapseManager.HasActiveChunks == false) chainCount = 0;
         }
 
-        private void ReleaseFloatingGroups()
+        private bool ReleaseFloatingGroups()
         {
-            if (isCheckingGroups) return;
+            if (isCheckingGroups) return false;
 
             isCheckingGroups = true;
             try
             {
                 List<List<Vector2Int>> groups = terrainManager.FindFloatingGroups();
+                
                 foreach (List<Vector2Int> group in groups)
                     collapseManager.CreateChunk(group);
+
+                return groups.Count > 0;
             }
             finally
             {

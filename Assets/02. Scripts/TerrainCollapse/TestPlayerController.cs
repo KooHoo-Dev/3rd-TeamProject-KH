@@ -73,6 +73,7 @@ namespace TerrainCollapse
             if (buried)
             {
                 TickBurialDamage();
+                
                 return;
             }
 
@@ -157,6 +158,7 @@ namespace TerrainCollapse
             {
                 float distance = Mathf.Min(probe * escapeProbeStep, maximumDistance);
                 int preferredDirection = transform.position.x <= chunkBounds.center.x ? -1 : 1;
+                
                 if (TryEscapeFallingPath(preferredDirection * distance, chunkBounds) ||
                     TryEscapeFallingPath(-preferredDirection * distance, chunkBounds))
                 {
@@ -256,7 +258,7 @@ namespace TerrainCollapse
         }
 
         /// <summary>채굴 또는 서버 확정 변경 이후 매몰 해제 가능 여부 재검사 예약</summary>
-        private void HandleTerrainChanged()
+        private void HandleTerrainChanged(TerrainChangeReason _)
         {
             if (buried == false) return;
             
@@ -281,7 +283,7 @@ namespace TerrainCollapse
         /// <summary>현재 위치에서 반 타일 범위 내 좌우 탈출 공간 탐색</summary>
         private bool TryFindNearbyBurialExit()
         {
-            float maximumDistance = terrainManager.TerrainWorld.CellSize * 0.5f;
+            float maximumDistance = terrainManager.CellSize * 0.5f;
             int probeCount = Mathf.Max(1, Mathf.CeilToInt(maximumDistance / escapeProbeStep));
             
             for (int probe = 1; probe <= probeCount; probe++)
@@ -308,14 +310,15 @@ namespace TerrainCollapse
         /// <summary>주어진 영역과 겹치는 점유 Grid 셀 존재 여부 확인</summary>
         private bool IsGridSpaceEmpty(Bounds bounds)
         {
-            TerrainGridWorld world = terrainManager.TerrainWorld;
             Vector3 inset = Vector3.one * collisionSkin;
-            Vector2Int min = world.WorldToCell(bounds.min + inset);
-            Vector2Int max = world.WorldToCell(bounds.max - inset);
+            if (terrainManager.TryWorldToCell(bounds.min + inset, out Vector2Int min) == false)
+                return false;
+            if (terrainManager.TryWorldToCell(bounds.max - inset, out Vector2Int max) == false)
+                return false;
 
             for (int y = min.y; y <= max.y; y++)
                 for (int x = min.x; x <= max.x; x++)
-                    if (world.IsOccupied(new Vector2Int(x, y))) return false;
+                    if (terrainManager.HasTerrain(new Vector2Int(x, y))) return false;
 
             return true;
         }
