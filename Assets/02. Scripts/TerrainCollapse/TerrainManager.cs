@@ -143,6 +143,18 @@ namespace TerrainCollapse
             return true;
         }
 
+        /// <summary>Grid 좌표의 월드 중심 위치 변환 시도</summary>
+        public bool TryCellToWorldCenter(Vector2Int cell, out Vector3 worldPosition)
+        {
+            worldPosition = default;
+
+            if (IsReady == false) return false;
+
+            worldPosition = terrainWorld.CellToWorldCenter(cell);
+
+            return true;
+        }
+
         /// <summary>지정 Grid 좌표의 채굴 가능 지형 제거 요청</summary>
         public TerrainRemoveResult RequestRemoveCell(Vector2Int cell)
         {

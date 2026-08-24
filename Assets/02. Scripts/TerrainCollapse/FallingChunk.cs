@@ -36,10 +36,24 @@ namespace TerrainCollapse
         [SerializeField, Range(0f, 1f)] private float minimumSupportingNormalY = 0.8f;
         [SerializeField] private float minimumSupportContactWidth = 0.02f;
 
+        private readonly struct TerrainContactInfo
+        {
+            public readonly int Count;
+            public readonly float MinX;
+            public readonly float MaxX;
+
+            public TerrainContactInfo(int count, float minX, float maxX)
+            {
+                Count = count;
+                MinX = minX;
+                MaxX = maxX;
+            }
+        }
+
         private readonly List<Vector2Int> localCells = new();
         private readonly List<TerrainTileType> cellTypes = new();
         private readonly List<int> cellDurabilities = new();
-        private readonly HashSet<Collider2D> groundContacts = new();
+        private readonly Dictionary<Collider2D, TerrainContactInfo> terrainContactInfos = new();
         private Rigidbody2D body;
         private CompositeCollider2D compositeCollider;
         private PhysicsMaterial2D frictionlessMaterial;
@@ -122,7 +136,8 @@ namespace TerrainCollapse
                 return;
             }
 
-            bool recentGround = groundContacts.Count > 0 ||
+            bool hasStableTerrainContact = HasStableTerrainContact();
+            bool recentGround = hasStableTerrainContact ||
                                 Time.time - lastGroundContactTime <= groundContactGraceDuration;
             bool slow = body.IsSleeping() ||
                         (body.linearVelocity.sqrMagnitude <= linearVelocityThreshold * linearVelocityThreshold &&
@@ -160,56 +175,75 @@ namespace TerrainCollapse
             {
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
-                    FallingTerrainContactResult result =
-                        target.ResolveFallingTerrainContact(WorldBounds, CellSize, CollapseId);
+                    target.ResolveFallingTerrainContact(WorldBounds, CellSize, CollapseId);
 
-                    // 탈출 공간이 없을 때 캐릭터가 Chunk를 받치지 않도록 충돌 해제
-                    if (result == FallingTerrainContactResult.NoEscapeSpace)
-                    {
-                        Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
-                        groundContacts.Remove(collision.collider);
-                    }
-                    
-                    break;
+                    // 판정 이후 캐릭터가 Chunk를 받치지 않도록 현재 붕괴 동안 충돌 해제
+                    Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
+                    terrainContactInfos.Remove(collision.collider);
+
+                    return;
                 }
             }
-            
+
             UpdateGroundContact(collision);
         }
 
         private void UpdateGroundContact(Collision2D collision)
         {
             Rigidbody2D otherBody = collision.rigidbody;
-            bool staticSurface = otherBody == null || otherBody.bodyType == RigidbodyType2D.Static;
-            int supportingContactCount = 0;
+            bool isStaticTerrain = otherBody == null || otherBody.bodyType == RigidbodyType2D.Static;
+            int terrainContactCount = 0;
             float minX = float.PositiveInfinity;
             float maxX = float.NegativeInfinity;
             
-            for (int i = 0; staticSurface && i < collision.contactCount; i++)
+            for (int i = 0; isStaticTerrain && i < collision.contactCount; i++)
             {
                 ContactPoint2D contact = collision.GetContact(i);
                 
                 if (contact.normal.y < minimumSupportingNormalY) continue;
                 
-                supportingContactCount++;
+                terrainContactCount++;
                 minX = Mathf.Min(minX, contact.point.x);
                 maxX = Mathf.Max(maxX, contact.point.x);
             }
 
-            bool supportingSurface = supportingContactCount >= 2 && maxX - minX >= minimumSupportContactWidth;
-            
-            if (staticSurface && supportingSurface)
+            if (isStaticTerrain && terrainContactCount > 0)
+                terrainContactInfos[collision.collider] = new TerrainContactInfo(
+                    terrainContactCount, minX, maxX);
+            else terrainContactInfos.Remove(collision.collider);
+
+            if (HasStableTerrainContact())
             {
-                groundContacts.Add(collision.collider);
                 hasTouchedGround = true;
                 lastGroundContactTime = Time.time;
             }
-            else groundContacts.Remove(collision.collider);
+        }
+
+        private bool HasStableTerrainContact()
+        {
+            int totalContactCount = 0;
+            float totalMinX = float.PositiveInfinity;
+            float totalMaxX = float.NegativeInfinity;
+
+            foreach (TerrainContactInfo contactInfo in terrainContactInfos.Values)
+            {
+                totalContactCount += contactInfo.Count;
+                totalMinX = Mathf.Min(totalMinX, contactInfo.MinX);
+                totalMaxX = Mathf.Max(totalMaxX, contactInfo.MaxX);
+            }
+
+            return totalContactCount >= 2 &&
+                   totalMaxX - totalMinX >= minimumSupportContactWidth;
         }
 
         private void OnCollisionExit2D(Collision2D collision)
         {
-            if (groundContacts.Remove(collision.collider)) lastGroundContactTime = Time.time;
+            bool hasStableTerrainContact = HasStableTerrainContact();
+
+            terrainContactInfos.Remove(collision.collider);
+
+            if (hasStableTerrainContact && HasStableTerrainContact() == false)
+                lastGroundContactTime = Time.time;
         }
     }
 }
