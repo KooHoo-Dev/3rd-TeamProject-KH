@@ -76,8 +76,10 @@ namespace TerrainCollapse
             foreach (TerrainSeedProfileDTO dto in rows)
             {
                 Validate(dto);
+
                 if (defs.ContainsKey(dto.ProfileID))
                     throw new InvalidDataException($"중복 ProfileID입니다: {dto.ProfileID}");
+
                 defs.Add(dto.ProfileID, new TerrainSeedProfileDef(dto));
             }
         }
@@ -96,15 +98,13 @@ namespace TerrainCollapse
             
             if (dto.Width <= 0 || dto.Height <= 0 || dto.CellSize <= 0f)
                 throw new InvalidDataException($"맵 크기와 CellSize는 0보다 커야 합니다: {dto.ProfileID}");
-            
-            if (dto.SurfaceHeight < 0 || dto.SurfaceHeight > dto.Height)
-                throw new InvalidDataException($"SurfaceHeight 범위가 올바르지 않습니다: {dto.ProfileID}");
-            
-            if (dto.SurfaceAmplitude < 0)
-                throw new InvalidDataException($"SurfaceAmplitude는 0 이상이어야 합니다: {dto.ProfileID}");
-            
-            if (dto.BedrockDepth < 0 || dto.BedrockDepth > dto.SurfaceHeight)
-                throw new InvalidDataException($"BedrockDepth 범위가 올바르지 않습니다: {dto.ProfileID}");
+
+            if (dto.TopOpeningWidth <= 0 || dto.TopOpeningWidth >= dto.Width)
+                throw new InvalidDataException($"TopOpeningWidth 범위가 올바르지 않습니다: {dto.ProfileID}");
+
+            if (dto.BoundaryThickness <= 0 || dto.BoundaryThickness * 2 >= dto.Width ||
+                dto.BoundaryThickness * 2 >= dto.Height)
+                throw new InvalidDataException($"BoundaryThickness 범위가 올바르지 않습니다: {dto.ProfileID}");
         }
     }
 

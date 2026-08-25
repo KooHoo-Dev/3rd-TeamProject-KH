@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 초기 맵 JSON 검증과 TerrainGridWorld 런타임 Grid 변환 및 로드
+    // 초기 JSON 또는 데이터 테이블 시드 맵 생성과 TerrainGridWorld 로드
 
     /// <summary>TextAsset JSON을 읽어 TerrainGridWorld의 런타임 데이터와 표현을 생성한다.</summary>
     [RequireComponent(typeof(TerrainGridWorld))]
@@ -10,6 +10,10 @@ namespace TerrainCollapse
     {
         [SerializeField] private TextAsset mapJson;
         [SerializeField] private TerrainGridWorld targetWorld;
+        [SerializeField] private bool useDataTableGeneration = true;
+        [SerializeField] private string dataTableProfileID = "Default";
+        [SerializeField] private bool useRandomSeed = true;
+        [SerializeField] private int seed = 12345;
 
         public TerrainMapFile LoadedMap { get; private set; }
 
@@ -23,13 +27,21 @@ namespace TerrainCollapse
         {
             if (targetWorld == null) targetWorld = GetComponent<TerrainGridWorld>();
             
-            if (mapJson == null)
+            if (useDataTableGeneration)
             {
-                Debug.LogError("[Terrain Map Loader] Map JSON이 연결되지 않았습니다.");
-                return;
+                int generationSeed = useRandomSeed ? System.Environment.TickCount : seed;
+                LoadedMap = TerrainSeedGenerator.Generate(dataTableProfileID, generationSeed);
             }
+            else
+            {
+                if (mapJson == null)
+                {
+                    Debug.LogError("[Terrain Map Loader] Map JSON이 연결되지 않았습니다.");
+                    return;
+                }
 
-            LoadedMap = TerrainMapFile.FromJson(mapJson.text);
+                LoadedMap = TerrainMapFile.FromJson(mapJson.text);
+            }
             
             if (LoadedMap == null)
             {
