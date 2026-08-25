@@ -16,10 +16,8 @@ namespace TerrainCollapse
     /// <summary>낙하 지형 접촉 시 탈출 또는 매몰 여부를 결정하는 대상</summary>
     public interface IFallingTerrainEscapeTarget
     {
-        FallingTerrainContactResult ResolveFallingTerrainContact(
-            Bounds terrainBounds,
-            float terrainCellSize,
-            long collapseId);
+        // 실제 타일 형상을 확인하기 위해 FallingChunk 객체 자체를 전달
+        FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk);
     }
 
     /// <summary>커스텀 Grid 셀 묶음의 물리 낙하와 안정화 상태를 관리</summary>
@@ -30,9 +28,11 @@ namespace TerrainCollapse
         [SerializeField] private float angularVelocityThreshold = 1f;
         [SerializeField] private float settleDuration = 0.3f;
         [SerializeField] private float groundContactGraceDuration = 0.15f;
-        [SerializeField] private float maximumSettleWait = 2f;
         [SerializeField] private float maximumLifetime = 15f;
-        [SerializeField] private float forcedSettleVelocityThreshold = 0.5f;
+        // 정적 지형 접촉 후 강제 안정화 판정에 필요한 유지 시간
+        [SerializeField] private float positionStabilityDuration = 0.25f;
+        // 강제 안정화 판정 시 허용되는 타일 크기 대비 위치 오차 비율
+        [SerializeField, Range(0f, 1f)] private float positionStabilityRatio = 0.02f;
         [SerializeField, Range(0f, 1f)] private float minimumSupportingNormalY = 0.8f;
         [SerializeField] private float minimumSupportContactWidth = 0.02f;
 
@@ -54,19 +54,21 @@ namespace TerrainCollapse
         private readonly List<TerrainTileType> cellTypes = new();
         private readonly List<int> cellDurabilities = new();
         private readonly Dictionary<Collider2D, TerrainContactInfo> terrainContactInfos = new();
+        private readonly HashSet<Collider2D> staticTerrainContacts = new();
         private Rigidbody2D body;
         private CompositeCollider2D compositeCollider;
         private PhysicsMaterial2D frictionlessMaterial;
         private float cellSize;
         private float stableTime;
-        private float timeSinceFirstGroundContact;
+        private float positionStableTime;
         private float lastGroundContactTime = float.NegativeInfinity;
         private float lifetime;
         private float minimumWorldY;
-        private bool hasTouchedGround;
+        private bool isTrackingStablePosition;
         private bool settled;
         private bool expired;
         private long collapseId;
+        private Vector2 stablePositionOrigin;
 
         public bool IsSettled => settled;
         public bool IsExpired => expired;
@@ -136,32 +138,62 @@ namespace TerrainCollapse
                 return;
             }
 
+            // 접점 개수와 지지 폭을 충족하는 일반 안정화용 지형 접촉 여부
             bool hasStableTerrainContact = HasStableTerrainContact();
+            // 접촉 방향과 무관하게 정적 지형에 닿아 있는 강제 안정화용 접촉 여부
+            bool hasStaticTerrainContact = staticTerrainContacts.Count > 0;
             bool recentGround = hasStableTerrainContact ||
                                 Time.time - lastGroundContactTime <= groundContactGraceDuration;
             bool slow = body.IsSleeping() ||
                         (body.linearVelocity.sqrMagnitude <= linearVelocityThreshold * linearVelocityThreshold &&
                          Mathf.Abs(body.angularVelocity) <= angularVelocityThreshold);
-            
+
+            // 정상적인 지형 지지와 저속 상태가 유지될 때 일반 안정화 시간 누적
             stableTime = recentGround && slow
                 ? stableTime + Time.fixedDeltaTime
                 : Mathf.Max(0f, stableTime - Time.fixedDeltaTime);
 
-            if (hasTouchedGround) timeSinceFirstGroundContact += Time.fixedDeltaTime;
-            
-            bool forceSettled = hasTouchedGround && recentGround &&
-                                timeSinceFirstGroundContact >= maximumSettleWait &&
-                                body.linearVelocity.sqrMagnitude <=
-                                forcedSettleVelocityThreshold * forcedSettleVelocityThreshold;
-            
-            if (stableTime < settleDuration && forceSettled == false) return;
+            // 정적 지형 접촉 중 위치 변화가 허용 범위 이내일 때 강제 안정화 판정
+            bool isForceSettled = IsPositionStable(hasStaticTerrainContact);
+
+            // 일반 안정화 시간과 강제 안정화 조건을 모두 충족하지 않으면 안정화 보류
+            if (stableTime < settleDuration && isForceSettled == false) return;
 
             settled = true;
             body.linearVelocity = Vector2.zero;
             body.angularVelocity = 0f;
             body.bodyType = RigidbodyType2D.Kinematic;
             Debug.Log($"[Terrain Collapse] Chunk Settled: {name}" +
-                      (forceSettled ? " (contact timeout fallback)" : string.Empty));
+                      (isForceSettled ? " (position stability fallback)" : string.Empty));
+        }
+
+        /// <summary>정적 지형 접촉 중 타일 크기 비례 허용 범위 내 위치 유지 시간 확인</summary>
+        private bool IsPositionStable(bool hasStaticTerrainContact)
+        {
+            if (hasStaticTerrainContact == false)
+            {
+                isTrackingStablePosition = false;
+                positionStableTime = 0f;
+
+                return false;
+            }
+
+            Vector2 position = body.position;
+            float tolerance = cellSize * positionStabilityRatio;
+
+            if (isTrackingStablePosition == false ||
+                (position - stablePositionOrigin).sqrMagnitude > tolerance * tolerance)
+            {
+                stablePositionOrigin = position;
+                positionStableTime = 0f;
+                isTrackingStablePosition = true;
+
+                return false;
+            }
+
+            positionStableTime += Time.fixedDeltaTime;
+
+            return positionStableTime >= positionStabilityDuration;
         }
 
         private void OnCollisionEnter2D(Collision2D collision) => HandleCollision(collision);
@@ -175,10 +207,11 @@ namespace TerrainCollapse
             {
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
-                    target.ResolveFallingTerrainContact(WorldBounds, CellSize, CollapseId);
+                    target.ResolveFallingTerrainContact(this);
 
                     // 판정 이후 캐릭터가 Chunk를 받치지 않도록 현재 붕괴 동안 충돌 해제
                     Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
+                    staticTerrainContacts.Remove(collision.collider);
                     terrainContactInfos.Remove(collision.collider);
 
                     return;
@@ -195,6 +228,10 @@ namespace TerrainCollapse
             int terrainContactCount = 0;
             float minX = float.PositiveInfinity;
             float maxX = float.NegativeInfinity;
+
+            if (isStaticTerrain && collision.contactCount > 0)
+                staticTerrainContacts.Add(collision.collider);
+            else staticTerrainContacts.Remove(collision.collider);
             
             for (int i = 0; isStaticTerrain && i < collision.contactCount; i++)
             {
@@ -212,11 +249,7 @@ namespace TerrainCollapse
                     terrainContactCount, minX, maxX);
             else terrainContactInfos.Remove(collision.collider);
 
-            if (HasStableTerrainContact())
-            {
-                hasTouchedGround = true;
-                lastGroundContactTime = Time.time;
-            }
+            if (HasStableTerrainContact()) lastGroundContactTime = Time.time;
         }
 
         private bool HasStableTerrainContact()
@@ -240,6 +273,7 @@ namespace TerrainCollapse
         {
             bool hasStableTerrainContact = HasStableTerrainContact();
 
+            staticTerrainContacts.Remove(collision.collider);
             terrainContactInfos.Remove(collision.collider);
 
             if (hasStableTerrainContact && HasStableTerrainContact() == false)
