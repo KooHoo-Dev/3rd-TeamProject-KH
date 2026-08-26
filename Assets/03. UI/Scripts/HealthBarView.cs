@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace GameUI
+namespace TerrainCollapse
 {
     /// <summary>
     /// 체력 값을 소유하지 않고 전달받은 값을 화면에 표시한다.

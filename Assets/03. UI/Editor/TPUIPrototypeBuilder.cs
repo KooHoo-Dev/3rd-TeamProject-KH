@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
-namespace GameUI.Editor
+namespace TerrainCollapse
 {
     /// <summary>TP 검증용 HUD Prefab과 별도 프로토타입 씬을 Unity 직렬화로 생성한다.</summary>
     public static class TPUIPrototypeBuilder
@@ -127,78 +127,42 @@ namespace GameUI.Editor
 
         private static InventoryView CreateInventory(Transform parent, TMP_FontAsset font)
         {
-            RectTransform panel = CreatePanel("InventoryPanel", parent);
-            SetAnchoredRect(panel, Vector2.zero, Vector2.zero, Vector2.zero,
-                new Vector2(30f, 30f), new Vector2(500f, 390f));
+            RectTransform panel = CreatePanel("InventoryBar", parent);
+            SetAnchoredRect(panel, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(900f, 158f));
 
-            CreateText("Title", panel, font, "INVENTORY", 27f, FontStyles.Bold,
-                TextAlignmentOptions.Left, new Vector2(18f, -12f), new Vector2(220f, 34f),
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
+            TextMeshProUGUI goldText = CreateText("Gold", panel, font, "GOLD  1,250", 26f,
+                FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, -10f),
+                new Vector2(420f, 34f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f));
+            goldText.color = new Color(1f, 0.82f, 0.25f, 1f);
 
-            TextMeshProUGUI moneyText = CreateText("Money", panel, font, "$ 1,250", 25f,
-                FontStyles.Bold, TextAlignmentOptions.Right, new Vector2(-18f, -12f),
-                new Vector2(190f, 34f), Vector2.one, Vector2.one, Vector2.one);
-            moneyText.color = new Color(1f, 0.82f, 0.25f, 1f);
-
-            CreateText("WeightLabel", panel, font, "WEIGHT", 17f, FontStyles.Bold,
-                TextAlignmentOptions.Left, new Vector2(18f, -56f), new Vector2(90f, 25f),
-                new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f));
-
-            RectTransform weightTrack = CreateImage("WeightTrack", panel, TrackColor);
-            SetAnchoredRect(weightTrack, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(0f, 1f), new Vector2(105f, -56f), new Vector2(265f, 24f));
-
-            Image weightFill = CreateImage("Fill", weightTrack, new Color(0.14f, 0.72f, 0.92f, 1f))
-                .GetComponent<Image>();
-            StretchToParent((RectTransform)weightFill.transform, 2f);
-            weightFill.type = Image.Type.Filled;
-            weightFill.fillMethod = Image.FillMethod.Horizontal;
-            weightFill.fillOrigin = 0;
-
-            TextMeshProUGUI weightText = CreateText("WeightValue", panel, font, "18 / 30", 18f,
-                FontStyles.Bold, TextAlignmentOptions.Right, new Vector2(-18f, -55f),
-                new Vector2(105f, 26f), Vector2.one, Vector2.one, Vector2.one);
+            RectTransform divider = CreateImage("Divider", panel, BorderColor);
+            SetAnchoredRect(divider, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f), new Vector2(0f, -51f), new Vector2(852f, 2f));
 
             List<InventorySlotView> slots = new();
-            for (int index = 0; index < 6; index++)
+            for (int index = 0; index < 10; index++)
             {
-                int column = index % 2;
-                int row = index / 2;
                 RectTransform slot = CreateImage("Slot " + (index + 1), panel,
                     new Color(0.075f, 0.095f, 0.13f, 0.98f));
                 SetAnchoredRect(slot, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                    new Vector2(0f, 1f), new Vector2(18f + column * 238f, -105f - row * 82f),
-                    new Vector2(226f, 70f));
+                    new Vector2(0f, 1f), new Vector2(24f + index * 86f, -65f),
+                    new Vector2(78f, 78f));
                 AddOutline(slot.gameObject, new Color(0.2f, 0.27f, 0.35f, 0.9f), 1f);
 
                 Image icon = CreateImage("Icon", slot, new Color(0.65f, 0.72f, 0.8f, 1f))
                     .GetComponent<Image>();
-                SetAnchoredRect((RectTransform)icon.transform, new Vector2(0f, 0.5f),
-                    new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f),
-                    new Vector2(48f, 48f));
-
-                TextMeshProUGUI nameText = CreateText("Name", slot, font, string.Empty, 18f,
-                    FontStyles.Normal, TextAlignmentOptions.Left, new Vector2(68f, -11f),
-                    new Vector2(125f, 27f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-                    new Vector2(0f, 1f));
-
-                TextMeshProUGUI amountText = CreateText("Amount", slot, font, string.Empty, 19f,
-                    FontStyles.Bold, TextAlignmentOptions.Right, new Vector2(-10f, -9f),
-                    new Vector2(65f, 26f), Vector2.one, Vector2.one, Vector2.one);
-                amountText.color = new Color(0.35f, 0.86f, 1f, 1f);
+                StretchToParent((RectTransform)icon.transform, 9f);
 
                 InventorySlotView slotView = slot.gameObject.AddComponent<InventorySlotView>();
                 SetObjectReference(slotView, "iconImage", icon);
-                SetObjectReference(slotView, "nameText", nameText);
-                SetObjectReference(slotView, "amountText", amountText);
                 slots.Add(slotView);
             }
 
             InventoryView view = panel.gameObject.AddComponent<InventoryView>();
             SetObjectArray(view, "slotViews", slots);
-            SetObjectReference(view, "weightFillImage", weightFill);
-            SetObjectReference(view, "weightText", weightText);
-            SetObjectReference(view, "moneyText", moneyText);
+            SetObjectReference(view, "goldText", goldText);
             return view;
         }
 
