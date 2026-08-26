@@ -19,7 +19,6 @@ namespace TerrainCollapse
             TerrainMapFile map,
             IReadOnlyList<TerrainDepthSectionDef> sections,
             TerrainSectionMineralTable mineralTable,
-            IReadOnlyList<int> surfaceByColumn,
             TerrainMapGenerationContext context)
         {
             foreach (TerrainDepthSectionDef section in sections)
@@ -28,7 +27,7 @@ namespace TerrainCollapse
                     mineralTable.GetBySection(section.Profile.ProfileID, section.SectionID);
 
                 foreach (TerrainSectionMineralDef mineral in minerals)
-                    ApplyMineral(map, section, mineral, surfaceByColumn, context);
+                    ApplyMineral(map, section, mineral, context);
             }
         }
 
@@ -36,15 +35,14 @@ namespace TerrainCollapse
             TerrainMapFile map,
             TerrainDepthSectionDef section,
             TerrainSectionMineralDef mineral,
-            IReadOnlyList<int> surfaceByColumn,
             TerrainMapGenerationContext context)
         {
             for (int x = 0; x < map.Width; x++)
-            for (int y = 0; y <= surfaceByColumn[x]; y++)
+            for (int y = 0; y < map.Height; y++)
             {
                 Vector2Int coord = new(x, y);
                 
-                if (IsBaseCellInSection(map, coord, section, surfaceByColumn) == false)
+                if (IsBaseCellInSection(map, coord, section) == false)
                     continue;
                 
                 if (context.Random.NextDouble() >= mineral.ClusterDensity)
@@ -59,7 +57,6 @@ namespace TerrainCollapse
                     clusterSize,
                     section,
                     mineral,
-                    surfaceByColumn,
                     context);
             }
         }
@@ -70,7 +67,6 @@ namespace TerrainCollapse
             int clusterSize,
             TerrainDepthSectionDef section,
             TerrainSectionMineralDef mineral,
-            IReadOnlyList<int> surfaceByColumn,
             TerrainMapGenerationContext context)
         {
             List<Vector2Int> members = new() { start };
@@ -81,8 +77,7 @@ namespace TerrainCollapse
                 List<Vector2Int> candidates = CollectCandidates(
                     map,
                     members,
-                    section,
-                    surfaceByColumn);
+                    section);
                 
                 if (candidates.Count == 0) break;
 
@@ -95,8 +90,7 @@ namespace TerrainCollapse
         private static List<Vector2Int> CollectCandidates(
             TerrainMapFile map,
             IReadOnlyList<Vector2Int> members,
-            TerrainDepthSectionDef section,
-            IReadOnlyList<int> surfaceByColumn)
+            TerrainDepthSectionDef section)
         {
             List<Vector2Int> candidates = new();
             HashSet<Vector2Int> uniqueCandidates = new();
@@ -108,7 +102,7 @@ namespace TerrainCollapse
                     
                     if (uniqueCandidates.Add(candidate) == false) continue;
                     
-                    if (IsBaseCellInSection(map, candidate, section, surfaceByColumn))
+                    if (IsBaseCellInSection(map, candidate, section))
                         candidates.Add(candidate);
                 }
 
@@ -118,18 +112,14 @@ namespace TerrainCollapse
         private static bool IsBaseCellInSection(
             TerrainMapFile map,
             Vector2Int coord,
-            TerrainDepthSectionDef section,
-            IReadOnlyList<int> surfaceByColumn)
+            TerrainDepthSectionDef section)
         {
             if (coord.x < 0 || coord.x >= map.Width || coord.y < 0 || coord.y >= map.Height)
                 return false;
-            
-            if (coord.y > surfaceByColumn[coord.x]) return false;
 
-            int availableDepth = surfaceByColumn[coord.x] - section.Profile.BedrockDepth;
-            float depthRatio = availableDepth > 0
-                ? (float)(surfaceByColumn[coord.x] - coord.y) / availableDepth
-                : 0f;
+            float depthRatio = Mathf.Clamp01(
+                TerrainTableSeedGenerator.GetDepthRatio(map, coord.y) +
+                TerrainTableSeedGenerator.GetSectionBoundaryOffset(map, coord.x));
 
             if (section.ContainsDepthRatio(depthRatio) == false) return false;
 

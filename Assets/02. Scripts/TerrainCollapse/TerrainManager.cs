@@ -227,7 +227,7 @@ namespace TerrainCollapse
 
         public TerrainSnapshot CreateSnapshot() => terrainWorld != null ? terrainWorld.CreateSnapshot() : null;
 
-        /// <summary>점유 셀을 BFS로 순회하고 기반암과 연결되지 않은 그룹을 분리한다.</summary>
+        /// <summary>기반암을 제외한 지형 그룹을 탐색하고 바닥에 놓이지 않은 그룹 분리</summary>
         public List<List<Vector2Int>> FindFloatingGroups()
         {
             if (IsReady == false) return new List<List<Vector2Int>>();
@@ -239,7 +239,9 @@ namespace TerrainCollapse
 
             foreach (Vector2Int start in occupiedSnapshot)
             {
-                if (terrainWorld.IsOccupied(start) == false || visited.Add(start) == false) continue;
+                if (TryGetTileType(start, out TerrainTileType startType) == false ||
+                    startType == TerrainTileType.Bedrock || visited.Add(start) == false)
+                    continue;
 
                 List<Vector2Int> group = new();
                 Queue<Vector2Int> queue = new();
@@ -252,14 +254,18 @@ namespace TerrainCollapse
                     Vector2Int cell = queue.Dequeue();
                     group.Add(cell);
                     
-                    if (TryGetTileType(cell, out TerrainTileType type))
-                        supported |= type == TerrainTileType.Bedrock;
+                    Vector2Int below = cell + Vector2Int.down;
+
+                    if (TryGetTileType(below, out TerrainTileType belowType))
+                        supported |= belowType == TerrainTileType.Bedrock;
 
                     foreach (Vector2Int direction in Directions)
                     {
                         Vector2Int next = cell + direction;
                         
-                        if (terrainWorld.IsOccupied(next) && visited.Add(next)) queue.Enqueue(next);
+                        if (TryGetTileType(next, out TerrainTileType nextType) &&
+                            nextType != TerrainTileType.Bedrock && visited.Add(next))
+                            queue.Enqueue(next);
                     }
                 }
 

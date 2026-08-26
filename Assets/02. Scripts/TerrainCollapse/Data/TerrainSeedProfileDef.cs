@@ -2,7 +2,7 @@ using System;
 
 namespace TerrainCollapse
 {
-    // 맵 프로필별 크기와 표면 및 기반암 생성 설정 정의
+    // 맵 프로필별 크기와 타원형 경계 및 상단 개방 폭 설정 정의
 
     [Serializable]
     public sealed class TerrainSeedProfileDTO
@@ -12,11 +12,8 @@ namespace TerrainCollapse
         public int Width;
         public int Height;
         public float CellSize;
-        public float OriginX;
-        public float OriginY;
-        public int SurfaceHeight;
-        public int SurfaceAmplitude;
-        public int BedrockDepth;
+        public int TopOpeningWidth;
+        public int BoundaryThickness;
     }
 
     public sealed class TerrainSeedProfileDef
@@ -26,11 +23,11 @@ namespace TerrainCollapse
         public int Width { get; }
         public int Height { get; }
         public float CellSize { get; }
-        public float OriginX { get; }
-        public float OriginY { get; }
-        public int SurfaceHeight { get; }
-        public int SurfaceAmplitude { get; }
-        public int BedrockDepth { get; }
+        public int TopOpeningWidth { get; }
+        public int BottomFlatWidth => Math.Max(1, (int)Math.Round(Width * 0.25f, MidpointRounding.AwayFromZero));
+        public int BoundaryThickness { get; }
+        public float OriginX => -Width * CellSize * 0.5f;
+        public float OriginY => -Height * CellSize;
 
         public TerrainSeedProfileDef(TerrainSeedProfileDTO dto)
         {
@@ -39,11 +36,8 @@ namespace TerrainCollapse
             Width = dto.Width;
             Height = dto.Height;
             CellSize = dto.CellSize;
-            OriginX = dto.OriginX;
-            OriginY = dto.OriginY;
-            SurfaceHeight = dto.SurfaceHeight;
-            SurfaceAmplitude = dto.SurfaceAmplitude;
-            BedrockDepth = dto.BedrockDepth;
+            TopOpeningWidth = dto.TopOpeningWidth;
+            BoundaryThickness = dto.BoundaryThickness;
         }
     }
 }
