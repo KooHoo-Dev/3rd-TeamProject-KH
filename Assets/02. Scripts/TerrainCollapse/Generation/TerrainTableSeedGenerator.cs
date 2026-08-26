@@ -4,10 +4,69 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 데이터 테이블의 프로필과 깊이 섹션을 조합하여 기본 지형을 생성하는 내부 생성기
+    // 데이터 테이블의 프로필과 깊이 섹션으로 상하단이 잘린 타원형 지형을 생성하는 내부 생성기
 
     internal static class TerrainTableSeedGenerator
     {
+        private readonly struct EllipseShape
+        {
+            private readonly TerrainSeedProfileDef profile;
+            private readonly float radiusX;
+            private readonly float radiusY;
+            private readonly float centerY;
+
+            public EllipseShape(TerrainSeedProfileDef profile)
+            {
+                this.profile = profile;
+                radiusX = profile.Width * 0.5f;
+
+                float topRatio = profile.TopOpeningWidth / (float)profile.Width;
+                float bottomRatio = profile.BottomFlatWidth / (float)profile.Width;
+                float topFactor = Mathf.Sqrt(1f - topRatio * topRatio);
+                float bottomFactor = Mathf.Sqrt(1f - bottomRatio * bottomRatio);
+
+                radiusY = profile.Height / (topFactor + bottomFactor);
+                centerY = -topFactor * radiusY;
+            }
+
+            public bool Contains(Vector2Int coord)
+            {
+                if (coord.x < 0 || coord.x >= profile.Width ||
+                    coord.y < 0 || coord.y >= profile.Height)
+                    return false;
+
+                if (coord.y < profile.BoundaryThickness &&
+                    IsInsideCenteredWidth(coord.x, profile.BottomFlatWidth) == false)
+                    return false;
+
+                const float BOTTOM_WIDTH_MULTIPLIER = 0.7f;
+
+                float centeredX = coord.x + 0.5f - radiusX;
+                float worldY = coord.y + 0.5f - profile.Height;
+                float heightRatio = coord.y / (float)(profile.Height - 1);
+                float widthMultiplier = Mathf.Lerp(
+                    BOTTOM_WIDTH_MULTIPLIER, 1f, heightRatio);
+                float normalizedX = centeredX / (radiusX * widthMultiplier);
+                float normalizedY = (worldY - centerY) / radiusY;
+
+                return normalizedX * normalizedX + normalizedY * normalizedY <= 1f;
+            }
+
+            public bool IsTopOpening(Vector2Int coord)
+                => coord.y >= profile.Height - profile.BoundaryThickness &&
+                   IsInsideCenteredWidth(coord.x, profile.TopOpeningWidth);
+
+            public bool IsTopOpeningColumn(int x)
+                => IsInsideCenteredWidth(x, profile.TopOpeningWidth);
+
+            private bool IsInsideCenteredWidth(int x, int width)
+            {
+                float centeredX = x + 0.5f - radiusX;
+
+                return Mathf.Abs(centeredX) < width * 0.5f;
+            }
+        }
+
         public static TerrainMapFile Generate(string profileID, int seed)
         {
             TerrainDataManager dataManager = TerrainDataManager.Instance;
@@ -16,8 +75,12 @@ namespace TerrainCollapse
             TerrainSeedProfileDef profile = dataManager.SeedProfiles.Get(profileID);
             IReadOnlyList<TerrainDepthSectionDef> sections =
                 dataManager.DepthSections.GetByProfile(profileID);
+            IReadOnlyList<TerrainVariantClusterDef> variants =
+                dataManager.VariantClusters.GetByProfile(profileID);
+            IReadOnlyList<TerrainCaveDef> caves =
+                dataManager.Caves.GetByProfile(profileID);
 
-            return Generate(profile, sections, dataManager.SectionMinerals, seed);
+            return Generate(profile, sections, variants, caves, dataManager.SectionMinerals, seed);
         }
 
         public static TerrainMapFile Generate(
@@ -25,18 +88,47 @@ namespace TerrainCollapse
             IReadOnlyList<TerrainDepthSectionDef> sections,
             TerrainSectionMineralTable mineralTable,
             int seed)
+            => Generate(profile,
+                sections,
+                Array.Empty<TerrainVariantClusterDef>(),
+                Array.Empty<TerrainCaveDef>(),
+                mineralTable,
+                seed);
+
+        public static TerrainMapFile Generate(
+            TerrainSeedProfileDef profile,
+            IReadOnlyList<TerrainDepthSectionDef> sections,
+            IReadOnlyList<TerrainVariantClusterDef> variants,
+            TerrainSectionMineralTable mineralTable,
+            int seed)
+            => Generate(profile,
+                sections,
+                variants,
+                Array.Empty<TerrainCaveDef>(),
+                mineralTable,
+                seed);
+
+        public static TerrainMapFile Generate(
+            TerrainSeedProfileDef profile,
+            IReadOnlyList<TerrainDepthSectionDef> sections,
+            IReadOnlyList<TerrainVariantClusterDef> variants,
+            IReadOnlyList<TerrainCaveDef> caves,
+            TerrainSectionMineralTable mineralTable,
+            int seed)
         {
             Validate(profile, sections, mineralTable);
 
+            if (variants == null) throw new ArgumentNullException(nameof(variants));
+            if (caves == null) throw new ArgumentNullException(nameof(caves));
+
             TerrainMapGenerationContext context = new(seed);
             TerrainMapFile map = CreateEmptyMap(profile, seed);
-            int[] surfaceByColumn = FillSectionTerrain(map, profile, sections, context);
-            TerrainMineralClusterGenerator.Apply(
-                map,
-                sections,
-                mineralTable,
-                surfaceByColumn,
-                context);
+            EllipseShape shape = new(profile);
+            FillSectionTerrain(map, sections, shape);
+            ApplyBoundaries(map, profile, shape);
+            TerrainCaveGenerator.Apply(map, caves, context);
+            TerrainVariantClusterGenerator.Apply(map, variants, context);
+            TerrainMineralClusterGenerator.Apply(map, sections, mineralTable, context);
 
             return map;
         }
@@ -62,56 +154,82 @@ namespace TerrainCollapse
             return map;
         }
 
-        private static int[] FillSectionTerrain(
+        internal static float GetDepthRatio(TerrainMapFile map, int y)
+            => map.Height > 1
+                ? (float)(map.Height - 1 - y) / (map.Height - 1)
+                : 0f;
+
+        private static void FillSectionTerrain(
             TerrainMapFile map,
-            TerrainSeedProfileDef profile,
             IReadOnlyList<TerrainDepthSectionDef> sections,
-            TerrainMapGenerationContext context)
+            EllipseShape shape)
         {
-            int[] surfaceByColumn = new int[profile.Width];
+            for (int y = 0; y < map.Height; y++)
+                for (int x = 0; x < map.Width; x++)
+                {
+                    Vector2Int coord = new(x, y);
 
-            for (int x = 0; x < profile.Width; x++)
-            {
-                int variation = profile.SurfaceAmplitude == 0
-                    ? 0
-                    : context.Random.Next(-profile.SurfaceAmplitude, profile.SurfaceAmplitude + 1);
-                int surfaceY = Mathf.Clamp(
-                    profile.SurfaceHeight - 1 + variation,
-                    profile.BedrockDepth,
-                    profile.Height - 1);
-                surfaceByColumn[x] = surfaceY;
+                    if (shape.Contains(coord) == false) continue;
 
-                FillColumn(map, x, surfaceY, profile.BedrockDepth, sections);
-            }
+                    float depthRatio = GetDepthRatio(map, y);
+                    float boundaryOffset = GetSectionBoundaryOffset(map, x);
 
-            return surfaceByColumn;
+                    TerrainDepthSectionDef section = FindSection(
+                        sections, Mathf.Clamp01(depthRatio + boundaryOffset));
+
+                    if (section != null) map.SetTile(coord, section.BaseTile.TileType);
+                }
         }
 
-        private static void FillColumn(
-            TerrainMapFile map,
-            int x,
-            int surfaceY,
-            int bedrockDepth,
-            IReadOnlyList<TerrainDepthSectionDef> sections)
+        internal static float GetSectionBoundaryOffset(TerrainMapFile map, int x)
         {
-            for (int y = 0; y <= surfaceY; y++)
-            {
-                Vector2Int coord = new(x, y);
-                
-                if (y < bedrockDepth)
-                {
-                    map.SetTile(coord, TerrainTileType.Bedrock);
-                    continue;
-                }
+            const float NOISE_SCALE = 0.2f;
+            const float MAX_OFFSET_IN_CELLS = 4f;
 
-                int availableDepth = surfaceY - bedrockDepth;
-                float depthRatio = availableDepth > 0
-                    ? (float)(surfaceY - y) / availableDepth
-                    : 0f;
-                TerrainDepthSectionDef section = FindSection(sections, depthRatio);
-                
-                if (section != null) map.SetTile(coord, section.BaseTile.TileType);
+            float noise = Mathf.PerlinNoise(x * NOISE_SCALE, map.Seed * 0.01f);
+            float centeredNoise = noise * Mathf.Lerp(-1f, 1f, noise);
+
+            return centeredNoise * MAX_OFFSET_IN_CELLS / Mathf.Max(1, map.Height - 1);
+        }
+
+        private static void ApplyBoundaries(
+            TerrainMapFile map,
+            TerrainSeedProfileDef profile,
+            EllipseShape shape)
+        {
+            for (int y = 0; y < map.Height; y++)
+                for (int x = 0; x < map.Width; x++)
+                {
+                    Vector2Int coord = new(x, y);
+
+                    if (shape.Contains(coord) == false) continue;
+                    if (shape.IsTopOpening(coord)) continue;
+
+                    if (IsBoundary(coord, profile, shape))
+                        map.SetTile(coord, TerrainTileType.Bedrock);
+                }
+        }
+
+        private static bool IsBoundary(
+            Vector2Int coord,
+            TerrainSeedProfileDef profile,
+            EllipseShape shape)
+        {
+            for (int distance = 1; distance <= profile.BoundaryThickness; distance++)
+            {
+                if (shape.Contains(coord + Vector2Int.left * distance) == false ||
+                    shape.Contains(coord + Vector2Int.right * distance) == false ||
+                    shape.Contains(coord + Vector2Int.down * distance) == false)
+                    return true;
+
+                Vector2Int above = coord + Vector2Int.up * distance;
+
+                if (shape.Contains(above) == false &&
+                    (above.y < profile.Height || shape.IsTopOpeningColumn(coord.x) == false))
+                    return true;
             }
+
+            return false;
         }
 
         private static TerrainDepthSectionDef FindSection(
