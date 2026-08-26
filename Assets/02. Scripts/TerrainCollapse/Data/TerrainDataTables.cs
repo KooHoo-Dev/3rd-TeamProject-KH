@@ -424,4 +424,83 @@ namespace TerrainCollapse
                 throw new InvalidDataException($"FillRatio 범위가 올바르지 않습니다: {dto.ProfileID}");
         }
     }
+
+    public sealed class TerrainCaveTable
+    {
+        private const string TableName = "Table/Terrain/terrain_caves.tsv";
+
+        private readonly Dictionary<string, List<TerrainCaveDef>> defsByProfile =
+            new(StringComparer.Ordinal);
+
+        public int Count { get; private set; }
+
+        public void Load(TerrainSeedProfileTable profileTable)
+        {
+            defsByProfile.Clear();
+            Count = 0;
+
+            HashSet<string> ordersByProfile = new(StringComparer.Ordinal);
+            List<TerrainCaveDTO> rows = TerrainTileTable.ReadTerrainRows<TerrainCaveDTO>(TableName);
+
+            foreach (TerrainCaveDTO dto in rows)
+            {
+                Validate(dto);
+
+                if (profileTable.TryGet(dto.ProfileID, out TerrainSeedProfileDef profile) == false)
+                    throw new InvalidDataException($"등록되지 않은 ProfileID입니다: {dto.ProfileID}");
+
+                string orderKey = $"{dto.ProfileID}\u001F{dto.CaveOrder}";
+
+                if (ordersByProfile.Add(orderKey) == false)
+                    throw new InvalidDataException($"중복 CaveOrder입니다: {dto.ProfileID}/{dto.CaveOrder}");
+
+                TerrainCaveDef def = new(dto, profile);
+
+                if (defsByProfile.TryGetValue(dto.ProfileID, out List<TerrainCaveDef> profileDefs) == false)
+                {
+                    profileDefs = new List<TerrainCaveDef>();
+                    defsByProfile.Add(dto.ProfileID, profileDefs);
+                }
+
+                profileDefs.Add(def);
+                Count++;
+            }
+
+            foreach (List<TerrainCaveDef> defs in defsByProfile.Values)
+                defs.Sort((left, right)
+                    => left.CaveOrder.CompareTo(right.CaveOrder));
+        }
+
+        public IReadOnlyList<TerrainCaveDef> GetByProfile(string profileID)
+            => defsByProfile.TryGetValue(profileID,
+                out List<TerrainCaveDef> defs)
+            ? defs
+            : Array.Empty<TerrainCaveDef>();
+
+        private static void Validate(TerrainCaveDTO dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.ProfileID))
+                throw new InvalidDataException("ProfileID는 비어 있을 수 없습니다");
+
+            if (dto.CaveOrder < 0)
+                throw new InvalidDataException($"CaveOrder가 올바르지 않습니다: {dto.ProfileID}");
+
+            if (dto.MinDepthRatio < 0f ||
+                dto.MaxDepthRatio > 1f ||
+                dto.MinDepthRatio >= dto.MaxDepthRatio)
+                throw new InvalidDataException($"동굴 깊이 범위가 올바르지 않습니다: {dto.ProfileID}");
+
+            if (dto.CaveCount < 0)
+                throw new InvalidDataException($"CaveCount가 올바르지 않습니다: {dto.ProfileID}");
+
+            if (dto.MinLength <= 0 || dto.MaxLength < dto.MinLength)
+                throw new InvalidDataException($"동굴 길이 범위가 올바르지 않습니다: {dto.ProfileID}");
+
+            if (dto.MinRadius <= 0 || dto.MaxRadius < dto.MinRadius)
+                throw new InvalidDataException($"동굴 반경 범위가 올바르지 않습니다: {dto.ProfileID}");
+
+            if (dto.MaxAttempts <= 0)
+                throw new InvalidDataException($"MaxAttempts가 올바르지 않습니다: {dto.ProfileID}");
+        }
+    }
 }
