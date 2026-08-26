@@ -24,6 +24,15 @@ namespace TerrainCollapse
             int seed)
             => TerrainTableSeedGenerator.Generate(profile, sections, mineralTable, seed);
 
+        // 참조가 해석된 프로필과 변칙 지형 및 광물 규칙으로 런타임 맵 생성
+        public static TerrainMapFile Generate(
+            TerrainSeedProfileDef profile,
+            IReadOnlyList<TerrainDepthSectionDef> sections,
+            IReadOnlyList<TerrainVariantClusterDef> variants,
+            TerrainSectionMineralTable mineralTable,
+            int seed)
+            => TerrainTableSeedGenerator.Generate(profile, sections, variants, mineralTable, seed);
+
         /// <summary>설정의 고정 또는 랜덤 시드 정책에 따라 런타임 맵 생성</summary>
         public static TerrainMapFile Generate(
             TerrainMapGenerationSettings settings,

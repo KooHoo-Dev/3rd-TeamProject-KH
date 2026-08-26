@@ -31,6 +31,7 @@ namespace TerrainCollapse
         public TerrainSeedProfileTable SeedProfiles { get; } = new();
         public TerrainDepthSectionTable DepthSections { get; } = new();
         public TerrainSectionMineralTable SectionMinerals { get; } = new();
+        public TerrainVariantClusterTable VariantClusters { get; } = new();
 
         public bool IsReady { get; private set; }
         public event Action OnReady;
@@ -67,13 +68,14 @@ namespace TerrainCollapse
             SeedProfiles.Load();
             DepthSections.Load(SeedProfiles, Tiles);
             SectionMinerals.Load(SeedProfiles, DepthSections, Tiles);
+            VariantClusters.Load(SeedProfiles, DepthSections, Tiles);
             IsReady = true;
             OnReady?.Invoke();
 
             Debug.Log(
                 $"[TerrainDataManager] Loaded {Tiles.Count} tiles, " +
                 $"{SeedProfiles.Count} profiles, {DepthSections.Count} sections, " +
-                $"{SectionMinerals.Count} minerals");
+                $"{SectionMinerals.Count} minerals, {VariantClusters.Count} variants");
         }
 
         // 타일 종류에 해당하는 Def 조회

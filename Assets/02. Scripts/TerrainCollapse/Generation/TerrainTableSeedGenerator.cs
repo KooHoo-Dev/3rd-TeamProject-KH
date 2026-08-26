@@ -75,8 +75,10 @@ namespace TerrainCollapse
             TerrainSeedProfileDef profile = dataManager.SeedProfiles.Get(profileID);
             IReadOnlyList<TerrainDepthSectionDef> sections =
                 dataManager.DepthSections.GetByProfile(profileID);
+            IReadOnlyList<TerrainVariantClusterDef> variants =
+                dataManager.VariantClusters.GetByProfile(profileID);
 
-            return Generate(profile, sections, dataManager.SectionMinerals, seed);
+            return Generate(profile, sections, variants, dataManager.SectionMinerals, seed);
         }
 
         public static TerrainMapFile Generate(
@@ -84,14 +86,29 @@ namespace TerrainCollapse
             IReadOnlyList<TerrainDepthSectionDef> sections,
             TerrainSectionMineralTable mineralTable,
             int seed)
+            => Generate(profile,
+                sections,
+                Array.Empty<TerrainVariantClusterDef>(),
+                mineralTable,
+                seed);
+
+        public static TerrainMapFile Generate(
+            TerrainSeedProfileDef profile,
+            IReadOnlyList<TerrainDepthSectionDef> sections,
+            IReadOnlyList<TerrainVariantClusterDef> variants,
+            TerrainSectionMineralTable mineralTable,
+            int seed)
         {
             Validate(profile, sections, mineralTable);
+
+            if (variants == null) throw new ArgumentNullException(nameof(variants));
 
             TerrainMapGenerationContext context = new(seed);
             TerrainMapFile map = CreateEmptyMap(profile, seed);
             EllipseShape shape = new(profile);
             FillSectionTerrain(map, sections, shape);
             ApplyBoundaries(map, profile, shape);
+            TerrainVariantClusterGenerator.Apply(map, variants, context);
             TerrainMineralClusterGenerator.Apply(
                 map,
                 sections,
