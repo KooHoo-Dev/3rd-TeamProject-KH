@@ -21,7 +21,7 @@ namespace TerrainCollapse
         [SerializeField, Min(0.01f)] private float escapePushSpeed = 4f;
         [SerializeField] private LayerMask collisionMask = ~0;
         [SerializeField] private TerrainManager terrainManager;
-        [SerializeField] private float escapeXOffset = 0.4f;
+        [SerializeField, Min(0f)] private float escapeXOffset = 0.5f;
         
         [Header("Burial Settings")]
         [SerializeField] private float burialDamageInterval = 1f;
@@ -259,11 +259,12 @@ namespace TerrainCollapse
                 float bestOffset = 0f;
                 float bestDistance = float.PositiveInfinity;
                 bool foundEscape = false;
+                float maximumEscapeDistance = oneTile * escapeXOffset;
 
-                int probeCount = Mathf.Max(1, Mathf.CeilToInt(oneTile / probeStep));
+                int probeCount = Mathf.Max(1, Mathf.CeilToInt(maximumEscapeDistance / probeStep));
                 for (int probe = 0; probe <= probeCount; probe++)
                 {
-                    float distance = Mathf.Min(probe * probeStep, oneTile);
+                    float distance = Mathf.Min(probe * probeStep, maximumEscapeDistance);
 
                     // 같은 거리에서는 왼쪽을 먼저 선택해 결과를 결정적으로 만든다.
                     float leftOffset = -distance;
