@@ -2,7 +2,7 @@ using System.Collections;
 using TerrainCollapse;
 using UnityEngine;
 
-namespace GameUI
+namespace TerrainCollapse
 {
     /// <summary>
     /// 기존 지형 시스템의 공개 조회 API만 사용하여 미니맵을 갱신한다.

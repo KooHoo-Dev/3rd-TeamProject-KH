@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace GameUI
+namespace TerrainCollapse
 {
     /// <summary>
     /// 실제 체력과 인벤토리 시스템이 완성되기 전 UI 표시를 확인하는 임시 컴포넌트다.
@@ -20,9 +20,7 @@ namespace GameUI
         [Header("Preview Inventory")]
         [SerializeField] private Sprite coalIcon;
         [SerializeField] private Sprite ironOreIcon;
-        [SerializeField] private float currentWeight = 18f;
-        [SerializeField] private float maxWeight = 30f;
-        [SerializeField] private int money = 1250;
+        [SerializeField] private int gold = 1250;
 
         private void Start()
         {
@@ -41,11 +39,11 @@ namespace GameUI
 
             List<InventorySlotDisplayData> previewItems = new()
             {
-                new InventorySlotDisplayData(coalIcon, "Coal", 5),
-                new InventorySlotDisplayData(ironOreIcon, "Iron Ore", 3)
+                new InventorySlotDisplayData(coalIcon),
+                new InventorySlotDisplayData(ironOreIcon)
             };
 
-            inventoryView.Render(previewItems, currentWeight, maxWeight, money);
+            inventoryView.Render(previewItems, gold);
         }
     }
 }

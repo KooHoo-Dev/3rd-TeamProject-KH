@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace GameUI
+namespace TerrainCollapse
 {
     /// <summary>미니맵 텍스처와 로컬 플레이어 마커를 표시한다.</summary>
     public sealed class MinimapView : MonoBehaviour
