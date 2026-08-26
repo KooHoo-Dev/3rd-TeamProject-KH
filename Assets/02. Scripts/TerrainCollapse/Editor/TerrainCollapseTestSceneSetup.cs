@@ -1,5 +1,6 @@
 // TerrainCollapse 테스트 씬의 오브젝트와 컴포넌트 참조를 자동 구성하는 에디터 도구
 #if UNITY_EDITOR
+using Character;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;

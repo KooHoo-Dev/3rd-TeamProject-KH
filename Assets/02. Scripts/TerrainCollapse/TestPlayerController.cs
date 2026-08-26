@@ -4,8 +4,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TerrainCollapse;
 
-namespace TerrainCollapse
+namespace Character
 {
     // 에디터에서 붕괴 상호작용을 시험하기 위한 개발용 2D 플레이어 제어
 
@@ -15,15 +16,15 @@ namespace TerrainCollapse
     {
         [SerializeField] private float moveSpeed = 6f;
         [SerializeField] private float jumpSpeed = 8f;
+        [SerializeField] private float climbSpeed = 3f; // ★ [추가] 매달리기/등반 이동 속도
         [SerializeField] private float gravity = 24f;
         [SerializeField] private float collisionSkin = 0.02f;
         [SerializeField] private float escapeProbeStep = 0.05f;
         [SerializeField, Min(0.01f)] private float escapePushSpeed = 4f;
         [SerializeField] private LayerMask collisionMask = ~0;
         [SerializeField] private TerrainManager terrainManager;
-        
-        [Header("Burial")]
-        [SerializeField] private float burialDamageInterval = 1f;
+
+        [Header("Burial")] [SerializeField] private float burialDamageInterval = 1f;
         [SerializeField] private float burialDamagePerTick = 1f;
         [SerializeField] private int normalSortingOrder = 2;
         [SerializeField] private int buriedSortingOrder = -1;
@@ -42,9 +43,10 @@ namespace TerrainCollapse
         private float escapeTargetBodyX;
         private Vector2 burialLockedBodyPosition;
         private Coroutine burialRecheckRoutine;
-        
-        public bool IsBuried => buried;                   // 현재 지형에 매몰된 상태 여부
-        public event Action<bool> BurialStateChanged;     // 매몰 상태 진입 및 해제 알림
+        private bool IsClimb = false;
+
+        public bool IsBuried => buried; // 현재 지형에 매몰된 상태 여부
+        public event Action<bool> BurialStateChanged; // 매몰 상태 진입 및 해제 알림
         public event Action<float> BurialDamageRequested; // 향후 체력 시스템이 구독할 매몰 지속 피해 요청
 
         private void Awake()
@@ -52,9 +54,9 @@ namespace TerrainCollapse
             body = GetComponent<Rigidbody2D>();
             box = GetComponent<BoxCollider2D>();
             spriteRenderer = GetComponent<SpriteRenderer>();
-            
+
             if (terrainManager == null) terrainManager = FindFirstObjectByType<TerrainManager>();
-            
+
             body.bodyType = RigidbodyType2D.Kinematic;
             body.useFullKinematicContacts = true;
             body.gravityScale = 0f;
@@ -78,7 +80,18 @@ namespace TerrainCollapse
             {
                 LockBurialPosition();
                 TickBurialDamage();
-                
+
+                return;
+            }
+
+            if (terrainManager != null && terrainManager.IsReady &&
+                IsGridSpaceEmpty(box.bounds) == false)
+            {
+                Debug.LogWarning(
+                    "[Terrain Collapse] Occupied terrain overlap detected before player movement",
+                    this);
+                EnterBuriedState();
+
                 return;
             }
 
@@ -90,13 +103,28 @@ namespace TerrainCollapse
             }
 
             Keyboard keyboard = Keyboard.current;
+
+            // ★ [추가] W 키를 누르면 매달리기(등반) 모드 진입 판정
+            if (keyboard != null && keyboard.wKey.isPressed)
+            {
+                IsClimb = true;
+            }
+
+            // ★ [추가] 등반 상태일 때의 이동 처리
+            if (IsClimb)
+            {
+                TickClimbMovement(keyboard);
+                return;
+            }
+
+            // --- 기존 좌우 이동 및 점프 로직 ---
             float input = keyboard == null
                 ? 0f
                 : (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
             velocity.x = input * moveSpeed;
-            
+
             if (keyboard != null && keyboard.spaceKey.isPressed && grounded) velocity.y = jumpSpeed;
-            
+
             velocity.y -= gravity * Time.fixedDeltaTime;
 
             Vector2 position = body.position;
@@ -104,6 +132,39 @@ namespace TerrainCollapse
             grounded = false;
             position += ResolveMovement(Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
             body.MovePosition(position);
+        }
+
+        /// <summary>★ [추가] 배경에 매달린(등반) 상태에서의 자유 이동 처리</summary>
+        private void TickClimbMovement(Keyboard keyboard)
+        {
+            if (keyboard == null) return;
+
+            // Space 키 입력 시 매달리기를 해제하고 위로 점프
+            if (keyboard.spaceKey.isPressed)
+            {
+                IsClimb = false;
+                velocity.y = jumpSpeed;
+                return;
+            }
+
+            // 상하좌우 입력을 받아 자유롭게 이동 (중력 무시)
+            float inputX = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
+            float inputY = (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f);
+
+            velocity.x = inputX * climbSpeed;
+            velocity.y = inputY * climbSpeed;
+
+            Vector2 position = body.position;
+            position += ResolveMovement(Vector2.right, velocity.x * Time.fixedDeltaTime, ref velocity.x);
+            position += ResolveMovement(Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
+
+            body.MovePosition(position);
+
+            // 지면에 닿은 상태에서 S(아래) 키를 누르면 매달리기 해제
+            if (grounded && inputY < 0f)
+            {
+                IsClimb = false;
+            }
         }
 
         /// <summary>일반 입력을 중단하고 인접 셀 중앙까지 플레이어를 점진적으로 이동</summary>
@@ -127,7 +188,7 @@ namespace TerrainCollapse
         private Vector2 ResolveMovement(Vector2 axis, float distance, ref float axisVelocity)
         {
             if (Mathf.Approximately(distance, 0f)) return Vector2.zero;
-            
+
             Vector2 direction = axis * Mathf.Sign(distance);
             float requestedDistance = Mathf.Abs(distance);
             ContactFilter2D filter = new ContactFilter2D
@@ -136,14 +197,14 @@ namespace TerrainCollapse
                 layerMask = collisionMask,
                 useTriggers = false
             };
-            
+
             int hitCount = box.Cast(direction, filter, castHits, requestedDistance + collisionSkin);
             float allowedDistance = requestedDistance;
-            
+
             for (int i = 0; i < hitCount; i++)
             {
                 if (castHits[i].collider == box) continue;
-                
+
                 allowedDistance = Mathf.Min(allowedDistance,
                     Mathf.Max(0f, castHits[i].distance - collisionSkin));
             }
@@ -151,19 +212,18 @@ namespace TerrainCollapse
             if (allowedDistance + Mathf.Epsilon < requestedDistance)
             {
                 if (direction.y < 0f) grounded = true;
-                
+
                 axisVelocity = 0f;
             }
-            
+
             return direction * allowedDistance;
         }
 
-        /// <summary>위에서 내려오는 덩어리 충돌 시 비어 있는 좌우 인접 셀 중심으로 탈출</summary>
-        public FallingTerrainContactResult ResolveFallingTerrainContact(
-            Bounds terrainBounds,
-            float terrainCellSize,
-            long collapseId)
+        /// <summary>위에서 내려오는 덩어리 충돌 처리</summary>
+        public FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk)
         {
+            long collapseId = fallingChunk.CollapseId;
+
             // 같은 붕괴에서는 최초 판정 결과를 재사용해 반복 밀림 방지
             if (resolvedCollapses.TryGetValue(collapseId, out FallingTerrainContactResult resolved))
                 return resolved;
@@ -175,11 +235,31 @@ namespace TerrainCollapse
             }
 
             Bounds playerBounds = box.bounds;
-            Bounds chunkBounds = terrainBounds;
+            Bounds chunkBounds = fallingChunk.WorldBounds;
+
+            // 위에서 충돌했는지 확인
             bool struckFromAbove = chunkBounds.center.y > playerBounds.center.y &&
                                    chunkBounds.min.y <= playerBounds.max.y + collisionSkin;
-            
+
             if (struckFromAbove == false) return FallingTerrainContactResult.Ignored;
+
+            // ★ [핵심 수정] 캐릭터 바로 아래에 바닥(지형 또는 물리 콜라이더)이 있는지 확인합니다.
+            bool hasGroundBelow = HasSolidGroundBelow();
+
+            // 아래가 비어있다면(공중, 점프 중, 등반 중 등) 매몰되지 않고 낙하 지형과 함께 아래로 밀립니다.
+            if (!hasGroundBelow)
+            {
+                // 등반 중이었다면 매달리기가 풀리면서 같이 떨어지도록 처리
+                if (IsClimb)
+                {
+                    IsClimb = false;
+                }
+
+                // 공중 충돌 시에는 붕괴 처리를 유예하고 무시(또는 자연스러운 하강)합니다.
+                return FallingTerrainContactResult.Ignored;
+            }
+
+            // --- 아래에 바닥이 존재하여 '압사/매몰' 위험이 있을 때만 탈출 및 매몰 판정 수행 ---
 
             if (terrainManager != null &&
                 terrainManager.TryWorldToCell(playerBounds.center, out Vector2Int playerCell))
@@ -194,7 +274,9 @@ namespace TerrainCollapse
                     playerBounds.center.x,
                     -preferredDirection);
 
-                if (TryEscapeToCell(preferredCell) || TryEscapeToCell(oppositeCell))
+                // 좌/우 옆 셀로 탈출 시도
+                if (TryEscapeToCell(preferredCell, fallingChunk) ||
+                    TryEscapeToCell(oppositeCell, fallingChunk))
                 {
                     velocity.x = 0f;
                     resolvedCollapses[collapseId] = FallingTerrainContactResult.Escaped;
@@ -203,10 +285,38 @@ namespace TerrainCollapse
                 }
             }
 
+            // 좌/우로도 탈출할 공간이 없고 아래도 바닥으로 막혀있을 때 비로소 매몰 처리
             EnterBuriedState();
             resolvedCollapses[collapseId] = FallingTerrainContactResult.NoEscapeSpace;
 
             return FallingTerrainContactResult.NoEscapeSpace;
+        }
+
+        /// <summary>★ [추가] 캐릭터 바로 아래에 지형이나 물리 충돌체(지면)가 있는지 검사</summary>
+        private bool HasSolidGroundBelow()
+        {
+            // 이미 착지 상태라면 true
+            if (grounded) return true;
+
+            // Raycast/BoxCast를 이용해 바로 아래쪽(collisionSkin 범위 내) 지면 존재 여부 확인
+            ContactFilter2D filter = new ContactFilter2D
+            {
+                useLayerMask = true,
+                layerMask = collisionMask,
+                useTriggers = false
+            };
+
+            int hitCount = box.Cast(Vector2.down, filter, castHits, collisionSkin * 2f);
+
+            for (int i = 0; i < hitCount; i++)
+            {
+                if (castHits[i].collider != null && castHits[i].collider != box)
+                {
+                    return true; // 아래에 지면 존재
+                }
+            }
+
+            return false; // 공중에 떠 있음 (바닥 비어있음)
         }
 
         /// <summary>지정 방향에서 반 타일 이내에 있는 가장 가까운 셀 중앙 좌표 계산</summary>
@@ -228,7 +338,7 @@ namespace TerrainCollapse
         }
 
         /// <summary>지정 셀이 비어 있으면 플레이어 중심을 해당 셀의 X축 중앙으로 이동</summary>
-        private bool TryEscapeToCell(Vector2Int cell)
+        private bool TryEscapeToCell(Vector2Int cell, FallingChunk fallingChunk)
         {
             if (terrainManager.HasTerrain(cell)) return false;
             if (terrainManager.TryCellToWorldCenter(cell, out Vector3 cellCenter) == false) return false;
@@ -239,11 +349,36 @@ namespace TerrainCollapse
 
             if (IsGridSpaceEmpty(candidate) == false) return false;
             if (IsPhysicalSpaceEmpty(offsetX) == false) return false;
+            if (IsInFallingTerrainPath(candidate, fallingChunk)) return false; // 붕괴 지형이 낙하할 위치라면 탈출을 거부
 
             escapeTargetBodyX = body.position.x + offsetX;
             isEscaping = true;
 
             return true;
+        }
+
+        /// <summary>후보 영역이 붕괴 Chunk의 실제 타일 하강 경로와 겹치는지 확인</summary>
+        private bool IsInFallingTerrainPath(Bounds candidate, FallingChunk fallingChunk)
+        {
+            float candidateMinX = candidate.min.x + collisionSkin;
+            float candidateMaxX = candidate.max.x - collisionSkin;
+            float candidateMinY = candidate.min.y + collisionSkin;
+            float halfCellSize = fallingChunk.CellSize * 0.5f;
+
+            foreach (Vector2Int localCell in fallingChunk.LocalCells)
+            {
+                Vector3 tileCenter = fallingChunk.GetLocalCellCenterWorld(localCell);
+                float tileMinX = tileCenter.x - halfCellSize;
+                float tileMaxX = tileCenter.x + halfCellSize;
+                float tileMaxY = tileCenter.y + halfCellSize;
+
+                if (tileMaxY <= candidateMinY) continue;
+                if (candidateMaxX <= tileMinX || candidateMinX >= tileMaxX) continue;
+
+                return true;
+            }
+
+            return false;
         }
 
         private bool TryMoveToEmptySpace(float offsetX)
@@ -259,26 +394,26 @@ namespace TerrainCollapse
         private bool IsPhysicalSpaceEmpty(float offsetX)
         {
             Vector2 candidateCenter = (Vector2)box.bounds.center + Vector2.right * offsetX;
-            
+
             ContactFilter2D filter = new ContactFilter2D
             {
                 useLayerMask = true,
                 layerMask = collisionMask,
                 useTriggers = false
             };
-            
+
             Vector2 probeSize = (Vector2)box.bounds.size - Vector2.one * collisionSkin;
             int count = Physics2D.OverlapBox(candidateCenter, probeSize, 0f, filter, overlapHits);
-            
+
             for (int i = 0; i < count; i++)
             {
                 Collider2D hit = overlapHits[i];
-                
+
                 if (hit == null || hit == box) continue;
-                
+
                 return false;
             }
-            
+
             return true;
         }
 
@@ -288,6 +423,7 @@ namespace TerrainCollapse
             if (buried) return;
 
             buried = true;
+            IsClimb = false; // ★ 매몰 시 매달리기 해제
             isEscaping = false;
             grounded = false;
             velocity = Vector2.zero;
@@ -296,7 +432,7 @@ namespace TerrainCollapse
             burialDamageElapsed = 0f;
             spriteRenderer.sortingOrder = buriedSortingOrder;
             BurialStateChanged?.Invoke(true);
-            
+
             Debug.Log("[Terrain Collapse] Player buried", this);
         }
 
@@ -312,12 +448,13 @@ namespace TerrainCollapse
         private void ExitBuriedState()
         {
             if (buried == false) return;
-            
+            if (IsCurrentSpaceEmpty() == false) return;
+
             buried = false;
             burialDamageElapsed = 0f;
             spriteRenderer.sortingOrder = normalSortingOrder;
             BurialStateChanged?.Invoke(false);
-            
+
             Debug.Log("[Terrain Collapse] Player escaped burial", this);
         }
 
@@ -325,9 +462,9 @@ namespace TerrainCollapse
         private void TickBurialDamage()
         {
             if (burialDamageInterval <= 0f) return;
-            
+
             burialDamageElapsed += Time.fixedDeltaTime;
-            
+
             while (burialDamageElapsed >= burialDamageInterval)
             {
                 burialDamageElapsed -= burialDamageInterval;
@@ -339,9 +476,9 @@ namespace TerrainCollapse
         private void HandleTerrainChanged(TerrainChangeReason _)
         {
             if (buried == false) return;
-            
+
             if (burialRecheckRoutine != null) StopCoroutine(burialRecheckRoutine);
-            
+
             burialRecheckRoutine = StartCoroutine(RecheckBurialAfterTerrainRefresh());
         }
 
@@ -349,30 +486,32 @@ namespace TerrainCollapse
         private IEnumerator RecheckBurialAfterTerrainRefresh()
         {
             yield return new WaitForEndOfFrame();
-            
+
             Physics2D.SyncTransforms();
 
-            bool isCurrentSpaceEmpty = IsGridSpaceEmpty(box.bounds) && IsPhysicalSpaceEmpty(0f);
-
-            if (isCurrentSpaceEmpty || TryFindNearbyBurialExit())
+            if (IsCurrentSpaceEmpty() || TryFindNearbyBurialExit())
                 ExitBuriedState();
 
             burialRecheckRoutine = null;
         }
+
+        /// <summary>현재 플레이어 영역에 Grid 지형과 물리 Collider가 모두 없는지 확인</summary>
+        private bool IsCurrentSpaceEmpty()
+            => IsGridSpaceEmpty(box.bounds) && IsPhysicalSpaceEmpty(0f);
 
         /// <summary>현재 위치에서 반 타일 범위 내 좌우 탈출 공간 탐색</summary>
         private bool TryFindNearbyBurialExit()
         {
             float maximumDistance = terrainManager.CellSize * 0.5f;
             int probeCount = Mathf.Max(1, Mathf.CeilToInt(maximumDistance / escapeProbeStep));
-            
+
             for (int probe = 1; probe <= probeCount; probe++)
             {
                 float distance = Mathf.Min(probe * escapeProbeStep, maximumDistance);
-                
+
                 if (TryMoveToGridSpace(-distance) || TryMoveToGridSpace(distance)) return true;
             }
-            
+
             return false;
         }
 
@@ -380,10 +519,10 @@ namespace TerrainCollapse
         {
             Bounds candidate = box.bounds;
             candidate.center += Vector3.right * offsetX;
-            
+
             if (IsGridSpaceEmpty(candidate) == false) return false;
             if (TryMoveToEmptySpace(offsetX) == false) return false;
-            
+
             return true;
         }
 
@@ -397,10 +536,16 @@ namespace TerrainCollapse
                 return false;
 
             for (int y = min.y; y <= max.y; y++)
-                for (int x = min.x; x <= max.x; x++)
-                    if (terrainManager.HasTerrain(new Vector2Int(x, y))) return false;
+            for (int x = min.x; x <= max.x; x++)
+                if (terrainManager.HasTerrain(new Vector2Int(x, y)))
+                    return false;
 
             return true;
+        }
+
+        public FallingTerrainContactResult ResolveFallingTerrainContact(Bounds terrainBounds, float terrainCellSize, long collapseId)
+        {
+            throw new NotImplementedException();
         }
     }
 }
