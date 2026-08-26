@@ -502,7 +502,7 @@ namespace Character
         /// <summary>현재 위치에서 반 타일 범위 내 좌우 탈출 공간 탐색</summary>
         private bool TryFindNearbyBurialExit()
         {
-            float maximumDistance = terrainManager.CellSize * 0.5f;
+            float maximumDistance = terrainManager.CellSize * 0.4f;
             int probeCount = Mathf.Max(1, Mathf.CeilToInt(maximumDistance / escapeProbeStep));
 
             for (int probe = 1; probe <= probeCount; probe++)
