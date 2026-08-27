@@ -1065,6 +1065,7 @@ GameObject:
   - component: {fileID: 1971883704}
   - component: {fileID: 1971883703}
   - component: {fileID: 1971883707}
+  - component: {fileID: 1971883708}
   m_Layer: 0
   m_Name: TestPlayer
   m_TagString: Untagged
@@ -1089,17 +1090,30 @@ MonoBehaviour:
   jumpSpeed: 10
   gravity: 20
   collisionSkin: 0.02
-  escapeProbeStep: 0.05
-  escapePushSpeed: 4
   collisionMask:
     serializedVersion: 2
     m_Bits: 4294967295
   terrainManager: {fileID: 190307187}
+  normalSortingOrder: 2
+  buriedSortingOrder: -1
+--- !u!114 &1971883708
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3f6e92acb50b4c4ba8916c5bf3aa8cf8, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.FallingTerrainInteraction
+  escapeProbeStep: 0.05
+  escapePushSpeed: 4
   escapeXOffset: 0.5
   burialDamageInterval: 1
   burialDamagePerTick: 1
-  normalSortingOrder: 2
-  buriedSortingOrder: -1
+  terrainManager: {fileID: 190307187}
 --- !u!212 &1971883698
 SpriteRenderer:
   serializedVersion: 2
