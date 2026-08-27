@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
-using UnityEngine.InputSystem; // New Input System 전용 네임스페이스
+using UnityEngine.InputSystem;
+using UnityEngine.Serialization; // New Input System 전용 네임스페이스
 
 namespace TerrainCollapse
 {
@@ -10,20 +11,21 @@ namespace TerrainCollapse
     public class ItemController : MonoBehaviour
     {
         [Header("Target References")]
-        [SerializeField] private Transform playerTransform; // 플레이어 Transform (ownerPos 추출용)
-        [SerializeField] private Camera mainCamera;          // 마우스 좌표를 월드 좌표로 변환할 카메라
-        [SerializeField] private Item equippedItem;          // 현재 장착 중인 아이템 (테스트용)
+        [SerializeField] private TestPlayerController testPlayerController; // 플레이어
+        [SerializeField] private Camera mainCamera;                         // 마우스 좌표를 월드 좌표로 변환할 카메라
+        [SerializeField] private Item equippedItem;                         // 현재 장착 중인 아이템
 
-        [Header("Settings")]
-        [SerializeField] private bool logDebugInfo = true;
+        private Transform playerTransform;
 
         private void Awake()
         {
-            if (playerTransform == null)
-                playerTransform = transform;
+            if (testPlayerController == null)
+                testPlayerController = GetComponent<TestPlayerController>();
 
             if (mainCamera == null)
                 mainCamera = Camera.main;
+            
+            playerTransform = testPlayerController.transform;
         }
 
         private void Start()
@@ -56,9 +58,15 @@ namespace TerrainCollapse
 
         public void UseEquippedItem()
         {
+            if (testPlayerController.IsDead)
+            {
+                Debug.LogWarning("[ItemController] 플레이어가 사망 상태라 아이템을 사용할 수 없습니다.");
+                return;
+            }
+
             if (equippedItem == null)
             {
-                if (logDebugInfo) Debug.LogWarning("[ItemController] 장착된 아이템이 없습니다.");
+                Debug.LogWarning("[ItemController] 장착된 아이템이 없습니다.");
                 return;
             }
 
@@ -86,11 +94,9 @@ namespace TerrainCollapse
                 return;
             }
 
-            if (logDebugInfo)
-            {
-                Debug.Log($"[ItemController] 아이템 사용 요청: {equippedItem.name} | " +
-                          $"OwnerPos: {ownerPos}, TargetPos: {targetPos}");
-            }
+
+            Debug.Log($"[ItemController] 아이템 사용 요청: {equippedItem.name} | " +
+                      $"OwnerPos: {ownerPos}, TargetPos: {targetPos}");
 
             equippedItem.Use(ownerPos, targetPos);
         }
@@ -98,7 +104,7 @@ namespace TerrainCollapse
         public void SetEquippedItem(Item newItem)
         {
             equippedItem = newItem;
-            if (logDebugInfo && equippedItem != null)
+            if (equippedItem != null)
             {
                 Debug.Log($"[ItemController] 장착 아이템 변경: {equippedItem.name}");
             }

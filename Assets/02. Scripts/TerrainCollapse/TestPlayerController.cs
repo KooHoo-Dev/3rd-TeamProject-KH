@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Character;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -52,7 +53,6 @@ namespace TerrainCollapse
         public bool IsBuried => buried;                   
         public bool IsClimbing => isClimbing;
         public bool IsDead => isDead;
-        public bool CanAct => isDead == false;
         public Vector2 CurrentPosition => body.position;
         public TerrainManager TerrainManager => terrainManager;
         public float CollisionSkin => collisionSkin;
@@ -67,6 +67,8 @@ namespace TerrainCollapse
             body = GetComponent<Rigidbody2D>();
             box = GetComponent<BoxCollider2D>();
             spriteRenderer = GetComponent<SpriteRenderer>();
+            PlayerHp playerHp = GetComponent<PlayerHp>();
+            isDead = playerHp.IsDead;
             
             if (terrainManager == null) terrainManager = FindFirstObjectByType<TerrainManager>();
             
