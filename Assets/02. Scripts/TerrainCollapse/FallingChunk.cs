@@ -69,6 +69,7 @@ namespace TerrainCollapse
         private bool expired;
         private long collapseId;
         private Vector2 stablePositionOrigin;
+        private Vector2 beforeVelocity;
 
         public bool IsSettled => settled;
         public bool IsExpired => expired;
@@ -80,6 +81,7 @@ namespace TerrainCollapse
         public Bounds WorldBounds => compositeCollider.bounds;
         public float CellSize => cellSize;
         public long CollapseId => collapseId;
+        public Vector2 BeforeVelocity => beforeVelocity;
 
         private void Awake()
         {
@@ -124,6 +126,8 @@ namespace TerrainCollapse
         private void FixedUpdate()
         {
             if (IsComplete) return;
+
+            beforeVelocity = body.linearVelocity;
 
             lifetime += Time.fixedDeltaTime;
             
@@ -207,10 +211,17 @@ namespace TerrainCollapse
             {
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
+                    // 이후 물리 스텝부터 플레이어와 FallingChunk의 충돌 해제
+                    Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
+
+                    // 최초 충돌에서 발생한 반동 제거
+                    body.linearVelocity = new Vector2(
+                        beforeVelocity.x,
+                        Mathf.Min(beforeVelocity.y, 0f));
+
+                    // 복구된 낙하 속도를 플레이어가 읽도록 이후에 판정 호출
                     target.ResolveFallingTerrainContact(this);
 
-                    // 판정 이후 캐릭터가 Chunk를 받치지 않도록 현재 붕괴 동안 충돌 해제
-                    Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
                     staticTerrainContacts.Remove(collision.collider);
                     terrainContactInfos.Remove(collision.collider);
 

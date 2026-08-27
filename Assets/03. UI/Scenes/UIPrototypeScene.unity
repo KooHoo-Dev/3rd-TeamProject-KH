@@ -314,7 +314,7 @@ Transform:
   m_GameObject: {fileID: 13110305}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5, y: 1.5, z: -10}
+  m_LocalPosition: {x: 0, y: 1, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -470,6 +470,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.TerrainMapLoader
   mapJson: {fileID: 4900000, guid: 442245f5ee814819abdd50e9b3b72b23, type: 3}
   targetWorld: {fileID: 190307189}
+  useDataTableGeneration: 1
+  dataTableProfileID: CollapseTest
+  useRandomSeed: 1
+  seed: 12345
+  playerSpawnTarget: {fileID: 1971883701}
+  respawnPointIndex: 1
 --- !u!114 &190307189
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -717,6 +723,38 @@ PrefabInstance:
       propertyPath: m_AdditionalShaderChannelsFlag
       value: 25
       objectReference: {fileID: 0}
+    - target: {fileID: 5936890226262019529, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4294964715
+      objectReference: {fileID: 0}
+    - target: {fileID: 5936890226262019529, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6636667372105222406, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4282438143
+      objectReference: {fileID: 0}
+    - target: {fileID: 6636667372105222406, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 6759250722083889896, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4294964715
+      objectReference: {fileID: 0}
+    - target: {fileID: 6759250722083889896, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 9151141058855925621, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4294964715
+      objectReference: {fileID: 0}
+    - target: {fileID: 9151141058855925621, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -810,7 +848,7 @@ Transform:
   m_GameObject: {fileID: 1437070101}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5, y: 1.5, z: -10}
+  m_LocalPosition: {x: 0, y: 1, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -925,6 +963,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.TestPlayerController
   moveSpeed: 6
+  climbSpeed: 3
   jumpSpeed: 10
   gravity: 20
   collisionSkin: 0.02
@@ -934,6 +973,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 4294967295
   terrainManager: {fileID: 190307187}
+  escapeXOffset: 0.5
   burialDamageInterval: 1
   burialDamagePerTick: 1
   normalSortingOrder: 2
@@ -1079,7 +1119,7 @@ Transform:
   m_GameObject: {fileID: 1971883696}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5, y: 1.5, z: 0}
+  m_LocalPosition: {x: 0, y: 1, z: 0}
   m_LocalScale: {x: 0.95, y: 0.95, z: 0.95}
   m_ConstrainProportionsScale: 1
   m_Children: []

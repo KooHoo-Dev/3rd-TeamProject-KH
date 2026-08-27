@@ -234,12 +234,9 @@ namespace TerrainCollapse
             ClimbStateChanged?.Invoke(false);
 
             // Kinematic Player가 Chunk의 낙하를 즉시 따라가도록 현재 낙하 속도를 한 번 상속한다.
-            Rigidbody2D fallingBody = fallingChunk.GetComponent<Rigidbody2D>();
-            if (fallingBody != null)
-            {
-                velocity.x = fallingBody.linearVelocity.x;
-                velocity.y = fallingBody.linearVelocity.y;
-            }
+            Vector2 fallingVelocity = fallingChunk.BeforeVelocity;
+            velocity.x = fallingVelocity.x;
+            velocity.y = Mathf.Min(fallingVelocity.y, 0f);
 
             grounded = false;
             isEscaping = false;
