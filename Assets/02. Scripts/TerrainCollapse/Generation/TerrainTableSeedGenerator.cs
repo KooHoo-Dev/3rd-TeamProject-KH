@@ -8,6 +8,8 @@ namespace TerrainCollapse
 
     internal static class TerrainTableSeedGenerator
     {
+        private const int RESPAWN_AREA_HEIGHT = 7;
+
         private readonly struct EllipseShape
         {
             private readonly TerrainSeedProfileDef profile;
@@ -129,8 +131,42 @@ namespace TerrainCollapse
             TerrainCaveGenerator.Apply(map, caves, context);
             TerrainVariantClusterGenerator.Apply(map, variants, context);
             TerrainMineralClusterGenerator.Apply(map, sections, mineralTable, context);
+            AttachRespawnArea(map, profile);
 
             return map;
+        }
+
+        private static void AttachRespawnArea(
+            TerrainMapFile map,
+            TerrainSeedProfileDef profile)
+        {
+            int terrainHeight = map.Height;
+            int areaMinX = (map.Width - profile.TopOpeningWidth) / 2;
+            int areaMaxX = areaMinX + profile.TopOpeningWidth - 1;
+            int areaMinY = terrainHeight;
+            int areaMaxY = areaMinY + RESPAWN_AREA_HEIGHT - 1;
+
+            for (int i = 0; i < map.Width * RESPAWN_AREA_HEIGHT; i++)
+                map.Tiles.Add(TerrainTileType.Empty);
+
+            map.Height += RESPAWN_AREA_HEIGHT;
+            map.RespawnAreaOrigin = new Vector2Int(areaMinX, areaMinY);
+            map.RespawnAreaSize = new Vector2Int(
+                profile.TopOpeningWidth,
+                RESPAWN_AREA_HEIGHT);
+            map.RespawnPoints.Clear();
+
+            for (int x = areaMinX; x <= areaMaxX; x++)
+                map.SetTile(new Vector2Int(x, areaMaxY), TerrainTileType.Bedrock);
+
+            for (int y = areaMinY; y < areaMaxY; y++)
+            {
+                map.SetTile(new Vector2Int(areaMinX, y), TerrainTileType.Bedrock);
+                map.SetTile(new Vector2Int(areaMaxX, y), TerrainTileType.Bedrock);
+            }
+
+            for (int x = areaMinX + 1; x < areaMaxX; x++)
+                map.RespawnPoints.Add(new Vector2Int(x, areaMinY));
         }
 
         public static TerrainMapFile CreateEmptyMap(
