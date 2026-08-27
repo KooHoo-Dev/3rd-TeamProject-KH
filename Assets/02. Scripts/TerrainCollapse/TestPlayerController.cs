@@ -51,6 +51,8 @@ namespace TerrainCollapse
         public bool IsBuried => buried;                   
         public bool IsClimbing => isClimbing;
         public TerrainManager TerrainManager => terrainManager;
+        public float CollisionSkin => collisionSkin;
+        public LayerMask CollisionMask => collisionMask;
         
         public event Action<bool> BurialStateChanged;     
         public event Action<int> BurialDamageRequested;
