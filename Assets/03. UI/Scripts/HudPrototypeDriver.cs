@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Character;
 using UnityEngine;
 
 namespace TerrainCollapse
@@ -14,51 +13,27 @@ namespace TerrainCollapse
         [SerializeField] private HealthBarView healthBarView;
         [SerializeField] private InventoryView inventoryView;
 
-        // [Header("Preview Health")]
-        // [SerializeField] private float currentHealth = 75f;
-        // [SerializeField] private float maxHealth = 100f;
+        [Header("Preview Health")]
+        [SerializeField] private float currentHealth = 75f;
+        [SerializeField] private float maxHealth = 100f;
 
         [Header("Preview Inventory")]
         [SerializeField] private Sprite coalIcon;
         [SerializeField] private Sprite ironOreIcon;
         [SerializeField] private int gold = 1250;
 
-        [SerializeField] private PlayerHp playerHp;
-
-        private void Awake()
-        {
-            if (playerHp == null) playerHp = FindFirstObjectByType<PlayerHp>();
-        }
-
-        private void OnEnable()
-        {
-            if (playerHp != null) playerHp.HpChanged += HandleHpChanged;
-        }
-
-        private void OnDisable()
-        {
-            if (playerHp != null) playerHp.HpChanged -= HandleHpChanged;
-        }
-
         private void Start()
         {
+            if (previewEnabled == false) return;
+
             if (healthBarView == null)
             {
-                Debug.LogError("[UI] HealthBarView가 연결되지 않았습니다.", this);
+                Debug.LogError("[UI Preview] HealthBarView가 연결되지 않았습니다.", this);
             }
             else
             {
-                if (playerHp == null)
-                {
-                    Debug.LogError("[UI] PlayerHp를 찾을 수 없습니다.", this);
-                }
-                else
-                {
-                    healthBarView.SetHealth(playerHp.CurrentHp, playerHp.MaxHp);
-                }
+                healthBarView.SetHealth(currentHealth, maxHealth);
             }
-
-            if (previewEnabled == false) return;
 
             if (inventoryView == null) return;
 
@@ -69,13 +44,6 @@ namespace TerrainCollapse
             };
 
             inventoryView.Render(previewItems, gold);
-        }
-
-        private void HandleHpChanged(int currentHp, int maxHp)
-        {
-            if (healthBarView == null) return;
-
-            healthBarView.SetHealth(currentHp, maxHp);
         }
     }
 }
