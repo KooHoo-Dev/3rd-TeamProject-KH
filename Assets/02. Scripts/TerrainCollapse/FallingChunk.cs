@@ -3,22 +3,7 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 붕괴 Chunk의 물리 낙하, 지면 접촉, 안정화 판정과 플레이어 매몰과 탈출 처리
-
-    /// <summary>낙하 지형과 캐릭터 접촉 처리 결과</summary>
-    public enum FallingTerrainContactResult
-    {
-        Ignored,
-        Escaped,
-        NoEscapeSpace
-    }
-    
-    /// <summary>낙하 지형 접촉 시 탈출 또는 매몰 여부를 결정하는 대상</summary>
-    public interface IFallingTerrainEscapeTarget
-    {
-        // 실제 타일 형상을 확인하기 위해 FallingChunk 객체 자체를 전달
-        FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk);
-    }
+    // 붕괴 Chunk의 물리 낙하, 지면 접촉과 안정화 상태 관리
 
     /// <summary>커스텀 Grid 셀 묶음의 물리 낙하와 안정화 상태를 관리</summary>
     [RequireComponent(typeof(Rigidbody2D), typeof(CompositeCollider2D))]
