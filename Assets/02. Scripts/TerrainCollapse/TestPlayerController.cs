@@ -25,7 +25,7 @@ namespace TerrainCollapse
         
         [Header("Burial Settings")]
         [SerializeField] private float burialDamageInterval = 1f;
-        [SerializeField] private float burialDamagePerTick = 1f;
+        [SerializeField] private int burialDamagePerTick = 1;
         [SerializeField] private int normalSortingOrder = 2;
         [SerializeField] private int buriedSortingOrder = -1;
 
@@ -53,7 +53,7 @@ namespace TerrainCollapse
         public TerrainManager TerrainManager => terrainManager;
         
         public event Action<bool> BurialStateChanged;     
-        public event Action<float> BurialDamageRequested; 
+        public event Action<int> BurialDamageRequested;
         public event Action<bool> ClimbStateChanged;      
 
         private void Awake()
