@@ -23,6 +23,7 @@ namespace TerrainCollapse
 
         private readonly Collider2D[] overlapHits = new Collider2D[16];
         private readonly Dictionary<long, FallingTerrainContactResult> resolvedCollapses = new();
+        private readonly SortedDictionary<long, FallingTerrainImpactInfo> pendingBurialImpacts = new();
 
         private IFallingTerrainCharacter character;
         private Collider2D bodyCollider;
@@ -34,6 +35,7 @@ namespace TerrainCollapse
         public bool IsBuried => isBuried;
 
         public event Action<bool> BurialStateChanged;
+        public event Action<FallingTerrainImpactInfo> BurialImpactRequested;
         public event Action<int> BurialDamageRequested;
 
         private void Awake()
@@ -63,6 +65,7 @@ namespace TerrainCollapse
             }
 
             resolvedCollapses.Clear();
+            pendingBurialImpacts.Clear();
             burialDamageElapsed = 0f;
 
             if (isBuried == false) return;
@@ -117,7 +120,15 @@ namespace TerrainCollapse
                 return RememberResult(fallingChunk.CollapseId, FallingTerrainContactResult.Escaped);
             }
 
-            return RememberResult(fallingChunk.CollapseId, FallingTerrainContactResult.NoEscapeSpace);
+            FallingTerrainContactResult result = RememberResult(
+                fallingChunk.CollapseId,
+                FallingTerrainContactResult.NoEscapeSpace);
+            pendingBurialImpacts[fallingChunk.CollapseId] = new FallingTerrainImpactInfo(
+                fallingChunk.CollapseId,
+                fallingChunk.LocalCells.Count,
+                fallingChunk.gameObject);
+
+            return result;
         }
 
         private FallingTerrainContactResult RememberResult(
@@ -205,8 +216,20 @@ namespace TerrainCollapse
             burialDamageElapsed = 0f;
             character.SetTerrainBuried(true, buriedPosition);
             BurialStateChanged?.Invoke(true);
+            RequestPendingBurialImpacts();
 
             Debug.Log("[Terrain Collapse] Player buried", this);
+        }
+
+        private void RequestPendingBurialImpacts()
+        {
+            if (pendingBurialImpacts.Count == 0) return;
+
+            List<FallingTerrainImpactInfo> impacts = new(pendingBurialImpacts.Values);
+            pendingBurialImpacts.Clear();
+
+            foreach (FallingTerrainImpactInfo impact in impacts)
+                BurialImpactRequested?.Invoke(impact);
         }
 
         private void ExitBuriedState()

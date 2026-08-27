@@ -52,8 +52,6 @@ namespace TerrainCollapse
         public float CollisionSkin => collisionSkin;
         public LayerMask CollisionMask => collisionMask;
         
-        public event Action<bool> BurialStateChanged;     
-        public event Action<int> BurialDamageRequested;
         public event Action<bool> ClimbStateChanged;
 
         private void Awake()
@@ -72,18 +70,6 @@ namespace TerrainCollapse
             body.gravityScale = 0f;
             body.freezeRotation = true;
             spriteRenderer.sortingOrder = normalSortingOrder;
-        }
-
-        private void OnEnable()
-        {
-            fallingTerrainInteraction.BurialStateChanged += HandleBurialStateChanged;
-            fallingTerrainInteraction.BurialDamageRequested += HandleBurialDamageRequested;
-        }
-
-        private void OnDisable()
-        {
-            fallingTerrainInteraction.BurialStateChanged -= HandleBurialStateChanged;
-            fallingTerrainInteraction.BurialDamageRequested -= HandleBurialDamageRequested;
         }
 
         private void Update()
@@ -242,12 +228,6 @@ namespace TerrainCollapse
             body.linearVelocity = Vector2.zero;
             body.angularVelocity = 0f;
         }
-
-        private void HandleBurialStateChanged(bool isTerrainBuried)
-            => BurialStateChanged?.Invoke(isTerrainBuried);
-
-        private void HandleBurialDamageRequested(int amount)
-            => BurialDamageRequested?.Invoke(amount);
 
         private void TickEscapeMovement()
         {
