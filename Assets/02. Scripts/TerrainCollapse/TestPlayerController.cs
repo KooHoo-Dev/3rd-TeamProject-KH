@@ -42,6 +42,7 @@ namespace TerrainCollapse
         private bool buried;
         private bool isEscaping;
         private bool isClimbing;
+        private bool isDead;
 
         private float burialDamageElapsed;
         private float escapeTargetBodyX;
@@ -50,13 +51,16 @@ namespace TerrainCollapse
         
         public bool IsBuried => buried;                   
         public bool IsClimbing => isClimbing;
+        public bool IsDead => isDead;
+        public bool CanAct => isDead == false;
+        public Vector2 CurrentPosition => body.position;
         public TerrainManager TerrainManager => terrainManager;
         public float CollisionSkin => collisionSkin;
         public LayerMask CollisionMask => collisionMask;
         
         public event Action<bool> BurialStateChanged;     
         public event Action<int> BurialDamageRequested;
-        public event Action<bool> ClimbStateChanged;      
+        public event Action<bool> ClimbStateChanged;
 
         private void Awake()
         {
@@ -85,6 +89,8 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            if (isDead) return;
+
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame))
             {
@@ -94,6 +100,8 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
+            if (isDead) return;
+
             if (buried)
             {
                 LockBurialPosition();
@@ -142,6 +150,62 @@ namespace TerrainCollapse
             grounded = false;
             position += ResolveMovement(Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
             body.MovePosition(position);
+        }
+
+        /// <summary>사망 상태로 전환하고 매몰/탈출/등반/이동 등 이전 플레이 상태를 모두 정리
+        /// 리스폰 타이밍과 체력 복구는 RespawnController가 담당</summary>
+        public void EnterDeadState()
+        {
+            if (isDead) return;
+
+            isDead = true;
+
+            if (burialRecheckRoutine != null)
+            {
+                StopCoroutine(burialRecheckRoutine);
+                burialRecheckRoutine = null;
+            }
+
+            bool wasBuried = buried;
+            buried = false;
+            isEscaping = false;
+            isClimbing = false;
+            grounded = false;
+            velocity = Vector2.zero;
+            burialDamageElapsed = 0f;
+            spriteRenderer.sortingOrder = normalSortingOrder;
+
+            body.linearVelocity = Vector2.zero;
+            body.angularVelocity = 0f;
+
+            if (wasBuried) BurialStateChanged?.Invoke(false);
+            ClimbStateChanged?.Invoke(false);
+
+            Debug.Log("[Terrain Collapse] Player died", this);
+        }
+
+        /// <summary>주어진 위치에서 이동/충돌 관련 잔여 상태를 완전히 초기화하며 재시작
+        /// 체력 복구는 호출부(TestPlayerRespawnController)에서 PlayerHp.ResetHp()로 처리</summary>
+        public void Respawn(Vector2 spawnPosition)
+        {
+            body.position = spawnPosition;
+            body.linearVelocity = Vector2.zero;
+            body.angularVelocity = 0f;
+            Physics2D.SyncTransforms();
+
+            velocity = Vector2.zero;
+            grounded = false;
+            buried = false;
+            isEscaping = false;
+            isClimbing = false;
+            burialDamageElapsed = 0f;
+            burialLockedBodyPosition = spawnPosition;
+            spriteRenderer.sortingOrder = normalSortingOrder;
+            resolvedCollapses.Clear();
+
+            isDead = false;
+
+            Debug.Log("[Terrain Collapse] Player respawned", this);
         }
 
         public void ToggleClimbState()

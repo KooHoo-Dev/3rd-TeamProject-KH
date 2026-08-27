@@ -693,7 +693,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2049534177769054986, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: playerHp
-      value:
+      value: 
       objectReference: {fileID: 1971883706}
     - target: {fileID: 2505562322702322872, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_Pivot.x
@@ -1064,6 +1064,7 @@ GameObject:
   - component: {fileID: 1971883705}
   - component: {fileID: 1971883704}
   - component: {fileID: 1971883703}
+  - component: {fileID: 1971883707}
   m_Layer: 0
   m_Name: TestPlayer
   m_TagString: Untagged
@@ -1272,7 +1273,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 93ea5ab8d76243869f4d2e26668c1666, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.FallingChunkDamageAdapter
   minimumDamageSpeed: 1
   damagePerSpeed: 1
@@ -1286,10 +1287,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5e15ea169ea64edf8dcab521250bdc40, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.FallDamageDetector
   safeFallDistanceInTiles: 2.5
   damagePerTile: 1
+  climbingDamageMultiplier: 0.5
 --- !u!114 &1971883705
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1300,7 +1302,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f7906f1ed24d475bb8c0e3cd5edb54b8, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.BurialDamageAdapter
 --- !u!114 &1971883706
 MonoBehaviour:
@@ -1312,9 +1314,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ea6c3efad57f4e199d6ca3496741e9f0, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerHp
   maxHp: 100
+--- !u!114 &1971883707
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31e20a3f8054076bb340ad3a3ec3d4c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.RespawnController
+  respawnDelay: 2
+  spawnPoint: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
