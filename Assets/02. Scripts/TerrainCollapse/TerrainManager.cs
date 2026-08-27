@@ -37,10 +37,6 @@ namespace TerrainCollapse
 #endif
         [SerializeField] private bool logEvents = true;
 
-#if UNITY_EDITOR
-        private InputAction removeTileAction;
-#endif
-
         private static readonly Vector2Int[] Directions =
         {
             Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right
@@ -60,43 +56,7 @@ namespace TerrainCollapse
             inputCamera = camera;
 #endif
         }
-
-#if UNITY_EDITOR
-        private void OnEnable()
-        {
-            removeTileAction ??= new InputAction("Remove Terrain Cell", InputActionType.Button, "<Pointer>/press");
-            removeTileAction.performed += OnRemoveTilePerformed;
-            removeTileAction.Enable();
-        }
-
-        private void OnDisable()
-        {
-            removeTileAction.performed -= OnRemoveTilePerformed;
-            removeTileAction.Disable();
-        }
-
-        private void OnDestroy() => removeTileAction?.Dispose();
-
-        private void OnRemoveTilePerformed(InputAction.CallbackContext _)
-        {
-            if (Pointer.current == null) return;
-
-            Camera camera = inputCamera != null ? inputCamera : Camera.main;
-            Vector2 pointer = Pointer.current.position.ReadValue();
-            float planeDistance = Mathf.Abs(terrainWorld.transform.position.z - camera.transform.position.z);
-            Vector3 world = camera.ScreenToWorldPoint(new Vector3(pointer.x, pointer.y, planeDistance));
-            Vector2Int cell = terrainWorld.WorldToCell(world);
-            //TerrainRemoveResult result = RequestRemoveCell(cell);
-/*
-            if (logEvents && result == TerrainRemoveResult.EmptyCell)
-                Debug.Log($"[Terrain Collapse] Empty cell clicked: screen={pointer}, " +
-                          $"world={world}, cell={cell}");
-            else if (logEvents && result == TerrainRemoveResult.NotMineable)
-                Debug.Log($"[Terrain Collapse] Tile cannot be mined: screen={pointer}, " +
-                          $"world={world}, cell={cell}");*/
-        }
-#endif
-
+        
         // 지정 Grid 좌표의 지형 존재 여부 조회
         public bool HasTerrain(Vector2Int cell) => IsReady && terrainWorld.IsOccupied(cell);
 
@@ -154,7 +114,7 @@ namespace TerrainCollapse
 
             return true;
         }
-/*
+
         /// <summary>지정 Grid 좌표의 채굴 가능 지형 제거 요청</summary>
         public TerrainRemoveResult RequestRemoveCell(Vector2Int cell)
         {
@@ -189,15 +149,15 @@ namespace TerrainCollapse
             TerrainChanged?.Invoke(TerrainChangeReason.Excavation);
             
             return TerrainRemoveResult.Removed;
-        }*/
-/*
+        }
+
         // 기존 bool 반환 호출부 호환용 안전 제거 요청
         public bool RemoveCell(Vector2Int cell)
         {
             TerrainRemoveResult result = RequestRemoveCell(cell);
             
             return result == TerrainRemoveResult.Damaged || result == TerrainRemoveResult.Removed;
-        }*/
+        }
 
         public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
             => ApplyAuthoritativeBatch(batch, TerrainChangeReason.AuthoritativeBatch, out error);

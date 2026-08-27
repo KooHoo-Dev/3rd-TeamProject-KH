@@ -4,101 +4,93 @@ namespace TerrainCollapse
 {
     public class PickaxeItem : Item
     {
-        public override void Use(Vector3 ownerPos,  Vector3 targetPos)
+        public override void Use(Vector3 ownerPos, Vector3 targetPos)
         {
-            // 0. ItemDef 데이터 검증 (Def 및 PickaxeData 존재 여부 확인)
-            if (Def == null || Def.PickaxeData.HasValue == false)
-            {
-                Debug.LogWarning("[PickaxeItem] 곡괭이 데이터(ItemDef / PickaxeData)가 올바르게 설정되지 않았습니다.");
-                return;
-            }
+            // 0. ItemDef 검증
+            if (Def == null || Def.PickaxeData.HasValue == false) return;
 
             PickaxeInfo stats = Def.PickaxeData.Value;
             float range = stats.Range;
             int digPower = stats.DigPower;
 
-            // 1. TerrainManager 준비 상태 검증
+            // 1. TerrainManager 검증
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
-            if (terrainManager == null || terrainManager.IsReady == false)
-            {
-                Debug.LogWarning("[PickaxeItem] TerrainManager가 준비되지 않았습니다.");
-                return;
-            }
+            if (terrainManager == null || terrainManager.IsReady == false) return;
 
-            // 2. DefDTO의 PickaxeRange를 적용한 사거리 검증
-            if (Vector3.Distance(ownerPos, targetPos) > range)
-            {
-                Debug.Log($"[PickaxeItem] 사거리 초과: 거리={Vector3.Distance(ownerPos, targetPos):F2}, 최대 사거리={range}");
-                return;
-            }
+            // 2. 좌표 변환
+            if (terrainManager.TryWorldToCell(ownerPos, out Vector2Int startCell) == false) return;
 
-            // 3. 월드 좌표를 Terrain Grid Cell 좌표로 변환
-            if (terrainManager.TryWorldToCell(targetPos, out Vector2Int targetCell) == false)
-            {
-                Debug.LogWarning($"[PickaxeItem] 대상 월드 좌표({targetPos})를 그리드 셀로 변환할 수 없습니다.");
-                return;
-            }
+            Vector3 direction = (targetPos - ownerPos);
+            float distance = direction.magnitude;
+            if (distance < 0.001f) return;
 
-            // 4. 지형 존재 및 채굴 가능 여부 사전 검증
-            if (terrainManager.TryGetTileType(targetCell, out TerrainTileType tileType) == false ||
-                tileType == TerrainTileType.Empty)
-            {
-                Debug.Log($"[PickaxeItem] 빈 공간입니다: Cell={targetCell}");
-                return;
-            }
+            direction.Normalize();
+            float effectiveDistance = Mathf.Min(distance, range);
+            Vector3 clampedTargetPos = ownerPos + direction * effectiveDistance;
 
-            TerrainDataManager dataManager = TerrainDataManager.Instance;
-            dataManager.EnsureLoaded();
+            if (terrainManager.TryWorldToCell(clampedTargetPos, out Vector2Int targetCell) == false) return;
 
-            if (dataManager.TryGetTileDef(tileType, out TerrainTileDef tileDef) == false || tileDef.IsMineable == false)
-            {
-                Debug.Log($"[PickaxeItem] 채굴 불가능한 타일입니다: Cell={targetCell}, Type={tileType}");
-                return;
-            }
+            // 3. 브레센험 레이캐스팅으로 가장 가까운 타일 좌표 스냅
+            if (TryGetNearestTargetCell(terrainManager, startCell, targetCell, out Vector2Int snappedCell) == false) return;
 
-            // 5. DefDTO의 DigPower(굴착력)를 전달하여 지형 손상/파괴 요청
-            // (TerrainGridWorld / TerrainManager의 TryDamageCell API 직접 활용)
-            bool damagedSuccess = ExecuteDig(terrainManager, targetCell, digPower, out int remainingDurability,
-                out bool isDestroyed);
+            // 4. TerrainManager를 통해 굴착 진행 (DigPower 수치만큼 반복 또는 전용 메서드 호출)
+            ExecuteDigPower(terrainManager, snappedCell, digPower);
+        }
 
-            if (damagedSuccess == false)
+        private void ExecuteDigPower(TerrainManager manager, Vector2Int cell, int digPower)
+        {
+            // 곡괭이의 DigPower(채굴력)만큼 데미지를 줍니다.
+            for (int i = 0; i < digPower; i++)
             {
-                Debug.LogWarning($"[PickaxeItem] 굴착 요청 처리 실패: Cell={targetCell}");
-                return;
-            }
+                TerrainRemoveResult result = manager.RequestRemoveCell(cell);
 
-            // 6. 결과 판정 및 피드백 처리
-            if (isDestroyed)
-            {
-                Debug.Log($"[PickaxeItem] 타일 완파 성공! Cell={targetCell}, 피해량={digPower}");
-                // TODO: 파괴 SFX/VFX, 드롭 아이템 생성 등
-            }
-            else
-            {
-                Debug.Log($"[PickaxeItem] 타일 타격 성공! Cell={targetCell}, 피해량={digPower}, 남은 내구도={remainingDurability}");
-                // TODO: 타격 SFX/VFX, 애니메이션 트리거 등
+                // 채굴 불가능 타일이거나 이미 파괴(Removed) 및 빈 셀(EmptyCell)이면 멈춤
+                if (result == TerrainRemoveResult.NotMineable || 
+                    result == TerrainRemoveResult.EmptyCell || 
+                    result == TerrainRemoveResult.Removed)
+                {
+                    break;
+                }
             }
         }
 
-        /// <summary>
-        /// TerrainManager 내부 래핑 함수를 거쳐 지형에 피해를 입히는 헬퍼 메서드
-        /// </summary>
-        private bool ExecuteDig(
-            TerrainManager manager,
-            Vector2Int cell,
-            int damage,
-            out int remainingDurability,
-            out bool isDestroyed)
+        private bool TryGetNearestTargetCell(
+            TerrainManager manager, 
+            Vector2Int start, 
+            Vector2Int end, 
+            out Vector2Int snappedCell)
         {
-            // TerrainGridWorld 인스턴스를 통해 DigPower만큼 데미지 적용
-            TerrainGridWorld world = manager.GetComponent<TerrainGridWorld>();
-            if (world != null)
+            snappedCell = start;
+
+            int x0 = start.x, y0 = start.y;
+            int x1 = end.x, y1 = end.y;
+
+            int dx = Mathf.Abs(x1 - x0);
+            int dy = Mathf.Abs(y1 - y0);
+            int sx = x0 < x1 ? 1 : -1;
+            int sy = y0 < y1 ? 1 : -1;
+            int err = dx - dy;
+
+            int currX = x0;
+            int currY = y0;
+
+            while (true)
             {
-                return world.TryDamageCell(cell, damage, out remainingDurability, out isDestroyed);
+                Vector2Int currentCell = new Vector2Int(currX, currY);
+
+                if (currentCell != start && manager.HasTerrain(currentCell))
+                {
+                    snappedCell = currentCell;
+                    return true;
+                }
+
+                if (currX == x1 && currY == y1) break;
+
+                int e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; currX += sx; }
+                if (e2 < dx) { err += dx; currY += sy; }
             }
 
-            remainingDurability = 0;
-            isDestroyed = false;
             return false;
         }
     }
