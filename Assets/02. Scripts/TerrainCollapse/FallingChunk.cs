@@ -55,6 +55,8 @@ namespace TerrainCollapse
         private readonly List<int> cellDurabilities = new();
         private readonly Dictionary<Collider2D, TerrainContactInfo> terrainContactInfos = new();
         private readonly HashSet<Collider2D> staticTerrainContacts = new();
+        private readonly List<Collider2D> escapeOverlapHits = new();
+        private readonly List<RaycastHit2D> escapeCastHits = new();
         private Rigidbody2D body;
         private CompositeCollider2D compositeCollider;
         private PhysicsMaterial2D frictionlessMaterial;
@@ -91,6 +93,11 @@ namespace TerrainCollapse
                 bounciness = 0f
             };
             compositeCollider.sharedMaterial = frictionlessMaterial;
+        }
+
+        private void OnEnable()
+        {
+            RegisterExistingEscapeTargetCollisions();
         }
 
         public void Configure(
@@ -137,6 +144,8 @@ namespace TerrainCollapse
                 
                 return;
             }
+
+            DetectEscapeTargetContacts();
 
             // 접점 개수와 지지 폭을 충족하는 일반 안정화용 지형 접촉 여부
             bool hasStableTerrainContact = HasStableTerrainContact();
@@ -201,24 +210,102 @@ namespace TerrainCollapse
 
         private void HandleCollision(Collision2D collision)
         {
-            MonoBehaviour[] behaviours = collision.collider.GetComponents<MonoBehaviour>();
-            
+            if (TryHandleEscapeTarget(collision.collider))
+            {
+                return;
+            }
+
+            UpdateGroundContact(collision);
+        }
+
+        /// <summary>낙하 지형 대상과의 물리 반작용을 제외하고 기존 회피 판정으로 전달</summary>
+        public bool TryHandleEscapeTarget(Collider2D targetCollider)
+        {
+            if (targetCollider == null || targetCollider.attachedRigidbody == body) return false;
+
+            MonoBehaviour[] behaviours = targetCollider.GetComponentsInParent<MonoBehaviour>();
+
             foreach (MonoBehaviour behaviour in behaviours)
             {
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
+                    RegisterEscapeTargetCollision(targetCollider);
+                    staticTerrainContacts.Remove(targetCollider);
+                    terrainContactInfos.Remove(targetCollider);
                     target.ResolveFallingTerrainContact(this);
 
-                    // 판정 이후 캐릭터가 Chunk를 받치지 않도록 현재 붕괴 동안 충돌 해제
-                    Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
-                    staticTerrainContacts.Remove(collision.collider);
-                    terrainContactInfos.Remove(collision.collider);
-
-                    return;
+                    return true;
                 }
             }
 
-            UpdateGroundContact(collision);
+            return false;
+        }
+
+        /// <summary>대상 감지 전부터 Solver 접촉이 생성되지 않도록 collider pair를 등록</summary>
+        public void RegisterEscapeTargetCollision(Collider2D targetCollider)
+        {
+            if (targetCollider == null || targetCollider.enabled == false ||
+                targetCollider.gameObject.activeInHierarchy == false)
+                return;
+
+            Physics2D.IgnoreCollision(compositeCollider, targetCollider, true);
+        }
+
+        private void RegisterExistingEscapeTargetCollisions()
+        {
+            MonoBehaviour[] behaviours = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+
+            foreach (MonoBehaviour behaviour in behaviours)
+            {
+                if (behaviour is IFallingTerrainEscapeTarget)
+                {
+                    Collider2D[] targetColliders = behaviour.GetComponentsInChildren<Collider2D>();
+
+                    foreach (Collider2D targetCollider in targetColliders)
+                        RegisterEscapeTargetCollision(targetCollider);
+                }
+            }
+        }
+
+        /// <summary>현재 겹침과 다음 물리 스텝의 Chunk Bounds 이동 경로에서 접촉 대상을 감지</summary>
+        private void DetectEscapeTargetContacts()
+        {
+            ContactFilter2D filter = new ContactFilter2D
+            {
+                useLayerMask = false,
+                useTriggers = false
+            };
+
+            Bounds bounds = compositeCollider.bounds;
+            int overlapCount = Physics2D.OverlapBox(
+                bounds.center,
+                bounds.size,
+                0f,
+                filter,
+                escapeOverlapHits);
+            for (int i = 0; i < overlapCount; i++)
+            {
+                TryHandleEscapeTarget(escapeOverlapHits[i]);
+            }
+
+            Vector2 nextVelocity = body.linearVelocity +
+                                   Physics2D.gravity * body.gravityScale * Time.fixedDeltaTime;
+            Vector2 movement = nextVelocity * Time.fixedDeltaTime;
+
+            if (movement.sqrMagnitude <= Mathf.Epsilon) return;
+
+            int castCount = Physics2D.BoxCast(
+                bounds.center,
+                bounds.size,
+                0f,
+                movement.normalized,
+                filter,
+                escapeCastHits,
+                movement.magnitude + Physics2D.defaultContactOffset);
+            for (int i = 0; i < castCount; i++)
+            {
+                TryHandleEscapeTarget(escapeCastHits[i].collider);
+            }
         }
 
         private void UpdateGroundContact(Collision2D collision)

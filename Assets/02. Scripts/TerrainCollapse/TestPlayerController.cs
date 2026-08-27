@@ -30,6 +30,7 @@ namespace TerrainCollapse
         [SerializeField] private int buriedSortingOrder = -1;
 
         private readonly RaycastHit2D[] castHits = new RaycastHit2D[16];
+        private readonly List<RaycastHit2D> fallingChunkCastHits = new();
         private readonly Collider2D[] overlapHits = new Collider2D[16];
         private readonly Dictionary<long, FallingTerrainContactResult> resolvedCollapses = new();
         
@@ -46,6 +47,8 @@ namespace TerrainCollapse
         private float burialDamageElapsed;
         private float escapeTargetBodyX;
         private Vector2 burialLockedBodyPosition;
+        private FallingChunk activeFallingChunk;
+        private Vector2 activeFallingChunkPosition;
         private Coroutine burialRecheckRoutine;
         
         public bool IsBuried => buried;                   
@@ -73,11 +76,16 @@ namespace TerrainCollapse
         private void OnEnable()
         {
             if (terrainManager != null) terrainManager.TerrainChanged += HandleTerrainChanged;
+
+            FallingChunk[] fallingChunks = FindObjectsByType<FallingChunk>(FindObjectsSortMode.None);
+            foreach (FallingChunk fallingChunk in fallingChunks)
+                fallingChunk.RegisterEscapeTargetCollision(box);
         }
 
         private void OnDisable()
         {
             if (terrainManager != null) terrainManager.TerrainChanged -= HandleTerrainChanged;
+            activeFallingChunk = null;
         }
 
         private void Update()
@@ -105,6 +113,8 @@ namespace TerrainCollapse
                 EnterBuriedState();
                 return;
             }
+
+            if (TickFallingTerrainPush()) return;
 
             if (isEscaping)
             {
@@ -137,7 +147,11 @@ namespace TerrainCollapse
             Vector2 position = body.position;
             position += ResolveMovement(Vector2.right, velocity.x * Time.fixedDeltaTime, ref velocity.x);
             grounded = false;
-            position += ResolveMovement(Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
+            position += ResolveMovement(
+                Vector2.up,
+                velocity.y * Time.fixedDeltaTime,
+                ref velocity.y,
+                position - body.position);
             body.MovePosition(position);
         }
 
@@ -165,14 +179,106 @@ namespace TerrainCollapse
                 velocity.y -= gravity * Time.fixedDeltaTime;
             }
             
-            position += ResolveMovement(Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
+            position += ResolveMovement(
+                Vector2.up,
+                velocity.y * Time.fixedDeltaTime,
+                ref velocity.y,
+                position - body.position);
             body.MovePosition(position);
 
             if (Mathf.Approximately(position.x, escapeTargetBodyX)) isEscaping = false;
         }
 
-        private Vector2 ResolveMovement(Vector2 axis, float distance, ref float axisVelocity)
+        /// <summary>탈출 공간이 없는 동안 Chunk의 실제 하강 displacement만큼 플레이어를 이동</summary>
+        private bool TickFallingTerrainPush()
         {
+            FallingChunk fallingChunk = activeFallingChunk;
+            if (fallingChunk == null)
+            {
+                activeFallingChunk = null;
+                return false;
+            }
+
+            Rigidbody2D fallingBody = fallingChunk.ShapeCollider == null
+                ? null
+                : fallingChunk.ShapeCollider.attachedRigidbody;
+            Vector2 currentFallingPosition = fallingBody == null
+                ? (Vector2)fallingChunk.transform.position
+                : fallingBody.position;
+            float fallingDistance = Mathf.Max(0f, activeFallingChunkPosition.y - currentFallingPosition.y);
+            activeFallingChunkPosition = currentFallingPosition;
+
+            if (IsInFallingTerrainPath(box.bounds, fallingChunk) == false)
+            {
+                activeFallingChunk = null;
+                return false;
+            }
+
+            if (fallingDistance <= Mathf.Epsilon)
+            {
+                if (fallingChunk.IsComplete)
+                {
+                    activeFallingChunk = null;
+                    return false;
+                }
+
+                grounded = false;
+                return true;
+            }
+
+            grounded = false;
+            float pushVelocity = -fallingDistance / Time.fixedDeltaTime;
+            Vector2 movement = ResolveMovement(
+                Vector2.up,
+                -fallingDistance,
+                ref pushVelocity,
+                out bool blockedByStaticTerrain,
+                default,
+                fallingChunk);
+            Vector2 targetPosition = body.position + movement;
+            bool pushWasBlocked = Mathf.Abs(movement.y) + Mathf.Epsilon < fallingDistance;
+
+            velocity.x = 0f;
+            velocity.y = movement.y / Time.fixedDeltaTime;
+
+            if (pushWasBlocked && blockedByStaticTerrain)
+            {
+                body.position = targetPosition;
+                activeFallingChunk = null;
+                EnterBuriedState();
+                return true;
+            }
+
+            body.MovePosition(targetPosition);
+            if (fallingChunk.IsComplete) activeFallingChunk = null;
+
+            return true;
+        }
+
+        private Vector2 ResolveMovement(
+            Vector2 axis,
+            float distance,
+            ref float axisVelocity,
+            Vector2 castOffset = default)
+        {
+            return ResolveMovement(
+                axis,
+                distance,
+                ref axisVelocity,
+                out _,
+                castOffset,
+                null);
+        }
+
+        private Vector2 ResolveMovement(
+            Vector2 axis,
+            float distance,
+            ref float axisVelocity,
+            out bool blockedByStaticTerrain,
+            Vector2 castOffset,
+            FallingChunk ignoredFallingChunk)
+        {
+            blockedByStaticTerrain = false;
             if (Mathf.Approximately(distance, 0f)) return Vector2.zero;
             
             Vector2 direction = axis * Mathf.Sign(distance);
@@ -183,22 +289,83 @@ namespace TerrainCollapse
                 layerMask = collisionMask,
                 useTriggers = false
             };
-            
+
             int hitCount = box.Cast(direction, filter, castHits, requestedDistance + collisionSkin);
             float allowedDistance = requestedDistance;
-            
+            bool movementLimitedByFallingTerrain = false;
+
             for (int i = 0; i < hitCount; i++)
             {
-                if (castHits[i].collider == box) continue;
-                
-                allowedDistance = Mathf.Min(allowedDistance,
-                    Mathf.Max(0f, castHits[i].distance - collisionSkin));
+                Collider2D hitCollider = castHits[i].collider;
+                if (hitCollider == box) continue;
+
+                FallingChunk fallingChunk = hitCollider.GetComponentInParent<FallingChunk>();
+                if (fallingChunk != null)
+                {
+                    if (fallingChunk == ignoredFallingChunk) continue;
+
+                    // Solver 대신 플레이어의 이번 프레임 이동량을 접촉 지점까지 제한한다.
+                    fallingChunk.TryHandleEscapeTarget(box);
+                    float fallingAllowedDistance = Mathf.Max(
+                        0f,
+                        castHits[i].distance - collisionSkin);
+                    if (fallingAllowedDistance < allowedDistance)
+                    {
+                        allowedDistance = fallingAllowedDistance;
+                        movementLimitedByFallingTerrain = true;
+                        blockedByStaticTerrain = false;
+                    }
+                    continue;
+                }
+
+                float hitAllowedDistance = Mathf.Max(0f, castHits[i].distance - collisionSkin);
+                if (hitAllowedDistance <= allowedDistance)
+                {
+                    Rigidbody2D hitBody = hitCollider.attachedRigidbody;
+                    allowedDistance = hitAllowedDistance;
+                    movementLimitedByFallingTerrain = false;
+                    blockedByStaticTerrain = hitBody == null ||
+                                             hitBody.bodyType == RigidbodyType2D.Static;
+                }
+            }
+
+            // IgnoreCollision 상태에서도 FallingChunk를 공간 Query로 별도 감지한다.
+            Vector2 castCenter = (Vector2)box.bounds.center + castOffset;
+            int fallingChunkHitCount = Physics2D.BoxCast(
+                castCenter,
+                box.bounds.size,
+                body.rotation,
+                direction,
+                filter,
+                fallingChunkCastHits,
+                requestedDistance + collisionSkin);
+
+            for (int i = 0; i < fallingChunkHitCount; i++)
+            {
+                RaycastHit2D hit = fallingChunkCastHits[i];
+                if (hit.collider == box) continue;
+
+                FallingChunk fallingChunk = hit.collider.GetComponentInParent<FallingChunk>();
+                if (fallingChunk == null) continue;
+                if (fallingChunk == ignoredFallingChunk) continue;
+
+                fallingChunk.TryHandleEscapeTarget(box);
+                float fallingAllowedDistance = Mathf.Max(0f, hit.distance - collisionSkin);
+                if (fallingAllowedDistance < allowedDistance)
+                {
+                    allowedDistance = fallingAllowedDistance;
+                    movementLimitedByFallingTerrain = true;
+                    blockedByStaticTerrain = false;
+                }
             }
 
             if (allowedDistance + Mathf.Epsilon < requestedDistance)
             {
-                if (direction.y < 0f) grounded = true;
-                axisVelocity = 0f;
+                if (movementLimitedByFallingTerrain == false)
+                {
+                    if (direction.y < 0f) grounded = true;
+                    axisVelocity = 0f;
+                }
             }
             
             return direction * allowedDistance;
@@ -210,14 +377,21 @@ namespace TerrainCollapse
             if (fallingChunk == null || terrainManager == null || terrainManager.IsReady == false)
                 return FallingTerrainContactResult.Ignored;
 
-            // OnCollisionEnter/Stay가 같은 붕괴에 대해 여러 번 호출되어도 한 번만 판정한다.
+            // 회피 또는 매몰 판단이 끝난 붕괴만 일회성 결과를 유지한다.
             if (resolvedCollapses.TryGetValue(fallingChunk.CollapseId, out FallingTerrainContactResult previousResult))
+            {
+                if (previousResult == FallingTerrainContactResult.NoEscapeSpace &&
+                    activeFallingChunk != fallingChunk &&
+                    fallingChunk.IsComplete == false &&
+                    IsInFallingTerrainPath(box.bounds, fallingChunk))
+                    BeginFallingTerrainPush(fallingChunk);
+
                 return previousResult;
+            }
 
             // 이미 낙하가 끝난 Chunk는 탈출 판정 대상이 아니다.
             if (fallingChunk.IsComplete)
             {
-                resolvedCollapses[fallingChunk.CollapseId] = FallingTerrainContactResult.Ignored;
                 return FallingTerrainContactResult.Ignored;
             }
 
@@ -225,7 +399,6 @@ namespace TerrainCollapse
             // 단순한 옆면 접촉이나 이미 Chunk 아래로 지나간 접촉은 무시한다.
             if (IsInFallingTerrainPath(box.bounds, fallingChunk) == false)
             {
-                resolvedCollapses[fallingChunk.CollapseId] = FallingTerrainContactResult.Ignored;
                 return FallingTerrainContactResult.Ignored;
             }
 
@@ -273,7 +446,7 @@ namespace TerrainCollapse
 
                     bool leftSafe =
                         IsGridSpaceEmpty(leftCandidate) &&
-                        IsPhysicalSpaceEmpty(leftOffset) &&
+                        IsPhysicalSpaceEmpty(leftOffset, fallingChunk) &&
                         IsInFallingTerrainPath(leftCandidate, fallingChunk) == false;
 
                     if (leftSafe && distance < bestDistance)
@@ -292,7 +465,7 @@ namespace TerrainCollapse
 
                     bool rightSafe =
                         IsGridSpaceEmpty(rightCandidate) &&
-                        IsPhysicalSpaceEmpty(rightOffset) &&
+                        IsPhysicalSpaceEmpty(rightOffset, fallingChunk) &&
                         IsInFallingTerrainPath(rightCandidate, fallingChunk) == false;
 
                     if (rightSafe && distance < bestDistance)
@@ -308,18 +481,28 @@ namespace TerrainCollapse
                     // 이미 안전한 위치(offset=0)라면 굳이 움직이지 않는다.
                     escapeTargetBodyX = body.position.x + bestOffset;
                     isEscaping = Mathf.Approximately(bestOffset, 0f) == false;
+                    if (activeFallingChunk == fallingChunk) activeFallingChunk = null;
 
                     resolvedCollapses[fallingChunk.CollapseId] = FallingTerrainContactResult.Escaped;
                     return FallingTerrainContactResult.Escaped;
                 }
             }
 
-            // 현재 타일 안에서 조금 움직이는 것조차 불가능하고 양 옆 한 타일까지
-            // 안전한 공간이 없다면 현재 위치를 강제로 옮기지 않는다.
-            // Chunk가 계속 추락하고 지면에 닿아 플레이어 공간을 차지하면 FixedUpdate의
-            // 일반 매몰 판정이 샌드위치/생매장 상태로 전환한다.
+            // 탈출 공간이 없으면 Chunk의 실제 하강 displacement를 지속적으로 따라간다.
+            BeginFallingTerrainPush(fallingChunk);
             resolvedCollapses[fallingChunk.CollapseId] = FallingTerrainContactResult.NoEscapeSpace;
             return FallingTerrainContactResult.NoEscapeSpace;
+        }
+
+        private void BeginFallingTerrainPush(FallingChunk fallingChunk)
+        {
+            activeFallingChunk = fallingChunk;
+            Rigidbody2D fallingBody = fallingChunk.ShapeCollider == null
+                ? null
+                : fallingChunk.ShapeCollider.attachedRigidbody;
+            activeFallingChunkPosition = fallingBody == null
+                ? (Vector2)fallingChunk.transform.position
+                : fallingBody.position;
         }
         
         private bool IsInFallingTerrainPath(Bounds candidate, FallingChunk fallingChunk)
@@ -355,7 +538,7 @@ namespace TerrainCollapse
             return true;
         }
 
-        private bool IsPhysicalSpaceEmpty(float offsetX)
+        private bool IsPhysicalSpaceEmpty(float offsetX, FallingChunk ignoredChunk = null)
         {
             Vector2 candidateCenter = (Vector2)box.bounds.center + Vector2.right * offsetX;
             
@@ -373,6 +556,8 @@ namespace TerrainCollapse
             {
                 Collider2D hit = overlapHits[i];
                 if (hit == null || hit == box) continue;
+                if (ignoredChunk != null && hit.GetComponentInParent<FallingChunk>() == ignoredChunk)
+                    continue;
                 return false;
             }
             
@@ -384,6 +569,7 @@ namespace TerrainCollapse
             if (buried) return;
 
             buried = true;
+            activeFallingChunk = null;
             isEscaping = false;
             isClimbing = false;
             grounded = false;
