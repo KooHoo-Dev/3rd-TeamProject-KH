@@ -14,6 +14,8 @@ namespace TerrainCollapse
         [SerializeField] private string dataTableProfileID = "Default";
         [SerializeField] private bool useRandomSeed = true;
         [SerializeField] private int seed = 12345;
+        [SerializeField] private Transform playerSpawnTarget;
+        [SerializeField, Min(0)] private int respawnPointIndex;
 
         public TerrainMapFile LoadedMap { get; private set; }
 
@@ -58,8 +60,27 @@ namespace TerrainCollapse
             }
 
             targetWorld.LoadMap(LoadedMap);
+            PlacePlayerAtRespawnPoint();
             Debug.Log($"[Terrain Map Loader] '{LoadedMap.Name}' 로드 완료 — " +
                       $"{LoadedMap.Width}x{LoadedMap.Height}, cells={LoadedMap.Tiles.Count}");
+        }
+
+        private void PlacePlayerAtRespawnPoint()
+        {
+            if (playerSpawnTarget == null) return;
+
+            if (LoadedMap.TryGetRespawnPoint(respawnPointIndex, out Vector2Int respawnPoint) == false)
+            {
+                Debug.LogError($"[Terrain Map Loader] 사용할 수 없는 리스폰 인덱스입니다: {respawnPointIndex}");
+                return;
+            }
+
+            Vector2 worldPosition = LoadedMap.GetCellCenterWorld(respawnPoint);
+            playerSpawnTarget.position = new Vector3(
+                worldPosition.x,
+                worldPosition.y,
+                playerSpawnTarget.position.z);
+            Physics2D.SyncTransforms();
         }
     }
 }

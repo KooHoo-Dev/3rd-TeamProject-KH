@@ -474,6 +474,8 @@ MonoBehaviour:
   dataTableProfileID: CollapseTest
   useRandomSeed: 1
   seed: 12345
+  playerSpawnTarget: {fileID: 1971883701}
+  respawnPointIndex: 0
 --- !u!114 &190307189
 MonoBehaviour:
   m_ObjectHideFlags: 0
