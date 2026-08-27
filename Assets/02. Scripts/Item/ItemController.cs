@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem; // New Input System 전용 네임스페이스
 
@@ -23,6 +24,10 @@ namespace TerrainCollapse
 
             if (mainCamera == null)
                 mainCamera = Camera.main;
+        }
+
+        private void Start()
+        {
             void EquipItemFromTable(int itemId)
             {
                 // 1. 테이블에서 기획 데이터와 프리팹 에셋을 가져옵니다.

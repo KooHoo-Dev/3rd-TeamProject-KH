@@ -10,12 +10,9 @@ namespace TerrainCollapse
         // 2. 관리할 테이블들을 프로퍼티로 들고 있기 (ItemTable)
         public ItemTable ItemTable { get; private set; } = new();
 
-        // 만약 기존에 쓰던 적(Enemy) 테이블이 있다면 이곳에 함께 선언합니다.
-        // public EnemyTable EnemyTable { get; private set; } = new();
-
         private void Awake()
         {
-            // 싱글톤 중복 방지 및 씬 전환 시 파괴 방지 설정 [3, 4]
+            // 싱글톤 중복 방지 및 씬 전환 시 파괴 방지 설정
             if (Instance == null)
             {
                 Instance = this;
