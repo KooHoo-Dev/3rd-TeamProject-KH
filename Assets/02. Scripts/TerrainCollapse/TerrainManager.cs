@@ -86,14 +86,14 @@ namespace TerrainCollapse
             float planeDistance = Mathf.Abs(terrainWorld.transform.position.z - camera.transform.position.z);
             Vector3 world = camera.ScreenToWorldPoint(new Vector3(pointer.x, pointer.y, planeDistance));
             Vector2Int cell = terrainWorld.WorldToCell(world);
-            TerrainRemoveResult result = RequestRemoveCell(cell);
-
+            //TerrainRemoveResult result = RequestRemoveCell(cell);
+/*
             if (logEvents && result == TerrainRemoveResult.EmptyCell)
                 Debug.Log($"[Terrain Collapse] Empty cell clicked: screen={pointer}, " +
                           $"world={world}, cell={cell}");
             else if (logEvents && result == TerrainRemoveResult.NotMineable)
                 Debug.Log($"[Terrain Collapse] Tile cannot be mined: screen={pointer}, " +
-                          $"world={world}, cell={cell}");
+                          $"world={world}, cell={cell}");*/
         }
 #endif
 
@@ -154,7 +154,7 @@ namespace TerrainCollapse
 
             return true;
         }
-
+/*
         /// <summary>지정 Grid 좌표의 채굴 가능 지형 제거 요청</summary>
         public TerrainRemoveResult RequestRemoveCell(Vector2Int cell)
         {
@@ -189,15 +189,15 @@ namespace TerrainCollapse
             TerrainChanged?.Invoke(TerrainChangeReason.Excavation);
             
             return TerrainRemoveResult.Removed;
-        }
-
+        }*/
+/*
         // 기존 bool 반환 호출부 호환용 안전 제거 요청
         public bool RemoveCell(Vector2Int cell)
         {
             TerrainRemoveResult result = RequestRemoveCell(cell);
             
             return result == TerrainRemoveResult.Damaged || result == TerrainRemoveResult.Removed;
-        }
+        }*/
 
         public bool ApplyAuthoritativeBatch(TerrainChangeBatch batch, out string error)
             => ApplyAuthoritativeBatch(batch, TerrainChangeReason.AuthoritativeBatch, out error);

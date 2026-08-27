@@ -49,7 +49,8 @@ namespace TerrainCollapse
         private Coroutine burialRecheckRoutine;
         
         public bool IsBuried => buried;                   
-        public bool IsClimbing => isClimbing;             
+        public bool IsClimbing => isClimbing;
+        public TerrainManager TerrainManager => terrainManager;
         
         public event Action<bool> BurialStateChanged;     
         public event Action<float> BurialDamageRequested; 
