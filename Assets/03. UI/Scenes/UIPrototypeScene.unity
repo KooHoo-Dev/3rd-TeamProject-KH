@@ -667,6 +667,34 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1562248421697622840, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 1562248421697622840, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 1562248421697622840, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 1562248421697622840, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -10
+      objectReference: {fileID: 0}
+    - target: {fileID: 1562248421697622840, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -10
+      objectReference: {fileID: 0}
+    - target: {fileID: 1562248421697622840, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2049534177769054986, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: playerHp
+      value:
+      objectReference: {fileID: 1971883706}
     - target: {fileID: 2505562322702322872, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -759,6 +787,30 @@ PrefabInstance:
       propertyPath: terrainManager
       value: 
       objectReference: {fileID: 190307187}
+    - target: {fileID: 2653197054681530634, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 2653197054681530634, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 2653197054681530634, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 2653197054681530634, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 2653197054681530634, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -10
+      objectReference: {fileID: 0}
+    - target: {fileID: 2653197054681530634, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 4451695175285318738, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_Name
       value: TPHud
@@ -790,6 +842,26 @@ PrefabInstance:
     - target: {fileID: 6759250722083889896, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 8017121283901639082, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 8017121283901639082, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 8017121283901639082, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 8017121283901639082, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 8017121283901639082, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 9151141058855925621, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_fontColor32.rgba
@@ -988,6 +1060,10 @@ GameObject:
   - component: {fileID: 1971883698}
   - component: {fileID: 1971883697}
   - component: {fileID: 1971883702}
+  - component: {fileID: 1971883706}
+  - component: {fileID: 1971883705}
+  - component: {fileID: 1971883704}
+  - component: {fileID: 1971883703}
   m_Layer: 0
   m_Name: TestPlayer
   m_TagString: Untagged
@@ -1182,10 +1258,63 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63bcc6d2efbb4acaa5368ff035aa4979, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ItemController
-  playerTransform: {fileID: 0}
-  mainCamera: {fileID: 0}
+  playerTransform: {fileID: 1971883701}
+  mainCamera: {fileID: 1437070103}
   equippedItem: {fileID: 0}
   logDebugInfo: 1
+--- !u!114 &1971883703
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 93ea5ab8d76243869f4d2e26668c1666, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Character.FallingChunkDamageAdapter
+  minimumDamageSpeed: 1
+  damagePerSpeed: 1
+--- !u!114 &1971883704
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e15ea169ea64edf8dcab521250bdc40, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Character.FallDamageDetector
+  safeFallDistanceInTiles: 2.5
+  damagePerTile: 1
+--- !u!114 &1971883705
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7906f1ed24d475bb8c0e3cd5edb54b8, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Character.BurialDamageAdapter
+--- !u!114 &1971883706
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea6c3efad57f4e199d6ca3496741e9f0, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerHp
+  maxHp: 100
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
