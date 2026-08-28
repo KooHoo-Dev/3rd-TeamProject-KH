@@ -6,20 +6,6 @@ using UnityEngine.InputSystem;
 
 namespace TerrainCollapse
 {
-    /// <summary>
-    /// 프레임 단위 입력 데이터를 전달하기 위한 구조체
-    /// </summary>
-    public struct PlayerInputFrame
-    {
-        public float MoveX;
-        public float MoveY;
-        public bool JumpPressed;
-        public bool ClimbToggled;
-
-        /// <summary>사망 또는 입력 차단 상태에서 사용하는 기본 빈 프레임</summary>
-        public static PlayerInputFrame Empty => default;
-    }
-
     /// <summary>Kinematic Rigidbody를 직접 이동시키는 붕괴 테스트용 플레이어 (공중 충돌 후 착지 탈출 완전 보정)</summary>
     [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D), typeof(SpriteRenderer))]
     [RequireComponent(typeof(FallingTerrainInteraction))]
@@ -55,9 +41,6 @@ namespace TerrainCollapse
 
         private float escapePushSpeed;
         private float escapeTargetBodyX;
-
-        // 프레임별 수집된 입력 정보
-        private PlayerInputFrame currentInputFrame;
         
         public bool IsBuried => buried;                   
         public bool IsClimbing => isClimbing;
@@ -91,83 +74,48 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            if (isDead) return;
+
             Keyboard keyboard = Keyboard.current;
-            
-            // 테스트용: K로 플레이어 즉사
-            if (keyboard != null && keyboard.kKey.wasPressedThisFrame)
-                playerHp.TakeDamage(new DamageInfo(999, DamageType.None, null));
-
-            // 1. 입력 수집 단계 (Input Collection)
-            currentInputFrame = GatherInputFrame(keyboard);
-
-            // 2. 토글성 이벤트 입력 처리
-            if (currentInputFrame.ClimbToggled)
+            if (keyboard != null && (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame))
             {
                 ToggleClimbState();
             }
+
+            // 테스트용: K로 플레이어 즉사
+            if (keyboard != null && keyboard.kKey.wasPressedThisFrame)
+                playerHp.TakeDamage(new DamageInfo(999, DamageType.None, null));
         }
 
         private void FixedUpdate()
         {
-            // 매몰 상태에서는 물리 이동 멈춤
             if (buried) return;
 
-            // 탈출 보정 이동 처리
             if (isEscaping)
             {
                 TickEscapeMovement();
                 return;
             }
 
-            // 3. 물리 이동 수행 단계 (Execution with InputFrame)
-            ExecuteMovement(currentInputFrame);
-        }
+            Keyboard keyboard = isDead ? null : Keyboard.current;
 
-        /// <summary>
-        /// 하드웨어 키보드 입력을 읽어 PlayerInputFrame을 생성합니다.
-        /// 사망 상태일 경우 Empty 프레임을 반환합니다.
-        /// </summary>
-        private PlayerInputFrame GatherInputFrame(Keyboard keyboard)
-        {
-            if (isDead || keyboard == null)
+            float inputX = keyboard == null ? 0f : (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
+            float inputY = keyboard == null ? 0f : (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f);
+
+            if (isClimbing && isDead == false)
             {
-                return PlayerInputFrame.Empty;
-            }
-
-            float inputX = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
-            float inputY = (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f);
-            bool jump = keyboard.spaceKey.isPressed;
-            bool climb = keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame;
-
-            return new PlayerInputFrame
-            {
-                MoveX = inputX,
-                MoveY = inputY,
-                JumpPressed = jump,
-                ClimbToggled = climb
-            };
-        }
-
-        /// <summary>
-        /// 전달받은 InputFrame을 기반으로 이동 속도 계산 및 물리 충돌 해결을 수행합니다.
-        /// </summary>
-        private void ExecuteMovement(PlayerInputFrame input)
-        {
-            if (isClimbing)
-            {
-                velocity.x = input.MoveX * climbSpeed;
-                velocity.y = input.MoveY * climbSpeed;
+                velocity.x = inputX * climbSpeed;
+                velocity.y = inputY * climbSpeed;
             }
             else
             {
-                velocity.x = input.MoveX * moveSpeed;
-                
-                if (input.JumpPressed && grounded)
+                velocity.x = isDead ? 0f : inputX * moveSpeed;
+
+                if (isDead == false && keyboard != null && keyboard.spaceKey.isPressed && grounded)
                 {
                     velocity.y = jumpSpeed;
                 }
-                
-                // 사망 시 input.MoveX/JumpPressed가 default(false/0)가 되므로, 중력만 자연스럽게 적용됨
+
                 velocity.y -= gravity * Time.fixedDeltaTime;
             }
 
@@ -178,23 +126,24 @@ namespace TerrainCollapse
             body.MovePosition(position);
         }
 
-        /// <summary>사망 상태로 전환하고 조작 관련 상태 정리 (중력 낙하는 유지)</summary>
+        /// <summary>사망 상태로 전환하고 매몰/탈출/등반/이동 등 이전 플레이 상태를 모두 정리
+        /// 리스폰 타이밍과 체력 복구는 RespawnController가 담당</summary>
         public void EnterDeadState()
         {
             if (isDead) return;
 
             isDead = true;
-
+            
             fallingTerrainInteraction.ResetState();
             fallingTerrainInteraction.enabled = false;
             isEscaping = false;
             isClimbing = false;
             grounded = false;
 
-            // 사망 즉시 입력 프레임 초기화 및 X축 속도 제거
-            currentInputFrame = PlayerInputFrame.Empty;
-            velocity.x = 0f;
-            spriteRenderer.sortingOrder = normalSortingOrder;
+            if (buried)
+            {
+                velocity = Vector2.zero;
+            }
 
             body.linearVelocity = Vector2.zero;
             body.angularVelocity = 0f;
@@ -204,7 +153,8 @@ namespace TerrainCollapse
             Debug.Log("[Terrain Collapse] Player died", this);
         }
 
-        /// <summary>주어진 위치에서 이동/충돌 관련 잔여 상태를 완전히 초기화하며 재시작</summary>
+        /// <summary>주어진 위치에서 이동/충돌 관련 잔여 상태를 완전히 초기화하며 재시작
+        /// 체력 복구는 호출부(TestPlayerRespawnController)에서 PlayerHp.ResetHp()로 처리</summary>
         public void Respawn(Vector2 spawnPosition)
         {
             body.position = spawnPosition;
@@ -213,11 +163,10 @@ namespace TerrainCollapse
             Physics2D.SyncTransforms();
 
             velocity = Vector2.zero;
-            grounded = false;
+            grounded = true;
             isEscaping = false;
             isClimbing = false;
-            currentInputFrame = PlayerInputFrame.Empty;
-
+            buried = false;
             spriteRenderer.sortingOrder = normalSortingOrder;
             fallingTerrainInteraction.ResetState();
             fallingTerrainInteraction.enabled = true;
@@ -229,8 +178,6 @@ namespace TerrainCollapse
 
         public void ToggleClimbState()
         {
-            if (isDead) return;
-
             isClimbing = !isClimbing;
             velocity = Vector2.zero;
             ClimbStateChanged?.Invoke(isClimbing);
