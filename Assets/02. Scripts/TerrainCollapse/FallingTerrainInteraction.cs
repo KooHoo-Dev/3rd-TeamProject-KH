@@ -66,10 +66,9 @@ namespace TerrainCollapse
             }
 
             resolvedCollapses.Clear();
-            activeEscapeChunk = null;
+            ReleaseEscapeGuard();
             pendingBurialImpacts.Clear();
             burialDamageElapsed = 0f;
-            character.StopTerrainEscape();
             character.SetTerrainInteractionLocked(false, character.Position);
 
             if (isBuried == false) return;
@@ -145,19 +144,19 @@ namespace TerrainCollapse
             FallingTerrainContactResult result = RememberResult(
                 fallingChunk.CollapseId,
                 FallingTerrainContactResult.NoEscapeSpace);
-            pendingBurialImpacts[fallingChunk.CollapseId] = new FallingTerrainImpactInfo(
-                fallingChunk.CollapseId,
-                fallingChunk.LocalCells.Count,
-                fallingChunk.gameObject);
-            BeginAwaitingBurialResolution();
+            BeginAwaitingBurialResolution(fallingChunk);
 
             return result;
         }
 
-        private void BeginAwaitingBurialResolution()
+        private void BeginAwaitingBurialResolution(FallingChunk fallingChunk)
         {
-            if (pendingBurialImpacts.Count != 1) return;
+            pendingBurialImpacts[fallingChunk.CollapseId] = new FallingTerrainImpactInfo(
+                fallingChunk.CollapseId,
+                fallingChunk.LocalCells.Count,
+                fallingChunk.gameObject);
 
+            // 청크가 지형으로 변환될 때까지 충돌 무시 상태를 유지하고 플레이어 위치를 고정
             activeEscapeChunk = null;
             character.StopTerrainEscape();
             character.SetTerrainInteractionLocked(true, character.Position);
@@ -166,8 +165,37 @@ namespace TerrainCollapse
         private void TickEscapeGuard()
         {
             if (activeEscapeChunk is null) return;
-            if (activeEscapeChunk != null &&
-                activeEscapeChunk.WorldBounds.max.y > character.CollisionBounds.min.y) return;
+            if (activeEscapeChunk == null)
+            {
+                ReleaseEscapeGuard();
+                return;
+            }
+
+            if (IntersectsFallingTerrain(character.CollisionBounds, activeEscapeChunk))
+            {
+                if (TryFindEscapeTarget(activeEscapeChunk, out float nextTargetX) &&
+                    Mathf.Abs(nextTargetX - character.Position.x) > character.CollisionSkin)
+                {
+                    character.StartTerrainEscape(nextTargetX, escapePushSpeed);
+                    return;
+                }
+
+                FallingChunk burialChunk = activeEscapeChunk;
+                resolvedCollapses[burialChunk.CollapseId] =
+                    FallingTerrainContactResult.NoEscapeSpace;
+                BeginAwaitingBurialResolution(burialChunk);
+                return;
+            }
+
+            if (activeEscapeChunk.WorldBounds.max.y > character.CollisionBounds.min.y) return;
+
+            ReleaseEscapeGuard();
+        }
+
+        private void ReleaseEscapeGuard()
+        {
+            if (activeEscapeChunk != null && bodyCollider != null)
+                Physics2D.IgnoreCollision(activeEscapeChunk.ShapeCollider, bodyCollider, false);
 
             activeEscapeChunk = null;
             character.StopTerrainEscape();
@@ -202,22 +230,27 @@ namespace TerrainCollapse
 
             float colliderCenterOffsetX = collisionBounds.center.x - character.Position.x;
             float maximumEscapeDistance = terrainManager.CellSize * escapeXOffset;
-            if (TryGetFallingTileIntervalAtPoint(
+            bool isInsideFallingPath = TryGetFallingPathInterval(
                     collisionBounds,
                     fallingChunk,
                     out float tileMinX,
-                    out float tileMaxX) == false)
-            {
-                if (TryGetCellCenteredEscapeTarget(
-                        currentCell,
-                        colliderCenterOffsetX,
-                        fallingChunk,
-                        out targetX) == false)
-                    return false;
+                    out float tileMaxX);
 
-                return Mathf.Abs(targetX - character.Position.x) <=
-                       maximumEscapeDistance + Mathf.Epsilon;
+            if (TryGetCellCenteredEscapeTarget(
+                    currentCell,
+                    colliderCenterOffsetX,
+                    fallingChunk,
+                    out float currentCellTargetX) &&
+                Mathf.Abs(currentCellTargetX - character.Position.x) <=
+                maximumEscapeDistance + Mathf.Epsilon &&
+                (isInsideFallingPath == false ||
+                 IsConcaveEscapePocket(currentCell, fallingChunk)))
+            {
+                targetX = currentCellTargetX;
+                return true;
             }
+
+            if (isInsideFallingPath == false) return false;
 
             float tileCenterX = (tileMinX + tileMaxX) * 0.5f;
             float offsetFromTileCenter = collisionBounds.center.x - tileCenterX;
@@ -253,7 +286,7 @@ namespace TerrainCollapse
                 out targetX);
         }
 
-        private bool TryGetFallingTileIntervalAtPoint(
+        private bool TryGetFallingPathInterval(
             Bounds collisionBounds,
             FallingChunk fallingChunk,
             out float tileMinX,
@@ -262,7 +295,7 @@ namespace TerrainCollapse
             tileMinX = 0f;
             tileMaxX = 0f;
             float playerCenterX = collisionBounds.center.x;
-            float playerCenterY = collisionBounds.center.y;
+            float playerMinY = collisionBounds.min.y + character.CollisionSkin;
             float halfCellSize = fallingChunk.CellSize * 0.5f;
 
             foreach (Vector2Int localCell in fallingChunk.LocalCells)
@@ -270,15 +303,35 @@ namespace TerrainCollapse
                 Vector3 tileCenter = fallingChunk.GetLocalCellCenterWorld(localCell);
                 float currentTileMinX = tileCenter.x - halfCellSize;
                 float currentTileMaxX = tileCenter.x + halfCellSize;
-                float currentTileMinY = tileCenter.y - halfCellSize;
                 float currentTileMaxY = tileCenter.y + halfCellSize;
 
                 if (playerCenterX <= currentTileMinX || playerCenterX >= currentTileMaxX) continue;
-                if (playerCenterY <= currentTileMinY || playerCenterY >= currentTileMaxY) continue;
+                if (currentTileMaxY <= playerMinY) continue;
 
                 tileMinX = currentTileMinX;
                 tileMaxX = currentTileMaxX;
                 return true;
+            }
+
+            return false;
+        }
+
+        private bool IsConcaveEscapePocket(Vector2Int currentCell, FallingChunk fallingChunk)
+        {
+            if (terrainManager.TryCellToWorldCenter(currentCell, out Vector3 cellCenter) == false)
+                return false;
+
+            float cellSize = fallingChunk.CellSize;
+            float coordinateTolerance = character.CollisionSkin + Mathf.Epsilon;
+
+            foreach (Vector2Int localCell in fallingChunk.LocalCells)
+            {
+                Vector3 tileCenter = fallingChunk.GetLocalCellCenterWorld(localCell);
+                bool isSameRow = Mathf.Abs(tileCenter.y - cellCenter.y) <= coordinateTolerance;
+                bool isAdjacentColumn =
+                    Mathf.Abs(Mathf.Abs(tileCenter.x - cellCenter.x) - cellSize) <= coordinateTolerance;
+
+                if (isSameRow && isAdjacentColumn) return true;
             }
 
             return false;
@@ -344,10 +397,9 @@ namespace TerrainCollapse
             if (isBuried) return;
 
             isBuried = true;
-            activeEscapeChunk = null;
+            ReleaseEscapeGuard();
             buriedPosition = character.Position;
             burialDamageElapsed = 0f;
-            character.StopTerrainEscape();
             character.SetTerrainInteractionLocked(false, buriedPosition);
             character.SetTerrainBuried(true, buriedPosition);
             BurialStateChanged?.Invoke(true);

@@ -76,7 +76,7 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (isDead || terrainInteractionLocked) return;
+            if (isDead || terrainInteractionLocked || isEscaping) return;
 
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame))
