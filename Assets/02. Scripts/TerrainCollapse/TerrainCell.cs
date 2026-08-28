@@ -12,8 +12,6 @@ namespace TerrainCollapse
         Stone = 3,
         Bedrock = 4,
         DeepStone = 5,
-        CoalOre = 10,
-        IronOre = 11
     }
 
     /// <summary>커스텀 지형 Grid의 한 칸이 보관하는 순수 런타임 데이터</summary>
@@ -22,18 +20,22 @@ namespace TerrainCollapse
         public Vector2Int Coord { get; }
         public TerrainTileType Type { get; private set; }
         public int CurrentDurability { get; private set; }
+        public int ResourceID { get; private set; }
+        public bool HasResource => ResourceID > 0;
 
-        public TerrainCell(Vector2Int coord, TerrainTileType type, int durability)
+        public TerrainCell(Vector2Int coord, TerrainTileType type, int durability, int resourceID = 0)
         {
             Coord = coord;
             Type = type;
             CurrentDurability = Mathf.Max(0, durability);
+            ResourceID = Mathf.Max(0, resourceID);
         }
 
-        public void ChangeType(TerrainTileType type, int durability)
+        public void ChangeType(TerrainTileType type, int durability, int resourceID = 0)
         {
             Type = type;
             CurrentDurability = Mathf.Max(0, durability);
+            ResourceID = Mathf.Max(0, resourceID);
         }
 
         public int Damage(int amount)

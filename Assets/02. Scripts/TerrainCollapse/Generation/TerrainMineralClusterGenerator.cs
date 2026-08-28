@@ -70,7 +70,7 @@ namespace TerrainCollapse
             TerrainMapGenerationContext context)
         {
             List<Vector2Int> members = new() { start };
-            map.SetTile(start, mineral.MineralTile.TileType);
+            map.SetResource(start, mineral.Resource.ResourceID);
 
             while (members.Count < clusterSize)
             {
@@ -82,7 +82,7 @@ namespace TerrainCollapse
                 if (candidates.Count == 0) break;
 
                 Vector2Int selected = candidates[context.Random.Next(candidates.Count)];
-                map.SetTile(selected, mineral.MineralTile.TileType);
+                map.SetResource(selected, mineral.Resource.ResourceID);
                 members.Add(selected);
             }
         }
@@ -122,6 +122,7 @@ namespace TerrainCollapse
                 TerrainTableSeedGenerator.GetSectionBoundaryOffset(map, coord.x));
 
             if (section.ContainsDepthRatio(depthRatio) == false) return false;
+            if (map.GetResource(coord) > 0) return false;
 
             return map.GetTile(coord) == section.BaseTile.TileType;
         }

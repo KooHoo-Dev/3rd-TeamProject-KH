@@ -61,6 +61,7 @@ namespace TerrainCollapse
             List<Vector2Int> localCells = new(cells.Count);
             List<TerrainTileType> cellTypes = new(cells.Count);
             List<int> cellDurabilities = new(cells.Count);
+            List<int> cellResourceIDs = new(cells.Count);
             
             foreach (Vector2Int worldCell in cells)
             {
@@ -70,7 +71,8 @@ namespace TerrainCollapse
                 localCells.Add(localCell);
                 cellTypes.Add(type);
                 cellDurabilities.Add(sourceCell.CurrentDurability);
-                CreateChunkCell(root.transform, localCell, type, source);
+                cellResourceIDs.Add(sourceCell.ResourceID);
+                CreateChunkCell(root.transform, localCell, type, sourceCell.ResourceID, source);
                 source.RemoveCell(worldCell);
             }
 
@@ -81,6 +83,7 @@ namespace TerrainCollapse
                 localCells,
                 cellTypes,
                 cellDurabilities,
+                cellResourceIDs,
                 source.CellSize,
                 collapseId,
                 minimumWorldY);
@@ -93,6 +96,7 @@ namespace TerrainCollapse
             Transform parent,
             Vector2Int localCell,
             TerrainTileType type,
+            int resourceID,
             TerrainGridWorld source)
         {
             GameObject cell = new($"Cell_{localCell.x}_{localCell.y}",
@@ -103,7 +107,7 @@ namespace TerrainCollapse
             
             SpriteRenderer renderer = cell.GetComponent<SpriteRenderer>();
             renderer.sprite = source.GetTileSprite(type);
-            renderer.color = source.GetTileColor(type);
+            renderer.color = source.GetTileColor(type, resourceID);
             renderer.sortingOrder = 1;
             
             BoxCollider2D collider = cell.GetComponent<BoxCollider2D>();

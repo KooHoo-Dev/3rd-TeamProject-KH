@@ -13,7 +13,6 @@ namespace TerrainCollapse
         public bool IsMineable;
         public bool CanCreateCollider;
         public bool CanSupportTerrain;
-        public int DropItemID;
     }
 
     public sealed class TerrainTileDef
@@ -24,7 +23,6 @@ namespace TerrainCollapse
         public bool IsMineable { get; }
         public bool CanCreateCollider { get; }
         public bool CanSupportTerrain { get; }
-        public int DropItemID { get; }
 
         public TerrainTileDef(TerrainTileDTO dto)
         {
@@ -34,7 +32,6 @@ namespace TerrainCollapse
             IsMineable = dto.IsMineable;
             CanCreateCollider = dto.CanCreateCollider;
             CanSupportTerrain = dto.CanSupportTerrain;
-            DropItemID = dto.DropItemID;
         }
     }
 }

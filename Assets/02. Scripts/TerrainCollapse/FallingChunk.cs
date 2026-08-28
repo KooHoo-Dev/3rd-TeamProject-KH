@@ -38,6 +38,7 @@ namespace TerrainCollapse
         private readonly List<Vector2Int> localCells = new();
         private readonly List<TerrainTileType> cellTypes = new();
         private readonly List<int> cellDurabilities = new();
+        private readonly List<int> cellResourceIDs = new();
         private readonly Dictionary<Collider2D, TerrainContactInfo> terrainContactInfos = new();
         private readonly HashSet<Collider2D> staticTerrainContacts = new();
         private Rigidbody2D body;
@@ -62,6 +63,7 @@ namespace TerrainCollapse
         public IReadOnlyList<Vector2Int> LocalCells => localCells;
         public IReadOnlyList<TerrainTileType> CellTypes => cellTypes;
         public IReadOnlyList<int> CellDurabilities => cellDurabilities;
+        public IReadOnlyList<int> CellResourceIDs => cellResourceIDs;
         public Collider2D ShapeCollider => compositeCollider;
         public Bounds WorldBounds => compositeCollider.bounds;
         public float CellSize => cellSize;
@@ -84,6 +86,7 @@ namespace TerrainCollapse
             IReadOnlyList<Vector2Int> cells,
             IReadOnlyList<TerrainTileType> types,
             IReadOnlyList<int> durabilities,
+            IReadOnlyList<int> resourceIDs,
             float size,
             long id,
             float minimumY)
@@ -94,6 +97,8 @@ namespace TerrainCollapse
             cellTypes.AddRange(types);
             cellDurabilities.Clear();
             cellDurabilities.AddRange(durabilities);
+            cellResourceIDs.Clear();
+            cellResourceIDs.AddRange(resourceIDs);
             cellSize = size;
             collapseId = id;
             minimumWorldY = minimumY;

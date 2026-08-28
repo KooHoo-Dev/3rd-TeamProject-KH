@@ -25,6 +25,7 @@ namespace TerrainCollapse
         [SerializeField] private bool isDebugTileColorEnabled;
 #if UNITY_EDITOR
         [SerializeField] private bool isDurabilityTextEnabled;
+        [SerializeField] private bool isDebugResourceColorEnabled = true;
 #endif
         
         private static readonly Vector2Int[] NoCells = new Vector2Int[0];
@@ -63,6 +64,23 @@ namespace TerrainCollapse
             return type == TerrainTileType.Bedrock ? Color.black : terrainColor;
         }
 
+        public Color GetTileColor(TerrainTileType type, int resourceID)
+        {
+#if UNITY_EDITOR
+            if (isDebugResourceColorEnabled)
+            {
+                return resourceID switch
+                {
+                    1 => new Color(0.2f, 0.2f, 0.2f),
+                    2 => new Color(0.85f, 0.4f, 0.15f),
+                    _ => GetTileColor(type)
+                };
+            }
+#endif
+
+            return GetTileColor(type);
+        }
+
         private static Color GetDebugTileColor(TerrainTileType type)
             => type switch
             {
@@ -71,8 +89,6 @@ namespace TerrainCollapse
                 TerrainTileType.Stone => new Color(0.55f, 0.58f, 0.62f),
                 TerrainTileType.Bedrock => new Color(0.05f, 0.05f, 0.05f),
                 TerrainTileType.DeepStone => new Color(0.28f, 0.3f, 0.38f),
-                TerrainTileType.CoalOre => new Color(0.18f, 0.2f, 0.24f),
-                TerrainTileType.IronOre => new Color(0.85f, 0.38f, 0.12f),
                 _ => Color.magenta
             };
 
@@ -126,7 +142,14 @@ namespace TerrainCollapse
                     TerrainTileType type = map.GetTile(coord);
                     
                     if (type != TerrainTileType.Empty)
-                        data.SetCell(coord, type, GetMaxDurability(type));
+                    {
+                        int resourceID = map.GetResource(coord);
+                        data.SetCell(
+                            coord,
+                            type,
+                            GetMaxDurability(type, resourceID),
+                            resourceID);
+                    }
                 }
             }
 
@@ -242,10 +265,14 @@ namespace TerrainCollapse
         public bool SetCell(Vector2Int coord, TerrainTileType type)
             => SetCell(coord, type, GetMaxDurability(type));
 
-        public bool SetCell(Vector2Int coord, TerrainTileType type, int durability)
+        public bool SetCell(
+            Vector2Int coord,
+            TerrainTileType type,
+            int durability,
+            int resourceID = 0)
         {
             if (data == null) return false;
-            if (data.SetCell(coord, type, durability) == false) return false;
+            if (data.SetCell(coord, type, durability, resourceID) == false) return false;
             
             MarkCellDirty(coord);
 #if UNITY_EDITOR
@@ -293,12 +320,16 @@ namespace TerrainCollapse
             return true;
         }
 
-        private static int GetMaxDurability(TerrainTileType type)
+        private static int GetMaxDurability(TerrainTileType type, int resourceID = 0)
         {
             if (type == TerrainTileType.Empty) return 0;
 
             TerrainDataManager dataManager = TerrainDataManager.Instance;
             dataManager.EnsureLoaded();
+
+            if (resourceID > 0 &&
+                dataManager.Resources.TryGet(resourceID, out TerrainResourceDef resourceDef))
+                return resourceDef.MaxDurability;
             
             return dataManager.TryGetTileDef(type, out TerrainTileDef tileDef)
                 ? tileDef.MaxDurability
@@ -346,7 +377,7 @@ namespace TerrainCollapse
             }
 
             label.text = cell.CurrentDurability.ToString();
-            label.rectTransform.sizeDelta = Vector2.one * cellSize * 0.85f;
+            label.rectTransform.sizeDelta = Vector2.one * (cellSize * 0.85f);
             label.transform.localPosition = new Vector3(
                 (coord.x + 0.5f) * cellSize,
                 (coord.y + 0.5f) * cellSize,
@@ -432,9 +463,9 @@ namespace TerrainCollapse
             for (int i = 0; i < cells.Count; i++)
             {
                 Vector2Int local = cells[i] - chunkOrigin;
-                TerrainTileType type = data.GetCellOrNull(cells[i]).Type;
-                Sprite sprite = GetTileSprite(type);
-                Color color = GetTileColor(type);
+                TerrainCell cell = data.GetCellOrNull(cells[i]);
+                Sprite sprite = GetTileSprite(cell.Type);
+                Color color = GetTileColor(cell.Type, cell.ResourceID);
                 Rect textureRect = sprite.textureRect;
                 float uMin = textureRect.xMin / sprite.texture.width;
                 float uMax = textureRect.xMax / sprite.texture.width;

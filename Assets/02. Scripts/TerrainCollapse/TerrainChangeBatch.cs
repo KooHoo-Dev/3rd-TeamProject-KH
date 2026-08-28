@@ -17,15 +17,21 @@ namespace TerrainCollapse
         public Vector2Int Coord;     // 변경할 Grid 좌표
         public TerrainTileType Type; // 서버가 확정한 변경 후 타일 타입
         public int Durability;       // 변경 후 현재 내구도, Empty이면 0
+        public int ResourceID;       // 타일에 부착된 자원 ID, 자원이 없으면 0
 
         /// <summary>좌표와 해당 좌표의 최종 타일 타입으로 변경 항목을 생성</summary>
         /// <param name="coord">변경할 Grid 좌표</param>
         /// <param name="type">변경 후 타일 타입, Empty이면 타일 제거</param>
-        public TerrainCellChange(Vector2Int coord, TerrainTileType type, int durability = 0)
+        public TerrainCellChange(
+            Vector2Int coord,
+            TerrainTileType type,
+            int durability = 0,
+            int resourceID = 0)
         {
             Coord = coord;
             Type = type;
             Durability = type == TerrainTileType.Empty ? 0 : Mathf.Max(0, durability);
+            ResourceID = type == TerrainTileType.Empty ? 0 : Mathf.Max(0, resourceID);
         }
     }
 

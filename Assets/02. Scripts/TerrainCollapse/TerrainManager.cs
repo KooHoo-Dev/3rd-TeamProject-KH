@@ -91,6 +91,22 @@ namespace TerrainCollapse
             return true;
         }
 
+        /// <summary>지정 Grid 좌표에 부착된 자원 ID 조회 시도</summary>
+        public bool TryGetResourceID(Vector2Int cell, out int resourceID)
+        {
+            resourceID = 0;
+
+            if (IsReady == false) return false;
+
+            TerrainCell terrainCell = terrainWorld.Data.GetCellOrNull(cell);
+
+            if (terrainCell == null) return false;
+
+            resourceID = terrainCell.ResourceID;
+
+            return true;
+        }
+
         /// <summary>월드 좌표의 Grid 좌표 변환 시도</summary>
         public bool TryWorldToCell(Vector3 worldPosition, out Vector2Int cell)
         {

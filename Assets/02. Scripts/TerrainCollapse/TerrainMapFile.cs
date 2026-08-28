@@ -18,6 +18,7 @@ namespace TerrainCollapse
         public float CellSize = 1f;
         public Vector2 Origin;
         public List<TerrainTileType> Tiles = new();
+        public List<TerrainMapResource> Resources = new();
         public Vector2Int RespawnAreaOrigin;
         public Vector2Int RespawnAreaSize;
         public List<Vector2Int> RespawnPoints = new();
@@ -26,7 +27,46 @@ namespace TerrainCollapse
             => Tiles[coord.y * Width + coord.x];
 
         public void SetTile(Vector2Int coord, TerrainTileType type)
-            => Tiles[coord.y * Width + coord.x] = type;
+        {
+            Tiles[coord.y * Width + coord.x] = type;
+
+            if (type == TerrainTileType.Empty) SetResource(coord, 0);
+        }
+
+        public int GetResource(Vector2Int coord)
+        {
+            if (Resources == null) return 0;
+
+            TerrainMapResource resource = Resources.Find(entry => entry.Coord == coord);
+
+            return resource?.ResourceID ?? 0;
+        }
+
+        public void SetResource(Vector2Int coord, int resourceID)
+        {
+            Resources ??= new List<TerrainMapResource>();
+            TerrainMapResource resource = Resources.Find(entry => entry.Coord == coord);
+
+            if (resourceID <= 0)
+            {
+                if (resource != null) Resources.Remove(resource);
+
+                return;
+            }
+
+            if (resource != null)
+            {
+                resource.ResourceID = resourceID;
+
+                return;
+            }
+
+            Resources.Add(new TerrainMapResource
+            {
+                Coord = coord,
+                ResourceID = resourceID
+            });
+        }
 
         public Vector2 GetCellCenterWorld(Vector2Int coord)
             => Origin + new Vector2(
@@ -82,6 +122,40 @@ namespace TerrainCollapse
                     }
                 }
             }
+
+            if (Resources != null)
+            {
+                HashSet<Vector2Int> resourceCoords = new();
+
+                foreach (TerrainMapResource resource in Resources)
+                {
+                    if (resource == null || resource.ResourceID <= 0)
+                    {
+                        error = "자원 정보가 올바르지 않습니다.";
+                        return false;
+                    }
+
+                    Vector2Int coord = resource.Coord;
+
+                    if (coord.x < 0 || coord.x >= Width || coord.y < 0 || coord.y >= Height)
+                    {
+                        error = $"자원 좌표가 맵 범위를 벗어났습니다: {coord}";
+                        return false;
+                    }
+
+                    if (GetTile(coord) == TerrainTileType.Empty)
+                    {
+                        error = $"빈 셀에 자원이 존재합니다: {coord}";
+                        return false;
+                    }
+
+                    if (resourceCoords.Add(coord) == false)
+                    {
+                        error = $"중복 자원 좌표입니다: {coord}";
+                        return false;
+                    }
+                }
+            }
             
             error = string.Empty;
             
@@ -92,6 +166,13 @@ namespace TerrainCollapse
         public string ToJson(bool prettyPrint = true) => JsonUtility.ToJson(this, prettyPrint);
 #endif
         public static TerrainMapFile FromJson(string json) => JsonUtility.FromJson<TerrainMapFile>(json);
+    }
+
+    [Serializable]
+    public sealed class TerrainMapResource
+    {
+        public Vector2Int Coord;
+        public int ResourceID;
     }
 
 #if UNITY_EDITOR
