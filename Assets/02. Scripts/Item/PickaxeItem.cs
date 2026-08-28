@@ -1,51 +1,131 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace TerrainCollapse
 {
     public class PickaxeItem : Item
     {
+        [Header("Preview Settings")]
+        [SerializeField] private LineRenderer lineRenderer; // 캐릭터 ~ 타일 연결선
+        [SerializeField] private GameObject tileHighlight; // 타일 하이라이트
+        
+        private GameObject highlightInstance;
+
+        public override void Init(ItemDef def)
+        {
+            base.Init(def);
+            if (highlightInstance == null)
+            {
+                highlightInstance = Instantiate(tileHighlight, transform);
+                highlightInstance.SetActive(false);
+            }
+            
+            void SetupLineRenderer()
+            {
+                if (lineRenderer == null)
+                    lineRenderer = gameObject.AddComponent<LineRenderer>();
+
+                // 1. 점 개수 및 공간 좌표계 설정
+                lineRenderer.positionCount = 2;
+                lineRenderer.useWorldSpace = true;
+
+                // 2. 두께 및 정렬 레이어 설정
+                lineRenderer.startWidth = 0.05f;
+                lineRenderer.endWidth = 0.05f;
+                lineRenderer.sortingLayerName = "Foreground"; // 프로젝트의 레이어 이름으로 지정
+                lineRenderer.sortingOrder = 10;
+
+                // 3. 머티리얼 및 색상 설정
+                lineRenderer.material = new Material(Shader.Find("Sprites/Default"));
+                lineRenderer.startColor = new Color(0f, 1f, 1f, 0.8f); // Cyan (반투명)
+                lineRenderer.endColor = new Color(0f, 1f, 1f, 0.3f);
+
+                // 4. 기본 비활성화
+                lineRenderer.enabled = false;
+            }
+            SetupLineRenderer();
+        } 
+
+        // 매 프레임 ItemController에 의해 호출됨
+        public override void OnUpdatePreview(Vector3 ownerPos, Vector3 targetPos)
+        {
+            TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
+
+            // 1. 공통 스냅 셀 계산
+            if (TryGetTargetCell(terrainManager, ownerPos, targetPos, out Vector2Int targetCell,
+                    out Vector3 targetWorldPos))
+            {
+                // 2. 하이라이트 표시
+                highlightInstance.transform.position = targetWorldPos;
+                highlightInstance.SetActive(true);
+
+                // 3. 표시선(LineRenderer) 그린다면 업데이트
+                lineRenderer.enabled = true;
+                lineRenderer.SetPosition(0, ownerPos);
+                lineRenderer.SetPosition(1, targetWorldPos);
+            }
+            else
+            {
+                OnClearPreview();
+            }
+        }
+
+        public override void OnClearPreview()
+        {
+            if (highlightInstance != null) highlightInstance.SetActive(false);
+            if (lineRenderer != null) lineRenderer.enabled = false;
+        }
+
         public override void Use(Vector3 ownerPos, Vector3 targetPos)
         {
-            // ItemDef 데이터 검증
             if (Def == null || Def.PickaxeData.HasValue == false) return;
 
-            PickaxeInfo stats = Def.PickaxeData.Value;
-            float range = stats.Range;
-            int digPower = stats.DigPower;
-
-            // TerrainManager 준비 상태 검증
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
             if (terrainManager == null || terrainManager.IsReady == false) return;
 
-            // 캐릭터 위치를 그리드 셀로 변환
-            if (terrainManager.TryWorldToCell(ownerPos, out Vector2Int startCell) == false) return;
-
-            // 캐릭터가 서 있는 좌표(startCell)에 타일이 존재하는 경우, 
-            // 방향/거리와 상관없이 자신이 갇혀 있는 해당 셀을 즉시 채굴 대상으로 지정
-            if (terrainManager.HasTerrain(startCell))
+            // Preview와 동일한 로직으로 스냅 셀 획득
+            if (TryGetTargetCell(terrainManager, ownerPos, targetPos, out Vector2Int targetCell, out _))
             {
-                ExecuteDigPower(terrainManager, startCell, digPower);
-                return;
+                ExecuteDigPower(terrainManager, targetCell, Def.PickaxeData.Value.DigPower);
+            }
+        }
+
+        /// <summary>
+        /// [공통 로직] 매몰 상태 검사 및 마우스 방향 스냅 타일 계산
+        /// </summary>
+        private bool TryGetTargetCell(TerrainManager manager, Vector3 ownerPos, Vector3 targetPos, out Vector2Int targetCell, out Vector3 worldPos)
+        {
+            targetCell = default;
+            worldPos = default;
+
+            if (manager.TryWorldToCell(ownerPos, out Vector2Int startCell) == false) return false;
+
+            // 1. 매몰(Buried) 상태 체크
+            if (manager.HasTerrain(startCell))
+            {
+                targetCell = startCell;
+                manager.TryCellToWorldCenter(targetCell, out worldPos);
+                return true;
             }
 
-            // 매몰 상태가 아닌 일반 상태일 때만 마우스 방향 타겟 계산
+            // 2. 사거리 계산 및 DDA 스냅
             Vector3 direction = (targetPos - ownerPos);
             float distance = direction.magnitude;
-            
-            // 마우스와 캐릭터 위치가 거의 동일하면 조기 리턴
-            if (distance < 0.001f) return;
+            if (distance < 0.001f) return false;
 
             direction.Normalize();
-            float effectiveDistance = Mathf.Min(distance, range);
+            float effectiveDistance = Mathf.Min(distance, Def.PickaxeData.Value.Range);
             Vector3 clampedTargetPos = ownerPos + direction * effectiveDistance;
 
-            if (terrainManager.TryWorldToCell(clampedTargetPos, out Vector2Int targetCell) == false) return;
+            if (manager.TryWorldToCell(clampedTargetPos, out Vector2Int endCell) == false) return false;
 
-            // 캐릭터 외부의 가장 가까운 타일 스냅 탐색
-            if (TryGetNearestTargetCell(terrainManager, startCell, targetCell, out Vector2Int snappedCell))
+            if (TryGetNearestTargetCell(manager, startCell, endCell, out targetCell))
             {
-                ExecuteDigPower(terrainManager, snappedCell, digPower);
+                manager.TryCellToWorldCenter(targetCell, out worldPos);
+                return true;
             }
+
+            return false;
         }
 
         private void ExecuteDigPower(TerrainManager manager, Vector2Int cell, int digPower)
@@ -53,55 +133,34 @@ namespace TerrainCollapse
             for (int i = 0; i < digPower; i++)
             {
                 TerrainRemoveResult result = manager.RequestRemoveCell(cell);
-
-                // 채굴 불가능 타일, 파괴 완료, 또는 빈 셀인 경우 루프 종료
                 if (result == TerrainRemoveResult.NotMineable || 
                     result == TerrainRemoveResult.EmptyCell || 
-                    result == TerrainRemoveResult.Removed)
-                {
-                    break;
-                }
+                    result == TerrainRemoveResult.Removed) break;
             }
         }
 
-        private bool TryGetNearestTargetCell(
-            TerrainManager manager, 
-            Vector2Int start, 
-            Vector2Int end, 
-            out Vector2Int snappedCell)
+        private bool TryGetNearestTargetCell(TerrainManager manager, Vector2Int start, Vector2Int end, out Vector2Int snappedCell)
         {
             snappedCell = start;
-
-            int x0 = start.x, y0 = start.y;
-            int x1 = end.x, y1 = end.y;
-
-            int dx = Mathf.Abs(x1 - x0);
-            int dy = Mathf.Abs(y1 - y0);
-            int sx = x0 < x1 ? 1 : -1;
-            int sy = y0 < y1 ? 1 : -1;
-            int err = dx - dy;
-
-            int currX = x0;
-            int currY = y0;
+            int x0 = start.x, y0 = start.y, x1 = end.x, y1 = end.y;
+            int dx = Mathf.Abs(x1 - x0), dy = Mathf.Abs(y1 - y0);
+            int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+            int err = dx - dy, currX = x0, currY = y0;
 
             while (true)
             {
                 Vector2Int currentCell = new Vector2Int(currX, currY);
-
-                // startCell은 위에서 이미 매몰 검사를 마쳤으므로, 외부 타일을 탐색
                 if (currentCell != start && manager.HasTerrain(currentCell))
                 {
                     snappedCell = currentCell;
                     return true;
                 }
-
                 if (currX == x1 && currY == y1) break;
 
                 int e2 = 2 * err;
                 if (e2 > -dy) { err -= dy; currX += sx; }
                 if (e2 < dx) { err += dx; currY += sy; }
             }
-
             return false;
         }
     }

@@ -44,3 +44,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: de87ee07d3914a0a8446d562690a0a6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PickaxeItem
+  lineRenderer: {fileID: 0}
+  tileHighlight: {fileID: 4979589083366708116, guid: 4cc86fa0c76b63744af4eda48fa15677, type: 3}
