@@ -120,9 +120,16 @@ namespace TerrainCollapse
             }
 
             Vector2 position = body.position;
-            position += ResolveMovement(Vector2.right, velocity.x * Time.fixedDeltaTime, ref velocity.x);
+            float deltaX = velocity.x * Time.fixedDeltaTime;
+            float deltaY = velocity.y * Time.fixedDeltaTime;
+
+            // 1. 현재 위치에서 X축 검사 후 허용된 X 이동을 중간 위치에 반영
+            position += ResolveMovement(position, Vector2.right, deltaX, ref velocity.x);
+            // 2. 접지 상태 초기화
             grounded = false;
-            position += ResolveMovement(Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
+            // 3. X 이동이 적용된 위치에서 Y축 검사 후 허용된 Y 이동을 반영
+            position += ResolveMovement(position, Vector2.up, deltaY, ref velocity.y);
+            // 4. 최종 위치를 한 번만 적용
             body.MovePosition(position);
         }
 
@@ -234,26 +241,32 @@ namespace TerrainCollapse
         private void TickEscapeMovement()
         {
             Vector2 position = body.position;
-            position.x = Mathf.MoveTowards(
-                position.x,
-                escapeTargetBodyX,
-                escapePushSpeed * Time.fixedDeltaTime);
+
+            float deltaX = Mathf.MoveTowards(position.x, escapeTargetBodyX, escapePushSpeed * Time.fixedDeltaTime) -
+                           position.x;
 
             grounded = false;
-            velocity.x = 0f;
-            
-            if (isClimbing == false)
-            {
-                velocity.y -= gravity * Time.fixedDeltaTime;
-            }
-            
-            position += ResolveMovement(Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
+
+            if (isClimbing == false) velocity.y -= gravity * Time.fixedDeltaTime;
+
+            // X축 탈출 이동 검사 후 이동
+            Vector2 horizontalMovement = ResolveMovement(position, Vector2.right, deltaX, ref velocity.x);
+            position += horizontalMovement;
+
+            bool isHorizontalBlocked = Mathf.Abs(horizontalMovement.x) + Mathf.Epsilon < Mathf.Abs(deltaX);
+
+            // X 이동이 반영된 위치에서 Y축 검사 후 이동
+            Vector2 verticalMovement = ResolveMovement(position, Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
+            position += verticalMovement;
+
             body.MovePosition(position);
 
-            if (Mathf.Approximately(position.x, escapeTargetBodyX)) isEscaping = false;
+            // 목표에 도착했거나, X축이 막혔다면 탈출 이동 종료
+            if (Mathf.Approximately(position.x, escapeTargetBodyX) || isHorizontalBlocked)
+                isEscaping = false;
         }
 
-        private Vector2 ResolveMovement(Vector2 axis, float distance, ref float axisVelocity)
+        private Vector2 ResolveMovement(Vector2 startPosition, Vector2 axis, float distance, ref float axisVelocity)
         {
             if (Mathf.Approximately(distance, 0f)) return Vector2.zero;
             
@@ -265,21 +278,40 @@ namespace TerrainCollapse
                 layerMask = collisionMask,
                 useTriggers = false
             };
-            
-            int hitCount = box.Cast(direction, filter, castHits, requestedDistance + collisionSkin);
+
+            // Rigidbody 위치와 실제 Collider 중심 사이의 거리 차이
+            Vector2 centerOffset = (Vector2)box.bounds.center - body.position;
+
+            // 전달받은 가상 시작 위치를 기준으로 캐스트 중심 계산
+            Vector2 castCenter = startPosition + centerOffset;
+            Vector2 castSize = box.bounds.size;
+
+            int hitCount = Physics2D.BoxCast(castCenter,
+                castSize,
+                body.rotation,
+                direction,
+                filter,
+                castHits,
+                requestedDistance + collisionSkin);
             float allowedDistance = requestedDistance;
             
             for (int i = 0; i < hitCount; i++)
             {
-                if (castHits[i].collider == box) continue;
-                
-                allowedDistance = Mathf.Min(allowedDistance,
-                    Mathf.Max(0f, castHits[i].distance - collisionSkin));
+                RaycastHit2D hit = castHits[i];
+
+                if (hit.collider == null || hit.collider == box) continue;
+
+                float availableDistance = Mathf.Max(0f, hit.distance - collisionSkin);
+
+                allowedDistance = Mathf.Min(allowedDistance, availableDistance);
             }
 
-            if (allowedDistance + Mathf.Epsilon < requestedDistance)
+            bool wasBlocked = allowedDistance + Mathf.Epsilon < requestedDistance;
+
+            if (wasBlocked)
             {
                 if (direction.y < 0f) grounded = true;
+
                 axisVelocity = 0f;
             }
             
