@@ -72,16 +72,13 @@ namespace TerrainCollapse
 
         public override void OnClearPreview()
         {
-            if (highlightInstance != null) highlightInstance.SetActive(false);
-            if (lineRenderer != null) lineRenderer.enabled = false;
+            highlightInstance.SetActive(false);
+            lineRenderer.enabled = false;
         }
 
         public override void Use(Vector3 ownerPos, Vector3 targetPos)
         {
-            if (Def == null || Def.PickaxeData.HasValue == false) return;
-
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
-            if (terrainManager == null || terrainManager.IsReady == false) return;
 
             // Preview와 동일한 로직으로 스냅 셀 획득
             if (TryGetTargetCell(terrainManager, ownerPos, targetPos, out Vector2Int targetCell, out _))
@@ -158,8 +155,29 @@ namespace TerrainCollapse
                 if (currX == x1 && currY == y1) break;
 
                 int e2 = 2 * err;
-                if (e2 > -dy) { err -= dy; currX += sx; }
-                if (e2 < dx) { err += dx; currY += sy; }
+                bool moveX = e2 > -dy;
+                bool moveY = e2 < dx;
+
+                // 대각선 이동인 경우, 코너 컷팅 여부 검사
+                if (moveX && moveY)
+                {
+                    Vector2Int horizNeighbor = new Vector2Int(currX + sx, currY);
+                    Vector2Int vertNeighbor  = new Vector2Int(currX, currY + sy);
+
+                    bool horizBlocked = manager.HasTerrain(horizNeighbor);
+                    bool vertBlocked  = manager.HasTerrain(vertNeighbor);
+
+                    // 두 이웃이 모두 막혀있다면, 대각선 틈으로 시야가 통하지 않음
+                    // → 여기서 멈추고, 막고 있는 타일 중 하나를 타겟으로 반환
+                    if (horizBlocked && vertBlocked)
+                    {
+                        snappedCell = horizNeighbor;
+                        return true;
+                    }
+                }
+
+                if (moveX) { err -= dy; currX += sx; }
+                if (moveY) { err += dx; currY += sy; }
             }
             return false;
         }
