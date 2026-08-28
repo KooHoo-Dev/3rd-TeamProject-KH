@@ -213,18 +213,21 @@ namespace TerrainCollapse
                 {
                     Vector2Int cell = queue.Dequeue();
                     group.Add(cell);
-                    
-                    Vector2Int below = cell + Vector2Int.down;
-
-                    if (TryGetTileType(below, out TerrainTileType belowType))
-                        supported |= belowType == TerrainTileType.Bedrock;
 
                     foreach (Vector2Int direction in Directions)
                     {
                         Vector2Int next = cell + direction;
                         
-                        if (TryGetTileType(next, out TerrainTileType nextType) &&
-                            nextType != TerrainTileType.Bedrock && visited.Add(next))
+                        if (TryGetTileType(next, out TerrainTileType nextType) == false)
+                            continue;
+
+                        if (nextType == TerrainTileType.Bedrock)
+                        {
+                            supported = true;
+                            continue;
+                        }
+
+                        if (visited.Add(next))
                             queue.Enqueue(next);
                     }
                 }
