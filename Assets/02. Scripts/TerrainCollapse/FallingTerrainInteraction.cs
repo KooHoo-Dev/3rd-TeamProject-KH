@@ -86,7 +86,8 @@ namespace TerrainCollapse
                 return;
             }
 
-            if (IsGridSpaceEmpty(character.CollisionBounds) == false)
+            if (pendingBurialImpacts.Count > 0 &&
+                IsGridSpaceEmpty(character.CollisionBounds) == false)
                 EnterBuriedState();
         }
 
