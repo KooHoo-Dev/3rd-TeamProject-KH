@@ -30,6 +30,8 @@ namespace TerrainCollapse
         void CancelClimbing();
         void ApplyFallingVelocity(Vector2 velocity);
         void StartTerrainEscape(float targetX, float speed);
+        void StopTerrainEscape();
+        void SetTerrainInteractionLocked(bool isLocked, Vector2 lockedPosition);
         void SetTerrainBuried(bool isBuried, Vector2 lockedPosition);
         void SetPosition(Vector2 position);
     }

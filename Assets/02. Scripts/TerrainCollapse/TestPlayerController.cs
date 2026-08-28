@@ -35,12 +35,14 @@ namespace TerrainCollapse
         private Vector2 velocity;
         private bool grounded;
         private bool buried;
+        private bool terrainInteractionLocked;
         private bool isEscaping;
         private bool isClimbing;
         private bool isDead;
 
         private float escapePushSpeed;
         private float escapeTargetBodyX;
+        private Vector2 terrainInteractionLockedPosition;
         
         public bool IsBuried => buried;                   
         public bool IsClimbing => isClimbing;
@@ -74,7 +76,7 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (isDead) return;
+            if (isDead || terrainInteractionLocked) return;
 
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame))
@@ -90,6 +92,12 @@ namespace TerrainCollapse
         private void FixedUpdate()
         {
             if (buried) return;
+
+            if (terrainInteractionLocked)
+            {
+                SetPosition(terrainInteractionLockedPosition);
+                return;
+            }
 
             if (isEscaping)
             {
@@ -145,6 +153,7 @@ namespace TerrainCollapse
             fallingTerrainInteraction.enabled = false;
             isEscaping = false;
             isClimbing = false;
+            terrainInteractionLocked = false;
             grounded = false;
 
             if (buried)
@@ -173,6 +182,7 @@ namespace TerrainCollapse
             grounded = true;
             isEscaping = false;
             isClimbing = false;
+            terrainInteractionLocked = false;
             buried = false;
             spriteRenderer.sortingOrder = normalSortingOrder;
             fallingTerrainInteraction.ResetState();
@@ -210,19 +220,32 @@ namespace TerrainCollapse
         {
             escapeTargetBodyX = targetX;
             escapePushSpeed = speed;
-            isEscaping = Mathf.Approximately(body.position.x, targetX) == false;
+            isEscaping = true;
+        }
+
+        public void StopTerrainEscape() => isEscaping = false;
+
+        public void SetTerrainInteractionLocked(bool isLocked, Vector2 lockedPosition)
+        {
+            terrainInteractionLocked = isLocked;
+
+            if (isLocked == false) return;
+
+            terrainInteractionLockedPosition = lockedPosition;
+            StopControlledMovement();
+            grounded = false;
+            SetPosition(lockedPosition);
         }
 
         public void SetTerrainBuried(bool isTerrainBuried, Vector2 lockedPosition)
         {
             buried = isTerrainBuried;
+            terrainInteractionLocked = false;
 
             if (isTerrainBuried)
             {
-                isEscaping = false;
-                isClimbing = false;
+                StopControlledMovement();
                 grounded = false;
-                velocity = Vector2.zero;
                 SetPosition(lockedPosition);
                 spriteRenderer.sortingOrder = buriedSortingOrder;
                 return;
@@ -247,23 +270,24 @@ namespace TerrainCollapse
 
             grounded = false;
 
-            if (isClimbing == false) velocity.y -= gravity * Time.fixedDeltaTime;
+            velocity.y -= gravity * Time.fixedDeltaTime;
 
             // X축 탈출 이동 검사 후 이동
             Vector2 horizontalMovement = ResolveMovement(position, Vector2.right, deltaX, ref velocity.x);
             position += horizontalMovement;
-
-            bool isHorizontalBlocked = Mathf.Abs(horizontalMovement.x) + Mathf.Epsilon < Mathf.Abs(deltaX);
 
             // X 이동이 반영된 위치에서 Y축 검사 후 이동
             Vector2 verticalMovement = ResolveMovement(position, Vector2.up, velocity.y * Time.fixedDeltaTime, ref velocity.y);
             position += verticalMovement;
 
             body.MovePosition(position);
+        }
 
-            // 목표에 도착했거나, X축이 막혔다면 탈출 이동 종료
-            if (Mathf.Approximately(position.x, escapeTargetBodyX) || isHorizontalBlocked)
-                isEscaping = false;
+        private void StopControlledMovement()
+        {
+            isEscaping = false;
+            isClimbing = false;
+            velocity = Vector2.zero;
         }
 
         private Vector2 ResolveMovement(Vector2 startPosition, Vector2 axis, float distance, ref float axisVelocity)
@@ -286,6 +310,12 @@ namespace TerrainCollapse
             Vector2 castCenter = startPosition + centerOffset;
             Vector2 castSize = box.bounds.size;
 
+            // 수평 이동은 바닥/천장, 수직 이동은 벽 접촉이 방해하지 않도록 직교축에 skin 적용
+            if (Mathf.Abs(axis.x) > 0f)
+                castSize.y = Mathf.Max(0.001f, castSize.y - collisionSkin * 2f);
+            else
+                castSize.x = Mathf.Max(0.001f, castSize.x - collisionSkin * 2f);
+
             int hitCount = Physics2D.BoxCast(castCenter,
                 castSize,
                 body.rotation,
@@ -299,7 +329,8 @@ namespace TerrainCollapse
             {
                 RaycastHit2D hit = castHits[i];
 
-                if (hit.collider == null || hit.collider == box) continue;
+                if (hit.collider == null || hit.collider == box ||
+                    Physics2D.GetIgnoreCollision(box, hit.collider)) continue;
 
                 float availableDistance = Mathf.Max(0f, hit.distance - collisionSkin);
 
