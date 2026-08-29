@@ -194,9 +194,20 @@ namespace TerrainCollapse
                 focusImage.enabled = false;
                 AddOutline(focusImage.gameObject, new Color(0.3f, 0.9f, 1f, 1f), 2f);
 
+                Image holdFillImage = CreateImage("HoldFill", slot, new Color(0.9f, 0.9f, 0.25f, 0.35f))
+                    .GetComponent<Image>();
+                StretchToParent((RectTransform)holdFillImage.transform, 2f);
+                holdFillImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+                holdFillImage.type = Image.Type.Filled;
+                holdFillImage.fillMethod = Image.FillMethod.Radial360;
+                holdFillImage.fillOrigin = (int)Image.Origin360.Top;
+                holdFillImage.fillAmount = 0f;
+                holdFillImage.enabled = false;
+
                 InventorySlotView slotView = slot.gameObject.AddComponent<InventorySlotView>();
                 SetObjectReference(slotView, "iconImage", icon);
                 SetObjectReference(slotView, "focusImage", focusImage);
+                SetObjectReference(slotView, "holdFillImage", holdFillImage);
                 SetObjectReference(slotView, "quantityText", quantityText);
                 slots.Add(slotView);
             }

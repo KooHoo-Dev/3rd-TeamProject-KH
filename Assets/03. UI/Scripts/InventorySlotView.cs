@@ -9,6 +9,7 @@ namespace TerrainCollapse
     {
         [SerializeField] private Image iconImage;
         [SerializeField] private Image focusImage;
+        [SerializeField] private Image holdFillImage;
         [SerializeField] private TMP_Text quantityText;
 
         public int ItemID { get; private set; } = -1;
@@ -28,6 +29,7 @@ namespace TerrainCollapse
             SetIcon(null);
             SetQuantity(0);
             SetFocused(false);
+            SetHoldProgress(0f);
         }
 
         private void SetIcon(Sprite icon)
@@ -50,6 +52,14 @@ namespace TerrainCollapse
             if (focusImage == null) return;
 
             focusImage.enabled = isFocused;
+        }
+
+        public void SetHoldProgress(float progress)
+        {
+            if (holdFillImage == null) return;
+
+            holdFillImage.fillAmount = Mathf.Clamp01(progress);
+            holdFillImage.enabled = holdFillImage.fillAmount > 0f;
         }
     }
 }

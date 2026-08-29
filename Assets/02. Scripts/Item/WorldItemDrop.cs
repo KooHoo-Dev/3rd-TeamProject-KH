@@ -28,6 +28,7 @@ namespace TerrainCollapse
         private Vector2 escapeVelocity;
         private bool isEscaping;
         private bool isCollected;
+        private float pickupAvailableTime;
 
         public int ItemID { get; private set; }
         public int Quantity { get; private set; }
@@ -84,7 +85,7 @@ namespace TerrainCollapse
             isEscaping = false;
         }
 
-        public void Initialize(ItemDef itemDef, int quantity)
+        public void Initialize(ItemDef itemDef, int quantity, float pickupDelay)
         {
             ItemID = itemDef.ID;
             Quantity = Mathf.Max(1, quantity);
@@ -104,6 +105,7 @@ namespace TerrainCollapse
             }
 
             gameObject.name = $"WorldItem_{itemDef.Name}_{Quantity}";
+            pickupAvailableTime = Time.time + pickupDelay;
         }
 
         public FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk)
@@ -306,11 +308,9 @@ namespace TerrainCollapse
 
         public bool TryCollect(IItemInventory inventory)
         {
-            if (isCollected || inventory == null)
-                return false;
-
-            if (inventory.TryAdd(ItemID, Quantity) == false)
-                return false;
+            if (Time.time < pickupAvailableTime) return false;
+            if (isCollected || inventory == null) return false;
+            if (inventory.TryAdd(ItemID, Quantity) == false) return false;
 
             isCollected = true;
             Destroy(gameObject);

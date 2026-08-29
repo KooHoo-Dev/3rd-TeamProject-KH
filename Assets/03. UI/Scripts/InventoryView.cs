@@ -21,6 +21,11 @@ namespace TerrainCollapse
         public int FocusedSlotIndex => focusedSlotIndex;
         public int FocusedItemID => GetFocusedSlot()?.ItemID ?? -1;
 
+        public void SetHoldProgress(float progress)
+        {
+            GetFocusedSlot()?.SetHoldProgress(progress);
+        }
+
         private void Update()
         {
             if (slotViews == null || slotViews.Length == 0) return;
@@ -107,6 +112,8 @@ namespace TerrainCollapse
                 if (slotView == null) continue;
 
                 slotView.SetFocused(index == focusedSlotIndex);
+                if (index != focusedSlotIndex)
+                    slotView.SetHoldProgress(0f);
             }
         }
 
