@@ -12,6 +12,8 @@ namespace TerrainCollapse
 
         public ItemDef Get(int id) => defs[id];
 
+        public bool TryGet(int id, out ItemDef itemDef) => defs.TryGetValue(id, out itemDef);
+
         public IReadOnlyCollection<ItemDef> GetDefs() => defs.Values;
         
         public int Count => defs.Count;

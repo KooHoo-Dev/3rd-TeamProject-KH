@@ -201,6 +201,13 @@ namespace TerrainCollapse
             {
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
+                    FallingTerrainContactResult result = target.ResolveFallingTerrainContact(this);
+                    if (result == FallingTerrainContactResult.Ignored)
+                    {
+                        UpdateGroundContact(collision);
+                        return;
+                    }
+
                     // 이후 물리 스텝부터 플레이어와 FallingChunk의 충돌 해제
                     Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
 
@@ -208,9 +215,6 @@ namespace TerrainCollapse
                     body.linearVelocity = new Vector2(
                         beforeVelocity.x,
                         Mathf.Min(beforeVelocity.y, 0f));
-
-                    // 복구된 낙하 속도를 플레이어가 읽도록 이후에 판정 호출
-                    target.ResolveFallingTerrainContact(this);
 
                     staticTerrainContacts.Remove(collision.collider);
                     terrainContactInfos.Remove(collision.collider);

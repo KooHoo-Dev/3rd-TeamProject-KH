@@ -46,6 +46,7 @@ namespace TerrainCollapse
 
             GameObject root = new($"FallingChunk_{collapseId}",
                 typeof(Rigidbody2D), typeof(CompositeCollider2D), typeof(FallingChunk));
+            root.layer = TerrainPhysicsLayers.Terrain;
             root.transform.position = source.CellToWorldCorner(anchor) + Vector3.down * initialSeparationDistance;
 
             Rigidbody2D body = root.GetComponent<Rigidbody2D>();
@@ -101,6 +102,7 @@ namespace TerrainCollapse
         {
             GameObject cell = new($"Cell_{localCell.x}_{localCell.y}",
                 typeof(SpriteRenderer), typeof(BoxCollider2D));
+            cell.layer = TerrainPhysicsLayers.Terrain;
             cell.transform.SetParent(parent, false);
             cell.transform.localPosition = new Vector3((localCell.x + 0.5f) * source.CellSize,
                 (localCell.y + 0.5f) * source.CellSize, 0f);
@@ -113,6 +115,14 @@ namespace TerrainCollapse
             BoxCollider2D collider = cell.GetComponent<BoxCollider2D>();
             collider.size = Vector2.one * source.CellSize;
             collider.compositeOperation = Collider2D.CompositeOperation.Merge;
+
+            if (resourceID > 0)
+            {
+                TerrainResourceViewFactory.Create(
+                    resourceID,
+                    cell.transform,
+                    new Vector3(0f, 0f, -0.1f));
+            }
         }
 
         private void Update()

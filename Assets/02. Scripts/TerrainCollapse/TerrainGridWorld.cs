@@ -14,6 +14,7 @@ namespace TerrainCollapse
     /// 셀마다 GameObject를 만들지 않으며 변경된 Chunk만 지연 갱신한다.
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
+    [RequireComponent(typeof(TerrainResourceViewManager))]
     public sealed class TerrainGridWorld : MonoBehaviour
     {
         private const int RenderChunkSize = 32;
@@ -36,6 +37,7 @@ namespace TerrainCollapse
         private readonly Dictionary<Vector2Int, TextMeshPro> durabilityLabels = new();
 #endif
         private TerrainGridData data;
+        private TerrainResourceViewManager resourceViewManager;
         private Material terrainMaterial;
         private bool colliderDirty;
 
@@ -109,6 +111,9 @@ namespace TerrainCollapse
 
         private void EnsureInitialized()
         {
+            EnsureResourceViewManager();
+            gameObject.layer = TerrainPhysicsLayers.Terrain;
+
             Rigidbody2D body = GetComponent<Rigidbody2D>();
             body.bodyType = RigidbodyType2D.Static;
             
@@ -123,6 +128,15 @@ namespace TerrainCollapse
             
             Shader spriteShader = Shader.Find("Sprites/Default");
             terrainMaterial = new Material(spriteShader) { mainTexture = terrainSprite.texture };
+        }
+
+        private void EnsureResourceViewManager()
+        {
+            if (resourceViewManager != null) return;
+
+            resourceViewManager = GetComponent<TerrainResourceViewManager>();
+            if (resourceViewManager == null)
+                resourceViewManager = gameObject.AddComponent<TerrainResourceViewManager>();
         }
 
         /// <summary>검증된 MapFile을 런타임 Grid로 변환하고 표현 계층을 생성한다.</summary>
@@ -155,6 +169,7 @@ namespace TerrainCollapse
 
             BuildAllChunkMeshes();
             RebuildBoundaryCollider();
+            resourceViewManager.RebuildAll(this);
 #if UNITY_EDITOR
             RebuildDurabilityLabels();
 #endif
@@ -171,6 +186,7 @@ namespace TerrainCollapse
             transform.position = data.Origin;
             BuildAllChunkMeshes();
             RebuildBoundaryCollider();
+            resourceViewManager.RebuildAll(this);
 #if UNITY_EDITOR
             RebuildDurabilityLabels();
 #endif
@@ -194,6 +210,7 @@ namespace TerrainCollapse
             foreach (TerrainCellChange change in batch.Changes)
             {
                 MarkCellDirty(change.Coord);
+                resourceViewManager.RefreshCell(this, change.Coord);
 #if UNITY_EDITOR
                 RefreshDurabilityLabel(change.Coord);
 #endif
@@ -204,6 +221,8 @@ namespace TerrainCollapse
 
         private void ClearGeneratedObjects()
         {
+            resourceViewManager?.Clear();
+
             foreach (MeshFilter filter in chunkViews.Values)
             {
                 if (filter == null) continue;
@@ -275,6 +294,7 @@ namespace TerrainCollapse
             if (data.SetCell(coord, type, durability, resourceID) == false) return false;
             
             MarkCellDirty(coord);
+            resourceViewManager.RefreshCell(this, coord);
 #if UNITY_EDITOR
             RefreshDurabilityLabel(coord);
 #endif
@@ -298,7 +318,11 @@ namespace TerrainCollapse
                     out isDestroyed) == false)
                 return false;
 
-            if (isDestroyed) MarkCellDirty(coord);
+            if (isDestroyed)
+            {
+                MarkCellDirty(coord);
+                resourceViewManager.RefreshCell(this, coord);
+            }
             
 #if UNITY_EDITOR
             RefreshDurabilityLabel(coord);
@@ -313,6 +337,7 @@ namespace TerrainCollapse
             if (data.Remove(coord) == false) return false;
             
             MarkCellDirty(coord);
+            resourceViewManager.RefreshCell(this, coord);
 #if UNITY_EDITOR
             RefreshDurabilityLabel(coord);
 #endif
@@ -372,7 +397,7 @@ namespace TerrainCollapse
                 label.fontSizeMin = 0.1f;
                 label.fontSizeMax = 4f;
                 label.color = Color.white;
-                label.renderer.sortingOrder = 2;
+                label.renderer.sortingOrder = 3;
                 durabilityLabels[coord] = label;
             }
 
@@ -592,6 +617,7 @@ namespace TerrainCollapse
         private void CreateColliderSegment(bool horizontal, int fixedAxis, int start, int end)
         {
             GameObject segment = new("Boundary", typeof(EdgeCollider2D));
+            segment.layer = TerrainPhysicsLayers.Terrain;
             segment.transform.SetParent(transform, false);
             
             EdgeCollider2D edge = segment.GetComponent<EdgeCollider2D>();

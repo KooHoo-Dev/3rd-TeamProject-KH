@@ -17,7 +17,7 @@ namespace TerrainCollapse
         [SerializeField] private float jumpSpeed = 8f;
         [SerializeField] private float gravity = 24f;
         [SerializeField] private float collisionSkin = 0.02f;
-        [SerializeField] private LayerMask collisionMask = ~0;
+        [SerializeField] private LayerMask collisionMask;
         [SerializeField] private TerrainManager terrainManager;
         
         [Header("Terrain Interaction Visual Settings")]
@@ -56,6 +56,9 @@ namespace TerrainCollapse
 
         private void Awake()
         {
+            if (collisionMask.value == 0)
+                collisionMask = LayerMask.GetMask("Terrain");
+
             body = GetComponent<Rigidbody2D>();
             box = GetComponent<BoxCollider2D>();
             spriteRenderer = GetComponent<SpriteRenderer>();

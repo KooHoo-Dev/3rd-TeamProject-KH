@@ -48,6 +48,13 @@ namespace TerrainCollapse
         public event Action<TerrainChangeReason> TerrainChanged;
         public event Action<Vector2Int, int> TerrainDurabilityChanged;
         public event Action<TerrainChangeBatch> AuthoritativeBatchApplied;
+        public event Action<TerrainCellDestroyedInfo> CellDestroyed;
+
+        private void Awake()
+        {
+            if (TryGetComponent<TerrainResourceDropSpawner>(out _) == false)
+                gameObject.AddComponent<TerrainResourceDropSpawner>();
+        }
 
         public void Configure(TerrainGridWorld world, Camera camera)
         {
@@ -144,6 +151,13 @@ namespace TerrainCollapse
                 tileDef.IsMineable == false)
                 return TerrainRemoveResult.NotMineable;
 
+            TerrainCell targetCell = terrainWorld.Data.GetCellOrNull(cell);
+            TerrainCellDestroyedInfo destroyedInfo = new(
+                cell,
+                targetCell.Type,
+                targetCell.ResourceID,
+                terrainWorld.CellToWorldCenter(cell));
+
             if (terrainWorld.TryDamageCell(
                     cell,
                     1,
@@ -162,6 +176,7 @@ namespace TerrainCollapse
 
             if (logEvents) Debug.Log($"[Terrain Collapse] Cell Destroy: {cell}");
 
+            CellDestroyed?.Invoke(destroyedInfo);
             TerrainChanged?.Invoke(TerrainChangeReason.Excavation);
             
             return TerrainRemoveResult.Removed;
