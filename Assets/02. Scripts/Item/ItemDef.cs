@@ -6,7 +6,8 @@ namespace TerrainCollapse
     {
         Exchange,
         Pickaxe,
-        Dynamite
+        Dynamite,
+        Gold
     }
 
     public class ItemDTO

@@ -731,6 +731,10 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 1131822958269480467, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 1207107609445607877, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -787,6 +791,14 @@ PrefabInstance:
       propertyPath: playerHp
       value: 
       objectReference: {fileID: 1971883706}
+    - target: {fileID: 2064062614194744829, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_fontColor32.rgba
+      value: 4294964715
+      objectReference: {fileID: 0}
+    - target: {fileID: 2064062614194744829, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 2505562322702322872, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_Pivot.x
       value: 0
@@ -911,6 +923,10 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 2803184890403122868, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 2926541314969576537, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -979,6 +995,10 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 4606567489162289360, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 4615376482234037998, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -991,11 +1011,19 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 4700738113199380224, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 4845277367957695076, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 4927824409024576291, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 5048884609989353518, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
@@ -1079,6 +1107,10 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 6654417412760369633, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 6669029391004638127, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -1099,6 +1131,10 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 6825932000940300598, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 6871765457792983226, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -1115,6 +1151,10 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 7440942968348615232, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 7518557001671115270, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
@@ -1128,6 +1168,10 @@ PrefabInstance:
       value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 7725793326083834236, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 7728218196633625920, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
@@ -1431,6 +1475,7 @@ GameObject:
   - component: {fileID: 1971883709}
   - component: {fileID: 1971883710}
   - component: {fileID: 1971883711}
+  - component: {fileID: 1971883713}
   m_Layer: 0
   m_Name: TestPlayer
   m_TagString: Untagged
@@ -1741,6 +1786,19 @@ MonoBehaviour:
   dropHoldDuration: 1.5
   dropPickupDelay: 2
   dropOffset: {x: 0, y: 0.1}
+--- !u!114 &1971883713
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 560976fad0504b4a87629a83a154e4a1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerInventoryDevelopmentInitializer
+  initialGold: 500
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

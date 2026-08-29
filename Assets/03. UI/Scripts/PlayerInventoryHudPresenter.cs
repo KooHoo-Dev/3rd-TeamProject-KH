@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -38,6 +37,14 @@ namespace TerrainCollapse
 
         private void RefreshAll()
         {
+            int goldItemID = DataManager.Instance.ItemTable.TryGetGold(out ItemDef goldItem)
+                ? goldItem.ID
+                : -1;
+
+            int gold = goldItemID >= 0
+                ? inventory.GetQuantity(goldItemID)
+                : 0;
+
             List<int> itemIDs = new(inventory.Quantities.Keys);
             itemIDs.Sort();
 
@@ -47,13 +54,14 @@ namespace TerrainCollapse
             {
                 int quantity = inventory.GetQuantity(itemID);
 
+                if (itemID == goldItemID) continue;
                 if (quantity <= 0) continue;
                 if (DataManager.Instance.ItemTable.TryGet(itemID, out ItemDef itemDef) == false) continue;
 
                 items.Add(new InventorySlotDisplayData(itemID, itemDef.Sprite, quantity));
             }
 
-            inventoryView.RenderItems(items);
+            inventoryView.Render(items, gold);
         }
     }
 }

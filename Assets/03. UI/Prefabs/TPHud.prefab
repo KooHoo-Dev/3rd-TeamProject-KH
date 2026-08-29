@@ -3665,7 +3665,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eb2660b1fa4e8f542b9d7b5d903326c2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.HudPrototypeDriver
-  previewEnabled: 1
+  previewEnabled: 0
   healthBarView: {fileID: 8167988235306832659}
   inventoryView: {fileID: 7803401892840059154}
   coalIcon: {fileID: 21300000, guid: aeed4256a4e24a68b21a91f525c1e506, type: 3}

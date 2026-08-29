@@ -87,7 +87,7 @@ namespace TerrainCollapse
             SetFocusedSlot(Mathf.Clamp(focusedSlotIndex, 0, slotViews.Length - 1));
         }
 
-        private void SetGold(int gold)
+        public void SetGold(int gold)
         {
             if (goldText == null) return;
 

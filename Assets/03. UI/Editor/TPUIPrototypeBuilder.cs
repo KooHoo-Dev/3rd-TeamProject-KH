@@ -102,7 +102,7 @@ namespace TerrainCollapse
             MinimapView minimapView = CreateMinimap(root.transform, font, out TerrainMinimapPresenter presenter);
 
             HudPrototypeDriver preview = root.AddComponent<HudPrototypeDriver>();
-            SetBool(preview, "previewEnabled", true);
+            SetBool(preview, "previewEnabled", false);
             SetObjectReference(preview, "healthBarView", healthBarView);
             SetObjectReference(preview, "inventoryView", inventoryView);
             SetObjectReference(preview, "coalIcon", previewIcon);
