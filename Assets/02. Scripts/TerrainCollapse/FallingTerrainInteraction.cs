@@ -36,6 +36,7 @@ namespace TerrainCollapse
         public bool IsBuried => isBuried;
 
         public event Action<bool> BurialStateChanged;
+        public event Action<FallingChunk, float> CollisionImpactRequested;
         public event Action<FallingTerrainImpactInfo> BurialImpactRequested;
         public event Action<int> BurialDamageRequested;
 
@@ -107,7 +108,9 @@ namespace TerrainCollapse
             character.SetTerrainInteractionLocked(false, character.Position);
         }
 
-        public FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk)
+        public FallingTerrainContactResult ResolveFallingTerrainContact(
+            FallingChunk fallingChunk,
+            float impactSpeed)
         {
             if (fallingChunk == null || character == null ||
                 terrainManager == null || terrainManager.IsReady == false)
@@ -126,6 +129,8 @@ namespace TerrainCollapse
                     fallingChunk,
                     includeVerticalPath: true) == false)
                 return RememberResult(fallingChunk.CollapseId, FallingTerrainContactResult.Ignored);
+
+            CollisionImpactRequested?.Invoke(fallingChunk, impactSpeed);
 
             character.CancelClimbing();
 

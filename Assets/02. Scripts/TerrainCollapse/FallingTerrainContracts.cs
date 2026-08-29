@@ -16,7 +16,9 @@ namespace TerrainCollapse
     public interface IFallingTerrainEscapeTarget
     {
         // 실제 타일 형상을 확인하기 위해 FallingChunk 객체 자체를 전달
-        FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk);
+        FallingTerrainContactResult ResolveFallingTerrainContact(
+            FallingChunk fallingChunk,
+            float impactSpeed);
     }
 
     /// <summary>낙하 지형 상호작용에서 플레이어 이동 상태를 제어하기 위한 대상</summary>

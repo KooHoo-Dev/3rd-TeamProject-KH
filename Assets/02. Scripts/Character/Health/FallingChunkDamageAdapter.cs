@@ -11,6 +11,7 @@ namespace Character
         [Header("Collision Damage")]
         [SerializeField, Min(0f)] private float minimumDamageSpeed = 1f;
         [SerializeField, Min(0f)] private float damagePerSpeed = 1f;
+        [SerializeField, Min(1)] private int minimumCollisionDamage = 1;
 
         [Header("Burial Damage")]
         [SerializeField, Min(1)] private int impactDamagePerTile = 1;
@@ -26,27 +27,23 @@ namespace Character
 
         private void OnEnable()
         {
+            interaction.CollisionImpactRequested += HandleCollisionImpact;
             interaction.BurialImpactRequested += HandleBurialImpact;
             interaction.BurialDamageRequested += HandleBurialDamage;
         }
 
         private void OnDisable()
         {
+            interaction.CollisionImpactRequested -= HandleCollisionImpact;
             interaction.BurialImpactRequested -= HandleBurialImpact;
             interaction.BurialDamageRequested -= HandleBurialDamage;
         }
 
-        private void OnCollisionEnter2D(Collision2D collision)
+        private void HandleCollisionImpact(FallingChunk fallingChunk, float impactSpeed)
         {
-            if (collision.collider.TryGetComponent(out FallingChunk fallingChunk) == false) return;
-
-            float fallingSpeed = Mathf.Max(0f, -fallingChunk.BeforeVelocity.y);
-            if (fallingSpeed < minimumDamageSpeed) return;
-
-            int damage = Mathf.CeilToInt(
-                (fallingSpeed - minimumDamageSpeed) * damagePerSpeed);
-
-            if (damage <= 0) return;
+            int scaledDamage = Mathf.CeilToInt(
+                Mathf.Max(0f, impactSpeed - minimumDamageSpeed) * damagePerSpeed);
+            int damage = Mathf.Max(minimumCollisionDamage, scaledDamage);
 
             damageable.TakeDamage(new DamageInfo(
                 damage,
