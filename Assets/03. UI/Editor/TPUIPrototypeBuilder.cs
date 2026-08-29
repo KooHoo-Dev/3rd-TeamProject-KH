@@ -188,8 +188,15 @@ namespace TerrainCollapse
                 quantityText.color = Color.white;
                 AddOutline(quantityText.gameObject, Color.black, 1f);
 
+                Image focusImage = CreateImage("Focus", slot, new Color(0.2f, 0.85f, 1f, 0.2f))
+                    .GetComponent<Image>();
+                StretchToParent((RectTransform)focusImage.transform, 2f);
+                focusImage.enabled = false;
+                AddOutline(focusImage.gameObject, new Color(0.3f, 0.9f, 1f, 1f), 2f);
+
                 InventorySlotView slotView = slot.gameObject.AddComponent<InventorySlotView>();
                 SetObjectReference(slotView, "iconImage", icon);
+                SetObjectReference(slotView, "focusImage", focusImage);
                 SetObjectReference(slotView, "quantityText", quantityText);
                 slots.Add(slotView);
             }
