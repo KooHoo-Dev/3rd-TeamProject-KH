@@ -15,6 +15,7 @@ namespace TerrainCollapse
         [SerializeField] private float gravityScale = 2f;
         [SerializeField] private float chunkMass = 100f;
         [SerializeField] private float initialSeparationDistance = 0.05f;
+        [SerializeField, Range(0f, 0.25f)] private float colliderHorizontalInsetRatio = 0.01f;
         [SerializeField] private float outOfBoundsDistance = 20f;
 
         private readonly List<FallingChunk> activeChunks = new();
@@ -89,7 +90,7 @@ namespace TerrainCollapse
             Debug.Log($"[Terrain Collapse] Chunk Created: id={collapseId}, cells={cells.Count}");
         }
 
-        private static void CreateChunkCell(
+        private void CreateChunkCell(
             Transform parent,
             Vector2Int localCell,
             TerrainTileType type,
@@ -107,7 +108,10 @@ namespace TerrainCollapse
             renderer.sortingOrder = 1;
             
             BoxCollider2D collider = cell.GetComponent<BoxCollider2D>();
-            collider.size = Vector2.one * source.CellSize;
+            float horizontalInset = source.CellSize * colliderHorizontalInsetRatio;
+            collider.size = new Vector2(
+                Mathf.Max(0.001f, source.CellSize - horizontalInset * 2f),
+                source.CellSize);
             collider.compositeOperation = Collider2D.CompositeOperation.Merge;
         }
 

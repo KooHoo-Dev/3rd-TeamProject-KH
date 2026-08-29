@@ -39,7 +39,6 @@ namespace TerrainCollapse
         private readonly List<TerrainTileType> cellTypes = new();
         private readonly List<int> cellDurabilities = new();
         private readonly Dictionary<Collider2D, TerrainContactInfo> terrainContactInfos = new();
-        private readonly HashSet<Collider2D> staticTerrainContacts = new();
         private Rigidbody2D body;
         private CompositeCollider2D compositeCollider;
         private PhysicsMaterial2D frictionlessMaterial;
@@ -129,8 +128,6 @@ namespace TerrainCollapse
 
             // 접점 개수와 지지 폭을 충족하는 일반 안정화용 지형 접촉 여부
             bool hasStableTerrainContact = HasStableTerrainContact();
-            // 접촉 방향과 무관하게 정적 지형에 닿아 있는 강제 안정화용 접촉 여부
-            bool hasStaticTerrainContact = staticTerrainContacts.Count > 0;
             bool recentGround = hasStableTerrainContact ||
                                 Time.time - lastGroundContactTime <= groundContactGraceDuration;
             bool slow = body.IsSleeping() ||
@@ -142,8 +139,8 @@ namespace TerrainCollapse
                 ? stableTime + Time.fixedDeltaTime
                 : Mathf.Max(0f, stableTime - Time.fixedDeltaTime);
 
-            // 정적 지형 접촉 중 위치 변화가 허용 범위 이내일 때 강제 안정화 판정
-            bool isForceSettled = IsPositionStable(hasStaticTerrainContact);
+            // 실제 지지면 접촉 중 위치 변화가 허용 범위 이내일 때 강제 안정화 판정
+            bool isForceSettled = IsPositionStable(hasStableTerrainContact);
 
             // 일반 안정화 시간과 강제 안정화 조건을 모두 충족하지 않으면 안정화 보류
             if (stableTime < settleDuration && isForceSettled == false) return;
@@ -156,10 +153,10 @@ namespace TerrainCollapse
                       (isForceSettled ? " (position stability fallback)" : string.Empty));
         }
 
-        /// <summary>정적 지형 접촉 중 타일 크기 비례 허용 범위 내 위치 유지 시간 확인</summary>
-        private bool IsPositionStable(bool hasStaticTerrainContact)
+        /// <summary>지지면 접촉 중 타일 크기 비례 허용 범위 내 위치 유지 시간 확인</summary>
+        private bool IsPositionStable(bool hasSupportingSurface)
         {
-            if (hasStaticTerrainContact == false)
+            if (hasSupportingSurface == false)
             {
                 isTrackingStablePosition = false;
                 positionStableTime = 0f;
@@ -207,7 +204,6 @@ namespace TerrainCollapse
                     // 복구된 낙하 속도를 플레이어가 읽도록 이후에 판정 호출
                     target.ResolveFallingTerrainContact(this);
 
-                    staticTerrainContacts.Remove(collision.collider);
                     terrainContactInfos.Remove(collision.collider);
 
                     return;
@@ -225,10 +221,6 @@ namespace TerrainCollapse
             float minX = float.PositiveInfinity;
             float maxX = float.NegativeInfinity;
 
-            if (isStaticTerrain && collision.contactCount > 0)
-                staticTerrainContacts.Add(collision.collider);
-            else staticTerrainContacts.Remove(collision.collider);
-            
             for (int i = 0; isStaticTerrain && i < collision.contactCount; i++)
             {
                 ContactPoint2D contact = collision.GetContact(i);
@@ -250,26 +242,20 @@ namespace TerrainCollapse
 
         private bool HasStableTerrainContact()
         {
-            int totalContactCount = 0;
-            float totalMinX = float.PositiveInfinity;
-            float totalMaxX = float.NegativeInfinity;
-
             foreach (TerrainContactInfo contactInfo in terrainContactInfos.Values)
             {
-                totalContactCount += contactInfo.Count;
-                totalMinX = Mathf.Min(totalMinX, contactInfo.MinX);
-                totalMaxX = Mathf.Max(totalMaxX, contactInfo.MaxX);
+                if (contactInfo.Count >= 2 &&
+                    contactInfo.MaxX - contactInfo.MinX >= minimumSupportContactWidth)
+                    return true;
             }
 
-            return totalContactCount >= 2 &&
-                   totalMaxX - totalMinX >= minimumSupportContactWidth;
+            return false;
         }
 
         private void OnCollisionExit2D(Collision2D collision)
         {
             bool hasStableTerrainContact = HasStableTerrainContact();
 
-            staticTerrainContacts.Remove(collision.collider);
             terrainContactInfos.Remove(collision.collider);
 
             if (hasStableTerrainContact && HasStableTerrainContact() == false)
