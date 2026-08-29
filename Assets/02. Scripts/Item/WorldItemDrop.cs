@@ -27,6 +27,7 @@ namespace TerrainCollapse
         private Vector2 escapeTargetPosition;
         private Vector2 escapeVelocity;
         private bool isEscaping;
+        private bool isCollected;
 
         public int ItemID { get; private set; }
         public int Quantity { get; private set; }
@@ -301,6 +302,20 @@ namespace TerrainCollapse
             }
 
             return false;
+        }
+
+        public bool TryCollect(IItemInventory inventory)
+        {
+            if (isCollected || inventory == null)
+                return false;
+
+            if (inventory.TryAdd(ItemID, Quantity) == false)
+                return false;
+
+            isCollected = true;
+            Destroy(gameObject);
+
+            return true;
         }
     }
 }
