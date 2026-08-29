@@ -18,14 +18,19 @@ namespace TerrainCollapse
             int gold)
         {
             SetGold(gold);
+            RenderItems(items);
+        }
 
+        public void RenderItems(IReadOnlyList<InventorySlotDisplayData> items)
+        {
             if (slotViews == null) return;
 
-            int itemCount = items == null ? 0 : items.Count;
+            int itemCount = items?.Count ?? 0;
 
             for (int index = 0; index < slotViews.Length; index++)
             {
                 InventorySlotView slotView = slotViews[index];
+
                 if (slotView == null) continue;
 
                 if (index < itemCount)

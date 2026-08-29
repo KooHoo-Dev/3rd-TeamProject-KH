@@ -594,6 +594,36 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &925216910 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6076754291280896431, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+  m_PrefabInstance: {fileID: 1279314029}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &925216911 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7803401892840059154, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+  m_PrefabInstance: {fileID: 1279314029}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 925216910}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7bba8557c3f9a3a4e97c5b94d81fadb5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameUI.InventoryView
+--- !u!114 &925216916
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 925216910}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c44884c9b9064c488cf45252751248e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerInventoryHudPresenter
+  inventory: {fileID: 1971883709}
+  inventoryView: {fileID: 925216911}
 --- !u!1 &1104309843
 GameObject:
   m_ObjectHideFlags: 0
@@ -920,7 +950,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6076754291280896431, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 925216916}
   m_SourcePrefab: {fileID: 100100000, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
 --- !u!1 &1437070101
 GameObject:

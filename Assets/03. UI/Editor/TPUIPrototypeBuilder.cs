@@ -32,8 +32,24 @@ namespace TerrainCollapse
         [MenuItem("Tools/Game UI/Rebuild TP UI Prototype")]
         public static void Build()
         {
+            GameObject prefab = BuildHudPrefab();
+
+            CreatePrototypeScene(prefab);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            Debug.Log($"[Game UI] TP UI 생성 완료: {PrefabPath}, {PrototypeScenePath}");
+        }
+
+        [MenuItem("Tools/Game UI/Rebuild TP HUD Prefab")]
+        public static void BuildHudPrefabFromMenu()
+        {
+            BuildHudPrefab();
+        }
+
+        private static GameObject BuildHudPrefab()
+        {
             EnsureFolder(PrefabFolder);
-            EnsureFolder(SceneFolder);
 
             TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(DefaultFontPath);
             if (font == null)
@@ -47,11 +63,12 @@ namespace TerrainCollapse
             if (prefab == null)
                 throw new InvalidOperationException($"HUD Prefab 생성에 실패했습니다: {PrefabPath}");
 
-            CreatePrototypeScene(prefab);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log($"[Game UI] TP UI 생성 완료: {PrefabPath}, {PrototypeScenePath}");
+            Debug.Log($"[Game UI] HUD Prefab 생성 완료: {PrefabPath}");
+
+            return prefab;
         }
 
         public static void BuildFromCommandLine()
@@ -155,8 +172,25 @@ namespace TerrainCollapse
                     .GetComponent<Image>();
                 StretchToParent((RectTransform)icon.transform, 9f);
 
+                TextMeshProUGUI quantityText = CreateText(
+                    "Quantity",
+                    slot,
+                    font,
+                    string.Empty,
+                    20f,
+                    FontStyles.Bold,
+                    TextAlignmentOptions.BottomRight,
+                    new Vector2(-7f, 7f),
+                    new Vector2(50f, 28f),
+                    new Vector2(1f, 0f),
+                    new Vector2(1f, 0f),
+                    new Vector2(1f, 0f));
+                quantityText.color = Color.white;
+                AddOutline(quantityText.gameObject, Color.black, 1f);
+
                 InventorySlotView slotView = slot.gameObject.AddComponent<InventorySlotView>();
                 SetObjectReference(slotView, "iconImage", icon);
+                SetObjectReference(slotView, "quantityText", quantityText);
                 slots.Add(slotView);
             }
 
