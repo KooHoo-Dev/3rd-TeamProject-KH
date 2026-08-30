@@ -47,6 +47,7 @@ namespace TerrainCollapse
 
             GameObject root = new($"FallingChunk_{collapseId}",
                 typeof(Rigidbody2D), typeof(CompositeCollider2D), typeof(FallingChunk));
+            root.layer = TerrainPhysicsLayers.Terrain;
             root.transform.position = source.CellToWorldCorner(anchor) + Vector3.down * initialSeparationDistance;
 
             Rigidbody2D body = root.GetComponent<Rigidbody2D>();
@@ -62,6 +63,7 @@ namespace TerrainCollapse
             List<Vector2Int> localCells = new(cells.Count);
             List<TerrainTileType> cellTypes = new(cells.Count);
             List<int> cellDurabilities = new(cells.Count);
+            List<int> cellResourceIDs = new(cells.Count);
             
             foreach (Vector2Int worldCell in cells)
             {
@@ -71,7 +73,8 @@ namespace TerrainCollapse
                 localCells.Add(localCell);
                 cellTypes.Add(type);
                 cellDurabilities.Add(sourceCell.CurrentDurability);
-                CreateChunkCell(root.transform, localCell, type, source);
+                cellResourceIDs.Add(sourceCell.ResourceID);
+                CreateChunkCell(root.transform, localCell, type, sourceCell.ResourceID, source);
                 source.RemoveCell(worldCell);
             }
 
@@ -82,6 +85,7 @@ namespace TerrainCollapse
                 localCells,
                 cellTypes,
                 cellDurabilities,
+                cellResourceIDs,
                 source.CellSize,
                 collapseId,
                 minimumWorldY);
@@ -94,17 +98,19 @@ namespace TerrainCollapse
             Transform parent,
             Vector2Int localCell,
             TerrainTileType type,
+            int resourceID,
             TerrainGridWorld source)
         {
             GameObject cell = new($"Cell_{localCell.x}_{localCell.y}",
                 typeof(SpriteRenderer), typeof(BoxCollider2D));
+            cell.layer = TerrainPhysicsLayers.Terrain;
             cell.transform.SetParent(parent, false);
             cell.transform.localPosition = new Vector3((localCell.x + 0.5f) * source.CellSize,
                 (localCell.y + 0.5f) * source.CellSize, 0f);
             
             SpriteRenderer renderer = cell.GetComponent<SpriteRenderer>();
             renderer.sprite = source.GetTileSprite(type);
-            renderer.color = source.GetTileColor(type);
+            renderer.color = source.GetTileColor(type, resourceID);
             renderer.sortingOrder = 1;
             
             BoxCollider2D collider = cell.GetComponent<BoxCollider2D>();
@@ -113,6 +119,14 @@ namespace TerrainCollapse
                 Mathf.Max(0.001f, source.CellSize - horizontalInset * 2f),
                 source.CellSize);
             collider.compositeOperation = Collider2D.CompositeOperation.Merge;
+
+            if (resourceID > 0)
+            {
+                TerrainResourceViewFactory.Create(
+                    resourceID,
+                    cell.transform,
+                    new Vector3(0f, 0f, -0.1f));
+            }
         }
 
         private void Update()

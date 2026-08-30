@@ -48,6 +48,13 @@ namespace TerrainCollapse
         public event Action<TerrainChangeReason> TerrainChanged;
         public event Action<Vector2Int, int> TerrainDurabilityChanged;
         public event Action<TerrainChangeBatch> AuthoritativeBatchApplied;
+        public event Action<TerrainCellDestroyedInfo> CellDestroyed;
+
+        private void Awake()
+        {
+            if (TryGetComponent<TerrainResourceDropSpawner>(out _) == false)
+                gameObject.AddComponent<TerrainResourceDropSpawner>();
+        }
 
         public void Configure(TerrainGridWorld world, Camera camera)
         {
@@ -91,6 +98,22 @@ namespace TerrainCollapse
             return true;
         }
 
+        /// <summary>지정 Grid 좌표에 부착된 자원 ID 조회 시도</summary>
+        public bool TryGetResourceID(Vector2Int cell, out int resourceID)
+        {
+            resourceID = 0;
+
+            if (IsReady == false) return false;
+
+            TerrainCell terrainCell = terrainWorld.Data.GetCellOrNull(cell);
+
+            if (terrainCell == null) return false;
+
+            resourceID = terrainCell.ResourceID;
+
+            return true;
+        }
+
         /// <summary>월드 좌표의 Grid 좌표 변환 시도</summary>
         public bool TryWorldToCell(Vector3 worldPosition, out Vector2Int cell)
         {
@@ -128,6 +151,13 @@ namespace TerrainCollapse
                 tileDef.IsMineable == false)
                 return TerrainRemoveResult.NotMineable;
 
+            TerrainCell targetCell = terrainWorld.Data.GetCellOrNull(cell);
+            TerrainCellDestroyedInfo destroyedInfo = new(
+                cell,
+                targetCell.Type,
+                targetCell.ResourceID,
+                terrainWorld.CellToWorldCenter(cell));
+
             if (terrainWorld.TryDamageCell(
                     cell,
                     1,
@@ -146,6 +176,7 @@ namespace TerrainCollapse
 
             if (logEvents) Debug.Log($"[Terrain Collapse] Cell Destroy: {cell}");
 
+            CellDestroyed?.Invoke(destroyedInfo);
             TerrainChanged?.Invoke(TerrainChangeReason.Excavation);
             
             return TerrainRemoveResult.Removed;

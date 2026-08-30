@@ -28,6 +28,7 @@ namespace TerrainCollapse
         }
 
         public TerrainTileTable Tiles { get; } = new();
+        public TerrainResourceTable Resources { get; } = new();
         public TerrainSeedProfileTable SeedProfiles { get; } = new();
         public TerrainDepthSectionTable DepthSections { get; } = new();
         public TerrainSectionMineralTable SectionMinerals { get; } = new();
@@ -67,9 +68,10 @@ namespace TerrainCollapse
             IsReady = false;
 
             Tiles.Load();
+            Resources.Load();
             SeedProfiles.Load();
             DepthSections.Load(SeedProfiles, Tiles);
-            SectionMinerals.Load(SeedProfiles, DepthSections, Tiles);
+            SectionMinerals.Load(SeedProfiles, DepthSections, Resources);
             VariantClusters.Load(SeedProfiles, DepthSections, Tiles);
             Caves.Load(SeedProfiles);
 
@@ -77,8 +79,8 @@ namespace TerrainCollapse
             OnReady?.Invoke();
 
             Debug.Log(
-                $"[TerrainDataManager] Loaded " +
-                $"{Tiles.Count} tiles, {SeedProfiles.Count} profiles, " +
+                $"[TerrainDataManager] Loaded {Tiles.Count} tiles, " +
+                $"{Resources.Count} resources, {SeedProfiles.Count} profiles, " +
                 $"{DepthSections.Count} sections, {SectionMinerals.Count} minerals, " +
                 $"{VariantClusters.Count} variants, {Caves.Count} caves");
         }

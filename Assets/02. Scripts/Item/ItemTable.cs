@@ -9,16 +9,27 @@ namespace TerrainCollapse
         private const string TableName = "Table/Item/Items.tsv";
 
         private Dictionary<int, ItemDef> defs = new();
+        private int goldItemID = -1;
 
         public ItemDef Get(int id) => defs[id];
+
+        public bool TryGet(int id, out ItemDef itemDef) => defs.TryGetValue(id, out itemDef);
 
         public IReadOnlyCollection<ItemDef> GetDefs() => defs.Values;
         
         public int Count => defs.Count;
-        
+
+        public bool TryGetGold(out ItemDef itemDef)
+        {
+            itemDef = null;
+
+            return goldItemID >= 0 && defs.TryGetValue(goldItemID, out itemDef);
+        }
+
         public void Load()
         {
             defs.Clear();
+            goldItemID = -1;
             
             string path = Application.streamingAssetsPath + "/" + TableName;
             List<ItemDTO> rows = new List<ItemDTO>();
@@ -52,7 +63,13 @@ namespace TerrainCollapse
                 Item prefab = Resources.Load<Item>(itemDto.PrefabKey);
                 Sprite sprite = Resources.Load<Sprite>(itemDto.SpriteKey);
 
-                defs[itemDto.ID] = new ItemDef(itemDto, prefab, sprite);
+                ItemDef itemDef = new ItemDef(itemDto, prefab, sprite);
+                defs[itemDto.ID] = itemDef;
+
+                if (itemDef.Type != ItemType.Gold) continue;
+                if (goldItemID >= 0) continue;
+
+                goldItemID = itemDef.ID;
             }
 
             Debug.Log(defs.Count);

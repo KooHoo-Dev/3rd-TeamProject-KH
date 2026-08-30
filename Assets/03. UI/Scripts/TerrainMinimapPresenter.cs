@@ -153,15 +153,19 @@ namespace TerrainCollapse
                         continue;
                     }
 
-                    pixels[pixelIndex] = GetTileColor(type);
+                    terrainManager.TryGetResourceID(cell, out int resourceID);
+                    pixels[pixelIndex] = GetTileColor(type, resourceID);
                 }
             }
 
             minimapView.ApplyPixels(pixels);
         }
 
-        private Color32 GetTileColor(TerrainTileType type)
+        private Color32 GetTileColor(TerrainTileType type, int resourceID)
         {
+            if (resourceID == 1) return coalColor;
+            if (resourceID == 2) return ironColor;
+
             return type switch
             {
                 TerrainTileType.Empty => emptyColor,
@@ -170,8 +174,6 @@ namespace TerrainCollapse
                 TerrainTileType.Stone => stoneColor,
                 TerrainTileType.Bedrock => bedrockColor,
                 TerrainTileType.DeepStone => deepStoneColor,
-                TerrainTileType.CoalOre => coalColor,
-                TerrainTileType.IronOre => ironColor,
                 _ => unknownTileColor
             };
         }

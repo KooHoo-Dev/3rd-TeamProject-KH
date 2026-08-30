@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -7,15 +8,28 @@ namespace TerrainCollapse
     public sealed class InventorySlotView : MonoBehaviour
     {
         [SerializeField] private Image iconImage;
+        [SerializeField] private Image focusImage;
+        [SerializeField] private Image holdFillImage;
+        [SerializeField] private TMP_Text quantityText;
+
+        public int ItemID { get; private set; } = -1;
 
         public void Render(InventorySlotDisplayData data)
         {
+            ItemID = data.ItemID;
+
             SetIcon(data.Icon);
+            SetQuantity(data.Quantity);
         }
 
         public void Clear()
         {
+            ItemID = -1;
+
             SetIcon(null);
+            SetQuantity(0);
+            SetFocused(false);
+            SetHoldProgress(0f);
         }
 
         private void SetIcon(Sprite icon)
@@ -24,6 +38,28 @@ namespace TerrainCollapse
 
             iconImage.sprite = icon;
             iconImage.enabled = icon == null ? false : true;
+        }
+
+        private void SetQuantity(int quantity)
+        {
+            if (quantityText == null) return;
+
+            quantityText.text = quantity > 0 ? quantity.ToString() : "0";
+        }
+
+        public void SetFocused(bool isFocused)
+        {
+            if (focusImage == null) return;
+
+            focusImage.enabled = isFocused;
+        }
+
+        public void SetHoldProgress(float progress)
+        {
+            if (holdFillImage == null) return;
+
+            holdFillImage.fillAmount = Mathf.Clamp01(progress);
+            holdFillImage.enabled = holdFillImage.fillAmount > 0f;
         }
     }
 }

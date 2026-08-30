@@ -32,8 +32,24 @@ namespace TerrainCollapse
         [MenuItem("Tools/Game UI/Rebuild TP UI Prototype")]
         public static void Build()
         {
+            GameObject prefab = BuildHudPrefab();
+
+            CreatePrototypeScene(prefab);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            Debug.Log($"[Game UI] TP UI 생성 완료: {PrefabPath}, {PrototypeScenePath}");
+        }
+
+        [MenuItem("Tools/Game UI/Rebuild TP HUD Prefab")]
+        public static void BuildHudPrefabFromMenu()
+        {
+            BuildHudPrefab();
+        }
+
+        private static GameObject BuildHudPrefab()
+        {
             EnsureFolder(PrefabFolder);
-            EnsureFolder(SceneFolder);
 
             TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(DefaultFontPath);
             if (font == null)
@@ -47,11 +63,12 @@ namespace TerrainCollapse
             if (prefab == null)
                 throw new InvalidOperationException($"HUD Prefab 생성에 실패했습니다: {PrefabPath}");
 
-            CreatePrototypeScene(prefab);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            Debug.Log($"[Game UI] TP UI 생성 완료: {PrefabPath}, {PrototypeScenePath}");
+            Debug.Log($"[Game UI] HUD Prefab 생성 완료: {PrefabPath}");
+
+            return prefab;
         }
 
         public static void BuildFromCommandLine()
@@ -85,7 +102,7 @@ namespace TerrainCollapse
             MinimapView minimapView = CreateMinimap(root.transform, font, out TerrainMinimapPresenter presenter);
 
             HudPrototypeDriver preview = root.AddComponent<HudPrototypeDriver>();
-            SetBool(preview, "previewEnabled", true);
+            SetBool(preview, "previewEnabled", false);
             SetObjectReference(preview, "healthBarView", healthBarView);
             SetObjectReference(preview, "inventoryView", inventoryView);
             SetObjectReference(preview, "coalIcon", previewIcon);
@@ -155,8 +172,43 @@ namespace TerrainCollapse
                     .GetComponent<Image>();
                 StretchToParent((RectTransform)icon.transform, 9f);
 
+                TextMeshProUGUI quantityText = CreateText(
+                    "Quantity",
+                    slot,
+                    font,
+                    string.Empty,
+                    20f,
+                    FontStyles.Bold,
+                    TextAlignmentOptions.BottomRight,
+                    new Vector2(-7f, 7f),
+                    new Vector2(50f, 28f),
+                    new Vector2(1f, 0f),
+                    new Vector2(1f, 0f),
+                    new Vector2(1f, 0f));
+                quantityText.color = Color.white;
+                AddOutline(quantityText.gameObject, Color.black, 1f);
+
+                Image focusImage = CreateImage("Focus", slot, new Color(0.2f, 0.85f, 1f, 0.2f))
+                    .GetComponent<Image>();
+                StretchToParent((RectTransform)focusImage.transform, 2f);
+                focusImage.enabled = false;
+                AddOutline(focusImage.gameObject, new Color(0.3f, 0.9f, 1f, 1f), 2f);
+
+                Image holdFillImage = CreateImage("HoldFill", slot, new Color(0.9f, 0.9f, 0.25f, 0.35f))
+                    .GetComponent<Image>();
+                StretchToParent((RectTransform)holdFillImage.transform, 2f);
+                holdFillImage.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/UISprite.psd");
+                holdFillImage.type = Image.Type.Filled;
+                holdFillImage.fillMethod = Image.FillMethod.Radial360;
+                holdFillImage.fillOrigin = (int)Image.Origin360.Top;
+                holdFillImage.fillAmount = 0f;
+                holdFillImage.enabled = false;
+
                 InventorySlotView slotView = slot.gameObject.AddComponent<InventorySlotView>();
                 SetObjectReference(slotView, "iconImage", icon);
+                SetObjectReference(slotView, "focusImage", focusImage);
+                SetObjectReference(slotView, "holdFillImage", holdFillImage);
+                SetObjectReference(slotView, "quantityText", quantityText);
                 slots.Add(slotView);
             }
 

@@ -26,19 +26,26 @@ namespace TerrainCollapse
         public TerrainCell GetCellOrNull(Vector2Int coord)
             => cells.TryGetValue(coord, out TerrainCell cell) ? cell : null;
 
-        public bool SetCell(Vector2Int coord, TerrainTileType type, int durability)
+        public bool SetCell(
+            Vector2Int coord,
+            TerrainTileType type,
+            int durability,
+            int resourceID = 0)
         {
             if (type == TerrainTileType.Empty) return Remove(coord);
             
             if (cells.TryGetValue(coord, out TerrainCell existing))
             {
-                if (existing.Type == type && existing.CurrentDurability == durability) return false;
+                if (existing.Type == type &&
+                    existing.CurrentDurability == durability &&
+                    existing.ResourceID == resourceID)
+                    return false;
                 
-                existing.ChangeType(type, durability);
+                existing.ChangeType(type, durability, resourceID);
                 return true;
             }
             
-            cells.Add(coord, new TerrainCell(coord, type, durability));
+            cells.Add(coord, new TerrainCell(coord, type, durability, resourceID));
             
             return true;
         }
@@ -110,7 +117,7 @@ namespace TerrainCollapse
             }
 
             foreach (TerrainCellChange change in batch.Changes)
-                SetCell(change.Coord, change.Type, change.Durability);
+                SetCell(change.Coord, change.Type, change.Durability, change.ResourceID);
             
             Revision = batch.ResultRevision;
             error = string.Empty;
@@ -131,7 +138,8 @@ namespace TerrainCollapse
                 snapshot.Cells.Add(new TerrainCellChange(
                     cell.Coord,
                     cell.Type,
-                    cell.CurrentDurability));
+                    cell.CurrentDurability,
+                    cell.ResourceID));
             
             snapshot.Cells.Sort(TerrainCoordinateComparer.CompareChanges);
             
@@ -147,7 +155,7 @@ namespace TerrainCollapse
             
             if (snapshot.Cells != null)
                 foreach (TerrainCellChange cell in snapshot.Cells)
-                    result.SetCell(cell.Coord, cell.Type, cell.Durability);
+                    result.SetCell(cell.Coord, cell.Type, cell.Durability, cell.ResourceID);
             
             result.Revision = snapshot.Revision;
             return result;

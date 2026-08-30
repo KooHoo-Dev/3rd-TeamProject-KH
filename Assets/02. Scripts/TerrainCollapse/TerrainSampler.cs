@@ -124,7 +124,8 @@ namespace TerrainCollapse
                 changes.Add(new TerrainCellChange(
                     targetCell,
                     chunk.CellTypes[i],
-                    chunk.CellDurabilities[i]));
+                    chunk.CellDurabilities[i],
+                    chunk.CellResourceIDs[i]));
             }
             
             changes.Sort(TerrainCoordinateComparer.CompareChanges);

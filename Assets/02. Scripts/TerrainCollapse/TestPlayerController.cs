@@ -9,6 +9,7 @@ namespace TerrainCollapse
     /// <summary>Kinematic Rigidbody를 직접 이동시키는 붕괴 테스트용 플레이어 (공중 충돌 후 착지 탈출 완전 보정)</summary>
     [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D), typeof(SpriteRenderer))]
     [RequireComponent(typeof(FallingTerrainInteraction))]
+    [RequireComponent(typeof(PlayerInventory))]
     public sealed class TestPlayerController : MonoBehaviour, IFallingTerrainCharacter
     {
         [Header("Movement Settings")]
@@ -17,7 +18,7 @@ namespace TerrainCollapse
         [SerializeField] private float jumpSpeed = 8f;
         [SerializeField] private float gravity = 24f;
         [SerializeField] private float collisionSkin = 0.02f;
-        [SerializeField] private LayerMask collisionMask = ~0;
+        [SerializeField] private LayerMask collisionMask;
         [SerializeField] private TerrainManager terrainManager;
         
         [Header("Terrain Interaction Visual Settings")]
@@ -31,6 +32,7 @@ namespace TerrainCollapse
         private SpriteRenderer spriteRenderer;
         private FallingTerrainInteraction fallingTerrainInteraction;
         private PlayerHp playerHp;
+        private PlayerInventory inventory;
         
         private Vector2 velocity;
         private bool grounded;
@@ -53,16 +55,21 @@ namespace TerrainCollapse
         public TerrainManager TerrainManager => terrainManager;
         public float CollisionSkin => collisionSkin;
         public LayerMask CollisionMask => collisionMask;
+        public IItemInventory Inventory => inventory;
         
         public event Action<bool> ClimbStateChanged;
 
         private void Awake()
         {
+            if (collisionMask.value == 0)
+                collisionMask = LayerMask.GetMask("Terrain");
+
             body = GetComponent<Rigidbody2D>();
             box = GetComponent<BoxCollider2D>();
             spriteRenderer = GetComponent<SpriteRenderer>();
             fallingTerrainInteraction = GetComponent<FallingTerrainInteraction>();
             playerHp = GetComponent<PlayerHp>();
+            inventory = GetComponent<PlayerInventory>();
             isDead = playerHp.IsDead;
             
             if (terrainManager == null) terrainManager = FindFirstObjectByType<TerrainManager>();

@@ -26,7 +26,7 @@ namespace TerrainCollapse
                 if (dto.TileType == TerrainTileType.Empty)
                     throw new InvalidDataException("Empty 타일은 terrain_tiles.tsv에 등록할 수 없습니다");
                 
-                if (dto.MaxDurability < 0 || dto.DropItemID < 0)
+                if (dto.MaxDurability < 0)
                     throw new InvalidDataException($"타일 수치는 0 이상이어야 합니다: {dto.TileType}");
 
                 if (dto.IsMineable && dto.MaxDurability <= 0)
@@ -55,6 +55,57 @@ namespace TerrainCollapse
 
         internal static List<T> ReadTerrainRows<T>(string tableName) where T : new()
             => ReadRows<T>(tableName);
+    }
+
+    public sealed class TerrainResourceTable
+    {
+        private const string TableName = "Table/Terrain/terrain_resources.tsv";
+        private readonly Dictionary<int, TerrainResourceDef> defs = new();
+
+        public int Count => defs.Count;
+        public IReadOnlyCollection<TerrainResourceDef> All => defs.Values;
+
+        public void Load()
+        {
+            defs.Clear();
+
+            List<TerrainResourceDTO> rows =
+                TerrainTileTable.ReadTerrainRows<TerrainResourceDTO>(TableName);
+
+            foreach (TerrainResourceDTO dto in rows)
+            {
+                if (dto.ResourceID <= 0)
+                    throw new InvalidDataException(
+                        $"ResourceID는 1 이상이어야 합니다: {dto.ResourceID}");
+
+                if (string.IsNullOrWhiteSpace(dto.Name))
+                    throw new InvalidDataException(
+                        $"자원 이름이 비어 있습니다: {dto.ResourceID}");
+
+                if (dto.MaxDurability <= 0)
+                    throw new InvalidDataException(
+                        $"자원 MaxDurability는 1 이상이어야 합니다: {dto.ResourceID}");
+
+                if (string.IsNullOrWhiteSpace(dto.PrefabKey))
+                    throw new InvalidDataException(
+                        $"자원 PrefabKey가 비어 있습니다: {dto.ResourceID}");
+
+                if (dto.DropItemID <= 0 || dto.DropCount <= 0)
+                    throw new InvalidDataException(
+                        $"자원 드롭 정보가 올바르지 않습니다: {dto.ResourceID}");
+
+                if (defs.ContainsKey(dto.ResourceID))
+                    throw new InvalidDataException(
+                        $"중복 ResourceID입니다: {dto.ResourceID}");
+
+                defs.Add(dto.ResourceID, new TerrainResourceDef(dto));
+            }
+        }
+
+        public TerrainResourceDef Get(int resourceID) => defs[resourceID];
+
+        public bool TryGet(int resourceID, out TerrainResourceDef def)
+            => defs.TryGetValue(resourceID, out def);
     }
 
     public sealed class TerrainSeedProfileTable
@@ -234,7 +285,7 @@ namespace TerrainCollapse
         public void Load(
             TerrainSeedProfileTable profileTable,
             TerrainDepthSectionTable sectionTable,
-            TerrainTileTable tileTable)
+            TerrainResourceTable resourceTable)
         {
             defsBySection.Clear();
             Count = 0;
@@ -252,15 +303,15 @@ namespace TerrainCollapse
                 
                 if (sectionTable.TryGet(dto.ProfileID, dto.SectionID, out TerrainDepthSectionDef section) == false)
                     throw new InvalidDataException($"등록되지 않은 섹션입니다: {dto.ProfileID}/{dto.SectionID}");
-                
-                if (tileTable.TryGet(dto.MineralTileType, out TerrainTileDef mineralTile) == false)
-                    throw new InvalidDataException($"등록되지 않은 MineralTileType입니다: {dto.MineralTileType}");
+
+                if (resourceTable.TryGet(dto.ResourceID, out TerrainResourceDef resource) == false)
+                    throw new InvalidDataException($"등록되지 않은 ResourceID입니다: {dto.ResourceID}");
 
                 string sectionKey = TerrainDepthSectionTable.CreateKey(dto.ProfileID, dto.SectionID);
-                string mineralKey = $"{sectionKey}\u001F{dto.MineralTileType}";
-                
+                string mineralKey = $"{sectionKey}\u001F{dto.ResourceID}";
+
                 if (mineralKeys.Add(mineralKey) == false)
-                    throw new InvalidDataException($"중복 광물입니다: {dto.ProfileID}/{dto.SectionID}/{dto.MineralTileType}");
+                    throw new InvalidDataException($"중복 자원입니다: {dto.ProfileID}/{dto.SectionID}/{dto.ResourceID}");
 
                 if (ordersBySection.TryGetValue(sectionKey, out HashSet<int> orders) == false)
                 {
@@ -268,8 +319,8 @@ namespace TerrainCollapse
                     ordersBySection.Add(sectionKey, orders);
                 }
                 
-                if (orders.Add(dto.MineralOrder) == false)
-                    throw new InvalidDataException($"중복 MineralOrder입니다: {dto.ProfileID}/{dto.SectionID}/{dto.MineralOrder}");
+                if (orders.Add(dto.ResourceOrder) == false)
+                    throw new InvalidDataException($"중복 ResourceOrder입니다: {dto.ProfileID}/{dto.SectionID}/{dto.ResourceOrder}");
 
                 if (defsBySection.TryGetValue(sectionKey, out List<TerrainSectionMineralDef> sectionDefs) == false)
                 {
@@ -277,12 +328,12 @@ namespace TerrainCollapse
                     defsBySection.Add(sectionKey, sectionDefs);
                 }
 
-                sectionDefs.Add(new TerrainSectionMineralDef(dto, profile, section, mineralTile));
+                sectionDefs.Add(new TerrainSectionMineralDef(dto, profile, section, resource));
                 Count++;
             }
 
             foreach (List<TerrainSectionMineralDef> sectionDefs in defsBySection.Values)
-                sectionDefs.Sort((left, right) => left.MineralOrder.CompareTo(right.MineralOrder));
+                sectionDefs.Sort((left, right) => left.ResourceOrder.CompareTo(right.ResourceOrder));
         }
 
         /// <summary>지정 섹션의 광물 목록을 적용 순서대로 조회</summary>
@@ -300,8 +351,8 @@ namespace TerrainCollapse
             if (string.IsNullOrWhiteSpace(dto.ProfileID) || string.IsNullOrWhiteSpace(dto.SectionID))
                 throw new InvalidDataException("ProfileID와 SectionID는 비어 있을 수 없습니다");
             
-            if (dto.MineralOrder < 0 || dto.MineralTileType == TerrainTileType.Empty)
-                throw new InvalidDataException($"광물 순서 또는 타일 종류가 올바르지 않습니다: {dto.SectionID}");
+            if (dto.ResourceOrder < 0 || dto.ResourceID <= 0)
+                throw new InvalidDataException($"자원 순서 또는 ResourceID가 올바르지 않습니다: {dto.SectionID}");
             
             if (dto.ClusterDensity < 0f || dto.ClusterDensity > 1f)
                 throw new InvalidDataException($"ClusterDensity는 0부터 1 사이여야 합니다: {dto.SectionID}");
@@ -506,4 +557,6 @@ namespace TerrainCollapse
                 throw new InvalidDataException($"MaxAttempts가 올바르지 않습니다: {dto.ProfileID}");
         }
     }
+
+
 }

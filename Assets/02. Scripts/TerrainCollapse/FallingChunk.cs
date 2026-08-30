@@ -38,6 +38,7 @@ namespace TerrainCollapse
         private readonly List<Vector2Int> localCells = new();
         private readonly List<TerrainTileType> cellTypes = new();
         private readonly List<int> cellDurabilities = new();
+        private readonly List<int> cellResourceIDs = new();
         private readonly Dictionary<Collider2D, TerrainContactInfo> terrainContactInfos = new();
         private Rigidbody2D body;
         private CompositeCollider2D compositeCollider;
@@ -61,6 +62,7 @@ namespace TerrainCollapse
         public IReadOnlyList<Vector2Int> LocalCells => localCells;
         public IReadOnlyList<TerrainTileType> CellTypes => cellTypes;
         public IReadOnlyList<int> CellDurabilities => cellDurabilities;
+        public IReadOnlyList<int> CellResourceIDs => cellResourceIDs;
         public Collider2D ShapeCollider => compositeCollider;
         public Bounds WorldBounds => compositeCollider.bounds;
         public float CellSize => cellSize;
@@ -83,6 +85,7 @@ namespace TerrainCollapse
             IReadOnlyList<Vector2Int> cells,
             IReadOnlyList<TerrainTileType> types,
             IReadOnlyList<int> durabilities,
+            IReadOnlyList<int> resourceIDs,
             float size,
             long id,
             float minimumY)
@@ -93,6 +96,8 @@ namespace TerrainCollapse
             cellTypes.AddRange(types);
             cellDurabilities.Clear();
             cellDurabilities.AddRange(durabilities);
+            cellResourceIDs.Clear();
+            cellResourceIDs.AddRange(resourceIDs);
             cellSize = size;
             collapseId = id;
             minimumWorldY = minimumY;
@@ -193,9 +198,12 @@ namespace TerrainCollapse
             {
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
-                    float impactSpeed = Mathf.Max(
-                        Mathf.Abs(collision.relativeVelocity.y),
-                        Mathf.Max(0f, -beforeVelocity.y));
+                    FallingTerrainContactResult result = target.ResolveFallingTerrainContact(this);
+                    if (result == FallingTerrainContactResult.Ignored)
+                    {
+                        UpdateGroundContact(collision);
+                        return;
+                    }
 
                     // 이후 물리 스텝부터 플레이어와 FallingChunk의 충돌 해제
                     Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
@@ -205,9 +213,7 @@ namespace TerrainCollapse
                         beforeVelocity.x,
                         Mathf.Min(beforeVelocity.y, 0f));
 
-                    // 복구된 낙하 속도를 플레이어가 읽도록 이후에 판정 호출
-                    target.ResolveFallingTerrainContact(this, impactSpeed);
-
+                    staticTerrainContacts.Remove(collision.collider);
                     terrainContactInfos.Remove(collision.collider);
 
                     return;

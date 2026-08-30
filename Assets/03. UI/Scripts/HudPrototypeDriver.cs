@@ -17,7 +17,6 @@ namespace TerrainCollapse
         [Header("Preview Inventory")]
         [SerializeField] private Sprite coalIcon;
         [SerializeField] private Sprite ironOreIcon;
-        [SerializeField] private int gold = 1250;
 
         [SerializeField] private PlayerHp playerHp;
 
@@ -60,7 +59,7 @@ namespace TerrainCollapse
                 new InventorySlotDisplayData(ironOreIcon)
             };
 
-            inventoryView.Render(previewItems, gold);
+            inventoryView.RenderItems(previewItems);
         }
 
         private void HandleHpChanged(int currentHp, int maxHp)
