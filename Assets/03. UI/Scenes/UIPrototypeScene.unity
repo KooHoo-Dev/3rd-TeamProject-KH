@@ -427,6 +427,7 @@ MonoBehaviour:
   gravityScale: 2
   chunkMass: 100
   initialSeparationDistance: 0.05
+  colliderHorizontalInsetRatio: 0.01
   outOfBoundsDistance: 20
 --- !u!114 &190307186
 MonoBehaviour:
@@ -1476,6 +1477,7 @@ GameObject:
   - component: {fileID: 1971883710}
   - component: {fileID: 1971883711}
   - component: {fileID: 1971883713}
+  - component: {fileID: 1971883714}
   m_Layer: 0
   m_Name: TestPlayer
   m_TagString: Untagged
@@ -1695,6 +1697,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Character.FallingChunkDamageAdapter
   minimumDamageSpeed: 1
   damagePerSpeed: 1
+  minimumCollisionDamage: 1
   impactDamagePerTile: 1
 --- !u!114 &1971883706
 MonoBehaviour:
@@ -1802,6 +1805,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerInventoryDevelopmentInitializer
   initialGold: 500
+--- !u!114 &1971883714
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c2d4c3c3a404448aac6477910fca0b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerSellController
+  sellAreaMinimumY: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

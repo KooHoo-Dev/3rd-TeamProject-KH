@@ -49,7 +49,7 @@ namespace TerrainCollapse
         public int ID { get; private set; }
         public string Name { get; private set; }
         public string Description { get; private set; }
-        public int Price { get; private set; }
+        public int Price { get; private set; } // Exchange 타입은 판매 가격, 구매 가능 타입은 구매 가격
         public ItemType Type { get; private set; }
         public Item Prefab { get; private set; } // 키 해석 완료된 실제 프리팹
         public Sprite Sprite { get; private set; }  // 키 해석 완료된 실제 스프라이트
