@@ -198,7 +198,10 @@ namespace TerrainCollapse
             {
                 if (behaviour is IFallingTerrainEscapeTarget target)
                 {
-                    FallingTerrainContactResult result = target.ResolveFallingTerrainContact(this);
+                    float impactSpeed = Mathf.Max(0f, -beforeVelocity.y);
+                    FallingTerrainContactResult result = target.ResolveFallingTerrainContact(
+                        this,
+                        impactSpeed);
                     if (result == FallingTerrainContactResult.Ignored)
                     {
                         UpdateGroundContact(collision);
@@ -213,7 +216,6 @@ namespace TerrainCollapse
                         beforeVelocity.x,
                         Mathf.Min(beforeVelocity.y, 0f));
 
-                    staticTerrainContacts.Remove(collision.collider);
                     terrainContactInfos.Remove(collision.collider);
 
                     return;

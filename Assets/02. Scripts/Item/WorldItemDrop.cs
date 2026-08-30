@@ -142,7 +142,9 @@ namespace TerrainCollapse
                 isTerrainOverlapCheckPending = true;
         }
 
-        public FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk)
+        public FallingTerrainContactResult ResolveFallingTerrainContact(
+            FallingChunk fallingChunk,
+            float _)
         {
             if (fallingChunk == null || terrainManager == null || terrainManager.IsReady == false)
                 return FallingTerrainContactResult.Ignored;
