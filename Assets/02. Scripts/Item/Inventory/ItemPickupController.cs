@@ -13,11 +13,13 @@ namespace TerrainCollapse
 
         private readonly Collider2D[] overlapHits = new Collider2D[16];
 
+        private TestPlayerController playerController;
         private Collider2D playerCollider;
         private PlayerInventory inventory;
 
         private void Awake()
         {
+            playerController = GetComponent<TestPlayerController>();
             playerCollider = GetComponent<Collider2D>();
             inventory = GetComponent<PlayerInventory>();
 
@@ -27,6 +29,8 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
+            if (playerController.IsDead) return;
+
             ContactFilter2D filter = new ContactFilter2D
             {
                 useLayerMask = true,

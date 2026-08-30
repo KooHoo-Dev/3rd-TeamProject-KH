@@ -27,6 +27,7 @@ namespace TerrainCollapse
         private Vector2 escapeTargetPosition;
         private Vector2 escapeVelocity;
         private bool isEscaping;
+        private bool isSpawnOverlapCheckPending;
         private bool isCollected;
         private float pickupAvailableTime;
 
@@ -60,6 +61,12 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
+            if (isSpawnOverlapCheckPending)
+            {
+                isSpawnOverlapCheckPending = false;
+                ResolveSpawnOverlap();
+            }
+
             if (isEscaping == false) return;
 
             Vector2 position = Vector2.SmoothDamp(
@@ -98,14 +105,15 @@ namespace TerrainCollapse
             {
                 spriteRenderer.color = ItemID switch
                 {
-                    100 => new Color(0.15f, 0.15f, 0.15f),
-                    101 => new Color(0.7f, 0.45f, 0.25f),
+                    101 => new Color(0.15f, 0.15f, 0.15f),
+                    102 => new Color(0.7f, 0.45f, 0.25f),
                     _ => Color.magenta
                 };
             }
 
             gameObject.name = $"WorldItem_{itemDef.Name}_{Quantity}";
             pickupAvailableTime = Time.time + pickupDelay;
+            isSpawnOverlapCheckPending = true;
         }
 
         public FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk)
@@ -119,9 +127,29 @@ namespace TerrainCollapse
             if (resolvedCollapses.Add(fallingChunk.CollapseId) == false)
                 return FallingTerrainContactResult.Escaped;
 
-            if (TryFindNearestEscapeTarget(fallingChunk, out Vector2 targetPosition) == false)
+            if (TryFindNearestEscapeTarget(fallingChunk, true, out Vector2 targetPosition) == false)
                 return FallingTerrainContactResult.Ignored;
 
+            BeginEscape(targetPosition);
+
+            return FallingTerrainContactResult.Escaped;
+        }
+
+        private void ResolveSpawnOverlap()
+        {
+            if (terrainManager == null || terrainManager.IsReady == false) return;
+            if (IsGridSpaceEmpty(itemCollider.bounds)) return;
+
+            if (TryFindNearestEscapeTarget(null, false, out Vector2 targetPosition) == false)
+                return;
+
+            body.position = targetPosition;
+            body.linearVelocity = Vector2.zero;
+            Physics2D.SyncTransforms();
+        }
+
+        private void BeginEscape(Vector2 targetPosition)
+        {
             escapeTargetPosition = targetPosition;
             escapeVelocity = Vector2.zero;
             isEscaping = true;
@@ -129,11 +157,12 @@ namespace TerrainCollapse
             body.gravityScale = 0f;
             body.constraints = RigidbodyConstraints2D.FreezeRotation;
             itemCollider.isTrigger = true;
-
-            return FallingTerrainContactResult.Escaped;
         }
 
-        private bool TryFindNearestEscapeTarget(FallingChunk fallingChunk, out Vector2 targetPosition)
+        private bool TryFindNearestEscapeTarget(
+            FallingChunk fallingChunk,
+            bool isPathCheckRequired,
+            out Vector2 targetPosition)
         {
             targetPosition = body.position;
 
@@ -146,6 +175,7 @@ namespace TerrainCollapse
                 bool hasLeftTarget = TryGetEscapeTarget(
                     leftCell,
                     fallingChunk,
+                    isPathCheckRequired,
                     out Vector2 leftTarget);
 
                 if (distance == 0)
@@ -163,6 +193,7 @@ namespace TerrainCollapse
                 bool hasRightTarget = TryGetEscapeTarget(
                     rightCell,
                     fallingChunk,
+                    isPathCheckRequired,
                     out Vector2 rightTarget);
 
                 if (hasLeftTarget == false && hasRightTarget == false) continue;
@@ -185,6 +216,7 @@ namespace TerrainCollapse
         private bool TryGetEscapeTarget(
             Vector2Int cell,
             FallingChunk fallingChunk,
+            bool isPathCheckRequired,
             out Vector2 targetPosition)
         {
             targetPosition = default;
@@ -200,8 +232,8 @@ namespace TerrainCollapse
                 candidate.center.z);
 
             if (IsGridSpaceEmpty(candidate) == false) return false;
-            if (IsInFallingTerrainPath(candidate, fallingChunk)) return false;
-            if (IsEscapePathClear(safeTargetPosition) == false) return false;
+            if (fallingChunk != null && IsInFallingTerrainPath(candidate, fallingChunk)) return false;
+            if (isPathCheckRequired && IsEscapePathClear(safeTargetPosition) == false) return false;
 
             targetPosition = safeTargetPosition;
 

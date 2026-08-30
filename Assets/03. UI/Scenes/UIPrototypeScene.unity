@@ -1708,7 +1708,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea6c3efad57f4e199d6ca3496741e9f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerHp
-  maxHp: 100
+  maxHp: 10
 --- !u!114 &1971883707
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1723,6 +1723,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.RespawnController
   respawnDelay: 2
   spawnPoint: {fileID: 0}
+  itemDropSpawner: {fileID: 0}
+  deathDropSpreadRadius: 0.3
+  deathDropPickupDelay: 1
 --- !u!114 &1971883708
 MonoBehaviour:
   m_ObjectHideFlags: 0

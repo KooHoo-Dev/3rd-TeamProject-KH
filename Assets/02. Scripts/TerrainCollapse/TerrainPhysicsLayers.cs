@@ -21,8 +21,14 @@ namespace TerrainCollapse
             int terrainLayer = Terrain;
             int itemDropLayer = ItemDrop;
 
+            Physics2D.IgnoreLayerCollision(itemDropLayer, terrainLayer, false);
+
             for (int layer = 0; layer < 32; layer++)
+            {
+                if (layer == terrainLayer) continue;
+
                 Physics2D.IgnoreLayerCollision(itemDropLayer, layer, layer != terrainLayer);
+            }
 
             isDropCollisionConfigured = true;
         }
