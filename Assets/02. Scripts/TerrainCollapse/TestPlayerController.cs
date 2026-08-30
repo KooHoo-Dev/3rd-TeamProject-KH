@@ -98,6 +98,7 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
+            if (isDead) return;
             if (buried) return;
 
             if (terrainInteractionLocked)
