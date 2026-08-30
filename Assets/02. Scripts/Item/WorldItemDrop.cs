@@ -27,7 +27,7 @@ namespace TerrainCollapse
         private Vector2 escapeTargetPosition;
         private Vector2 escapeVelocity;
         private bool isEscaping;
-        private bool isSpawnOverlapCheckPending;
+        private bool isTerrainOverlapCheckPending;
         private bool isCollected;
         private float pickupAvailableTime;
 
@@ -59,12 +59,26 @@ namespace TerrainCollapse
             terrainManager = FindFirstObjectByType<TerrainManager>();
         }
 
+        private void OnEnable()
+        {
+            terrainManager ??= FindFirstObjectByType<TerrainManager>();
+
+            if (terrainManager != null)
+                terrainManager.TerrainChanged += HandleTerrainChanged;
+        }
+
+        private void OnDisable()
+        {
+            if (terrainManager != null)
+                terrainManager.TerrainChanged -= HandleTerrainChanged;
+        }
+
         private void FixedUpdate()
         {
-            if (isSpawnOverlapCheckPending)
+            if (isTerrainOverlapCheckPending)
             {
-                isSpawnOverlapCheckPending = false;
-                ResolveSpawnOverlap();
+                isTerrainOverlapCheckPending = false;
+                ResolveTerrainOverlap();
             }
 
             if (isEscaping == false) return;
@@ -83,6 +97,12 @@ namespace TerrainCollapse
             body.MovePosition(position);
 
             if (position == escapeTargetPosition == false) return;
+
+            if (IsGridSpaceEmptyAt(position) == false)
+            {
+                ResolveTerrainOverlap();
+                return;
+            }
 
             body.linearVelocity = Vector2.zero;
             escapeVelocity = Vector2.zero;
@@ -113,7 +133,13 @@ namespace TerrainCollapse
 
             gameObject.name = $"WorldItem_{itemDef.Name}_{Quantity}";
             pickupAvailableTime = Time.time + pickupDelay;
-            isSpawnOverlapCheckPending = true;
+            isTerrainOverlapCheckPending = true;
+        }
+
+        private void HandleTerrainChanged(TerrainChangeReason reason)
+        {
+            if (reason == TerrainChangeReason.CollapsePlacement)
+                isTerrainOverlapCheckPending = true;
         }
 
         public FallingTerrainContactResult ResolveFallingTerrainContact(FallingChunk fallingChunk)
@@ -135,16 +161,21 @@ namespace TerrainCollapse
             return FallingTerrainContactResult.Escaped;
         }
 
-        private void ResolveSpawnOverlap()
+        private void ResolveTerrainOverlap()
         {
             if (terrainManager == null || terrainManager.IsReady == false) return;
-            if (IsGridSpaceEmpty(itemCollider.bounds)) return;
+            if (IsGridSpaceEmptyAt(body.position)) return;
 
             if (TryFindNearestEscapeTarget(null, false, out Vector2 targetPosition) == false)
                 return;
 
             body.position = targetPosition;
             body.linearVelocity = Vector2.zero;
+            escapeVelocity = Vector2.zero;
+            body.gravityScale = gravityScale;
+            body.constraints = RigidbodyConstraints2D.FreezeRotation;
+            itemCollider.isTrigger = false;
+            isEscaping = false;
             Physics2D.SyncTransforms();
         }
 
@@ -294,6 +325,14 @@ namespace TerrainCollapse
             }
 
             return true;
+        }
+
+        private bool IsGridSpaceEmptyAt(Vector2 position)
+        {
+            Bounds bounds = itemCollider.bounds;
+            bounds.center = new Vector3(position.x, position.y, bounds.center.z);
+
+            return IsGridSpaceEmpty(bounds);
         }
 
         private bool IsEscapePathClear(Vector2 targetPosition)
