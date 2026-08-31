@@ -783,6 +783,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TPHud
       objectReference: {fileID: 0}
+    - target: {fileID: 5328662240680662615, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 7482667652216324306, guid: 2010a9a02fc774578bd86901acf5b4c4, type: 3}
     - target: {fileID: 5677273917082207795, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_AdditionalShaderChannelsFlag
       value: 25
@@ -814,6 +818,10 @@ PrefabInstance:
     - target: {fileID: 7777328348016156745, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 7803401892840059154, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: scrollFocusStepThreshold
+      value: 4.2
       objectReference: {fileID: 0}
     - target: {fileID: 8017121283901639082, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_LocalScale.x

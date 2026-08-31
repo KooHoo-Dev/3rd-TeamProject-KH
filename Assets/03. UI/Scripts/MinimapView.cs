@@ -17,7 +17,8 @@ namespace TerrainCollapse
         [SerializeField, Min(1f)] private float minFullMapZoom = 1f;
         [SerializeField, Min(1f)] private float maxFullMapZoom = 5f;
         [SerializeField, Min(0.1f)] private float fullMapPanMultiplier = 2.5f;
-        [SerializeField, Min(0.01f)] private float fullMapZoomInterval = 0.04f;
+
+        private const float SCROLL_THRESHOLD = 3.5f; // 지도 확대/축소 한 단계로 판정할 휠 누적 델타 기준값
 
         private Texture2D mapTexture;
         private int mapWidth;
@@ -37,7 +38,7 @@ namespace TerrainCollapse
         private Vector2 playerNormalizedPosition;
         private Vector2 fullMapPan;
         private float fullMapZoom = 1f;
-        private float nextFullMapZoomTime;
+        private float fullMapZoomAccumulator;
         private bool hasPlayerNormalizedPosition;
         private bool isFullMapOpen;
 
@@ -182,6 +183,7 @@ namespace TerrainCollapse
             if (mapFrame == null) return;
 
             isFullMapOpen = isOpen;
+            fullMapZoomAccumulator = 0f;
             fullMapDimmer?.SetActive(isFullMapOpen);
 
             if (isFullMapOpen)
@@ -217,17 +219,22 @@ namespace TerrainCollapse
             Mouse mouse = Mouse.current;
             if (mouse == null || mapRect == null) return;
 
-            float scrollY = mouse.scroll.ReadValue().y;
-            if (Mathf.Approximately(scrollY, 0f) == false &&
-                Time.unscaledTime >= nextFullMapZoomTime)
+            fullMapZoomAccumulator += Mathf.Clamp(mouse.scroll.ReadValue().y, -1f, 1f);
+            bool hasZoomChanged = false;
+
+            while (Mathf.Abs(fullMapZoomAccumulator) >= SCROLL_THRESHOLD)
             {
-                float zoomDelta = Mathf.Sign(scrollY) * fullMapZoomStep;
-                fullMapZoom = Mathf.Clamp(
-                    fullMapZoom + zoomDelta,
-                    minFullMapZoom,
-                    Mathf.Max(minFullMapZoom, maxFullMapZoom));
-                nextFullMapZoomTime = Time.unscaledTime + fullMapZoomInterval;
-                FocusFullMapOnPlayer();
+                int scrollDirection = fullMapZoomAccumulator > 0f ? 1 : -1;
+                fullMapZoomAccumulator -= scrollDirection * SCROLL_THRESHOLD;
+
+                if (ZoomFullMapAtCursor(
+                        scrollDirection * fullMapZoomStep,
+                        mouse.position.ReadValue()))
+                    hasZoomChanged = true;
+            }
+
+            if (hasZoomChanged)
+            {
                 ApplyFullMapTransform();
             }
 
@@ -238,6 +245,44 @@ namespace TerrainCollapse
             fullMapPan += mouse.delta.ReadValue() * (fullMapZoom * fullMapPanMultiplier) / scaleFactor;
             ClampFullMapPan();
             ApplyFullMapTransform();
+        }
+
+        private bool ZoomFullMapAtCursor(float zoomDelta, Vector2 screenPosition)
+        {
+            float previousZoom = fullMapZoom;
+            fullMapZoom = Mathf.Clamp(
+                fullMapZoom + zoomDelta,
+                minFullMapZoom,
+                Mathf.Max(minFullMapZoom, maxFullMapZoom));
+
+            if (Mathf.Approximately(previousZoom, fullMapZoom))
+                return false;
+
+            if (TryGetCursorLocalPosition(screenPosition, out Vector2 cursorLocal))
+            {
+                float zoomRatio = fullMapZoom / previousZoom;
+                fullMapPan = cursorLocal - (cursorLocal - fullMapPan) * zoomRatio;
+                ClampFullMapPan();
+            }
+
+            return true;
+        }
+
+        private bool TryGetCursorLocalPosition(
+            Vector2 screenPosition,
+            out Vector2 cursorLocal)
+        {
+            Canvas canvas = GetComponentInParent<Canvas>();
+            Camera eventCamera = canvas != null &&
+                                 canvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? canvas.worldCamera
+                : null;
+
+            return RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                mapFrame,
+                screenPosition,
+                eventCamera,
+                out cursorLocal);
         }
 
         private void ApplyFullMapTransform()
@@ -270,17 +315,6 @@ namespace TerrainCollapse
 
             fullMapPan.x = Mathf.Clamp(fullMapPan.x, -maxPan.x, maxPan.x);
             fullMapPan.y = Mathf.Clamp(fullMapPan.y, -maxPan.y, maxPan.y);
-        }
-
-        private void FocusFullMapOnPlayer()
-        {
-            if (hasPlayerNormalizedPosition == false) return;
-
-            Vector2 mapSize = GetFullMapContentSize() * fullMapZoom;
-            fullMapPan = -Vector2.Scale(
-                playerNormalizedPosition - new Vector2(0.5f, 0.5f),
-                mapSize);
-            ClampFullMapPan();
         }
 
         private Vector2 GetFullMapContentSize()
