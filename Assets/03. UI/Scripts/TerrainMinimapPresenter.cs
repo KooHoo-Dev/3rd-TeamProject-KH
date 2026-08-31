@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TerrainCollapse;
 using UnityEngine;
 
@@ -14,6 +15,7 @@ namespace TerrainCollapse
         [SerializeField] private TerrainMapLoader mapLoader;
         [SerializeField] private TerrainManager terrainManager;
         [SerializeField] private Transform localPlayer;
+        [SerializeField] private PlayerExplorationController explorationController;
 
         [Header("View")]
         [SerializeField] private MinimapView minimapView;
@@ -31,42 +33,38 @@ namespace TerrainCollapse
         [SerializeField] private Color coalColor = new Color(0.12f, 0.13f, 0.15f, 1f);
         [SerializeField] private Color ironColor = new Color(0.82f, 0.34f, 0.12f, 1f);
         [SerializeField] private Color unknownTileColor = Color.magenta;
+        [SerializeField] private Color unexploredColor = Color.black;
 
         private Color32[] pixels;
         private int mapWidth;
         private int mapHeight;
         private bool initialized;
-        private Coroutine refreshRoutine;
 
         public void SetLocalPlayer(Transform playerTransform)
         {
             localPlayer = playerTransform;
+            explorationController?.SetLocalPlayer(playerTransform);
         }
 
         private void Awake()
         {
             if (mapLoader == null) mapLoader = FindFirstObjectByType<TerrainMapLoader>();
             if (terrainManager == null) terrainManager = FindFirstObjectByType<TerrainManager>();
+            if (explorationController == null)
+                explorationController = FindFirstObjectByType<PlayerExplorationController>();
             if (minimapView == null) minimapView = GetComponent<MinimapView>();
         }
 
         private void OnEnable()
         {
-            if (terrainManager == null) return;
-
-            terrainManager.TerrainChanged += HandleTerrainChanged;
+            if (explorationController != null)
+                explorationController.CellsObserved += HandleCellsObserved;
         }
 
         private void OnDisable()
         {
-            if (terrainManager == null)
-            {
-                ClearRefreshRoutine();
-                return;
-            }
-
-            terrainManager.TerrainChanged -= HandleTerrainChanged;
-            ClearRefreshRoutine();
+            if (explorationController != null)
+                explorationController.CellsObserved -= HandleCellsObserved;
         }
 
         private IEnumerator Start()
@@ -101,9 +99,11 @@ namespace TerrainCollapse
         {
             if (mapLoader == null) return false;
             if (terrainManager == null) return false;
+            if (explorationController == null) return false;
             if (minimapView == null) return false;
             if (mapLoader.LoadedMap == null) return false;
             if (terrainManager.IsReady == false) return false;
+            if (explorationController.ExplorationData == null) return false;
 
             return true;
         }
@@ -122,18 +122,14 @@ namespace TerrainCollapse
             UpdateLocalPlayerMarker();
         }
 
-        private void HandleTerrainChanged(TerrainChangeReason _)
+        private void HandleCellsObserved(IReadOnlyList<Vector2Int> cells)
         {
             if (initialized == false) return;
-            if (refreshRoutine == null)
-                refreshRoutine = StartCoroutine(RefreshAtEndOfFrame());
-        }
 
-        private IEnumerator RefreshAtEndOfFrame()
-        {
-            yield return new WaitForEndOfFrame();
-            RefreshMap();
-            refreshRoutine = null;
+            foreach (Vector2Int cell in cells)
+                RefreshCell(cell);
+
+            minimapView.ApplyPixels(pixels);
         }
 
         private void RefreshMap()
@@ -145,20 +141,34 @@ namespace TerrainCollapse
                 for (int x = 0; x < mapWidth; x++)
                 {
                     Vector2Int cell = new Vector2Int(x, y);
-                    int pixelIndex = y * mapWidth + x;
-
-                    if (terrainManager.TryGetTileType(cell, out TerrainTileType type) == false)
-                    {
-                        pixels[pixelIndex] = emptyColor;
-                        continue;
-                    }
-
-                    terrainManager.TryGetResourceID(cell, out int resourceID);
-                    pixels[pixelIndex] = GetTileColor(type, resourceID);
+                    RefreshCell(cell);
                 }
             }
 
             minimapView.ApplyPixels(pixels);
+        }
+
+        private void RefreshCell(Vector2Int cell)
+        {
+            if (cell.x < 0 || cell.x >= mapWidth || cell.y < 0 || cell.y >= mapHeight)
+                return;
+
+            int pixelIndex = cell.y * mapWidth + cell.x;
+
+            if (explorationController.ExplorationData.IsExplored(cell) == false)
+            {
+                pixels[pixelIndex] = unexploredColor;
+                return;
+            }
+
+            if (terrainManager.TryGetTileType(cell, out TerrainTileType type) == false)
+            {
+                pixels[pixelIndex] = emptyColor;
+                return;
+            }
+
+            terrainManager.TryGetResourceID(cell, out int resourceID);
+            pixels[pixelIndex] = GetTileColor(type, resourceID);
         }
 
         private Color32 GetTileColor(TerrainTileType type, int resourceID)
@@ -195,12 +205,5 @@ namespace TerrainCollapse
             minimapView.SetPlayerCell(cell);
         }
 
-        private void ClearRefreshRoutine()
-        {
-            if (refreshRoutine == null) return;
-
-            StopCoroutine(refreshRoutine);
-            refreshRoutine = null;
-        }
     }
 }
