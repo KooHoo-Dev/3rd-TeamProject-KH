@@ -125,6 +125,7 @@ namespace TerrainCollapse
                     Vector2Int cell = centerCell + new Vector2Int(x, y);
 
                     if (explorationData.IsInside(cell) == false) continue;
+                    if (HasLineOfSight(centerCell, cell) == false) continue;
 
                     observedCells.Add(cell);
 
@@ -137,6 +138,49 @@ namespace TerrainCollapse
 
             if (observedCells.Count > 0)
                 CellsObserved?.Invoke(observedCells);
+        }
+
+        private bool HasLineOfSight(Vector2Int origin, Vector2Int target)
+        {
+            int x = origin.x;
+            int y = origin.y;
+            int deltaX = Mathf.Abs(target.x - origin.x);
+            int deltaY = Mathf.Abs(target.y - origin.y);
+            int stepX = origin.x < target.x ? 1 : -1;
+            int stepY = origin.y < target.y ? 1 : -1;
+            int error = deltaX - deltaY;
+
+            while (x != target.x || y != target.y)
+            {
+                int doubledError = error * 2;
+                bool movesX = doubledError > -deltaY;
+                bool movesY = doubledError < deltaX;
+
+                if (movesX && movesY &&
+                    (terrainManager.HasTerrain(new Vector2Int(x + stepX, y)) ||
+                     terrainManager.HasTerrain(new Vector2Int(x, y + stepY))))
+                    return false;
+
+                if (movesX)
+                {
+                    error -= deltaY;
+                    x += stepX;
+                }
+
+                if (movesY)
+                {
+                    error += deltaX;
+                    y += stepY;
+                }
+
+                Vector2Int cell = new(x, y);
+
+                // 시야를 막는 타일 자체는 관측하고, 그 뒤 셀만 제외
+                if (cell == target) return true;
+                if (terrainManager.HasTerrain(cell)) return false;
+            }
+
+            return true;
         }
     }
 }
