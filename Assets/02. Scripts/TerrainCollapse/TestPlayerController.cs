@@ -41,6 +41,7 @@ namespace TerrainCollapse
         private bool isEscaping;
         private bool isClimbing;
         private bool isDead;
+        private bool isDeadFalling;
 
         private float escapePushSpeed;
         private float escapeTargetBodyX;
@@ -98,7 +99,11 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
-            if (isDead) return;
+            if (isDead)
+            {
+                if (isDeadFalling) TickDeadFall();
+                return;
+            }
             if (buried) return;
 
             if (terrainInteractionLocked)
@@ -149,13 +154,39 @@ namespace TerrainCollapse
             body.MovePosition(position);
         }
 
+        private void TickDeadFall()
+        {
+            velocity.x = 0f;
+            velocity.y -= gravity * Time.fixedDeltaTime;
+
+            Vector2 position = body.position;
+            float deltaY = velocity.y * Time.fixedDeltaTime;
+
+            grounded = false;
+
+            Vector2 movement =
+                ResolveMovement(position, Vector2.up, deltaY, ref velocity.y);
+
+            position += movement;
+            body.MovePosition(position);
+
+            // Static 지형에 닿아 수직 이동이 막히면 낙하 종료
+            if (grounded || Mathf.Approximately(velocity.y, 0f))
+            {
+                velocity = Vector2.zero;
+                isDeadFalling = false;
+            }
+        }
+
         /// <summary>사망 상태로 전환하고 매몰/탈출/등반/이동 등 이전 플레이 상태를 모두 정리
         /// 리스폰 타이밍과 체력 복구는 RespawnController가 담당</summary>
         public void EnterDeadState()
         {
             if (isDead) return;
 
+            bool diedWhileBuried = buried;
             isDead = true;
+            isDeadFalling = diedWhileBuried == false;
             
             fallingTerrainInteraction.ResetState();
             fallingTerrainInteraction.enabled = false;
@@ -164,13 +195,15 @@ namespace TerrainCollapse
             terrainInteractionLocked = false;
             grounded = false;
 
-            if (buried)
+            // 매몰 사망: 위치 고정
+            if (diedWhileBuried)
             {
                 velocity = Vector2.zero;
+                body.linearVelocity = Vector2.zero;
+                body.angularVelocity = 0f;
             }
-
-            body.linearVelocity = Vector2.zero;
-            body.angularVelocity = 0f;
+            // 공중 사망: 수평 이동만 제거하고 수직 속도는 유지
+            else velocity.x = 0f;
 
             ClimbStateChanged?.Invoke(false);
 
@@ -197,6 +230,7 @@ namespace TerrainCollapse
             fallingTerrainInteraction.enabled = true;
 
             isDead = false;
+            isDeadFalling = false;
 
             Debug.Log("[Terrain Collapse] Player respawned", this);
         }
