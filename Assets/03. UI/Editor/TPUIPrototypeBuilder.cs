@@ -57,9 +57,15 @@ namespace TerrainCollapse
 
             Sprite previewIcon = AssetDatabase.LoadAssetAtPath<Sprite>(PreviewIconPath);
             GameObject canvasRoot = CreateHudCanvas(font, previewIcon);
-            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(canvasRoot, PrefabPath);
+            GameObject prefab = SaveHudPrefab(canvasRoot);
             Object.DestroyImmediate(canvasRoot);
 
+            return prefab;
+        }
+
+        private static GameObject SaveHudPrefab(GameObject sourceHud)
+        {
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(sourceHud, PrefabPath);
             if (prefab == null)
                 throw new InvalidOperationException($"HUD Prefab 생성에 실패했습니다: {PrefabPath}");
 
@@ -99,7 +105,17 @@ namespace TerrainCollapse
 
             HealthBarView healthBarView = CreateHealthBar(root.transform, font);
             InventoryView inventoryView = CreateInventory(root.transform, font);
-            MinimapView minimapView = CreateMinimap(root.transform, font, out TerrainMinimapPresenter presenter);
+            RectTransform fullMapDimmer = CreateImage(
+                "FullMapDimmer",
+                root.transform,
+                new Color(0f, 0f, 0f, 0.72f));
+            StretchToParent(fullMapDimmer, 0f);
+            fullMapDimmer.gameObject.SetActive(false);
+
+            MinimapView minimapView = CreateMinimap(
+                root.transform,
+                fullMapDimmer.gameObject,
+                out TerrainMinimapPresenter presenter);
 
             HudPrototypeDriver preview = root.AddComponent<HudPrototypeDriver>();
             SetBool(preview, "previewEnabled", false);
@@ -108,6 +124,10 @@ namespace TerrainCollapse
             SetObjectReference(preview, "coalIcon", previewIcon);
             SetObjectReference(preview, "ironOreIcon", previewIcon);
             SetObjectReference(presenter, "minimapView", minimapView);
+
+            PlayerInventoryHudPresenter inventoryPresenter =
+                root.AddComponent<PlayerInventoryHudPresenter>();
+            SetObjectReference(inventoryPresenter, "inventoryView", inventoryView);
 
             return root;
         }
@@ -220,21 +240,13 @@ namespace TerrainCollapse
 
         private static MinimapView CreateMinimap(
             Transform parent,
-            TMP_FontAsset font,
+            GameObject fullMapDimmer,
             out TerrainMinimapPresenter presenter)
         {
-            RectTransform panel = CreatePanel("MinimapPanel", parent);
-            SetAnchoredRect(panel, Vector2.one, Vector2.one, Vector2.one,
-                new Vector2(-30f, -30f), new Vector2(340f, 390f));
-
-            CreateText("Title", panel, font, "MINIMAP", 27f, FontStyles.Bold,
-                TextAlignmentOptions.Center, new Vector2(0f, -12f), new Vector2(300f, 34f),
-                new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-
-            RectTransform mapFrame = CreateImage("MapFrame", panel, TrackColor);
-            SetAnchoredRect(mapFrame, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0.5f, 1f), new Vector2(0f, -56f), new Vector2(304f, 316f));
-            AddOutline(mapFrame.gameObject, BorderColor, 2f);
+            RectTransform mapFrame = CreatePanel("MapFrame", parent);
+            SetAnchoredRect(mapFrame, Vector2.one, Vector2.one, Vector2.one,
+                new Vector2(-30f, -30f), new Vector2(340f, 340f));
+            mapFrame.gameObject.AddComponent<RectMask2D>();
 
             GameObject mapObject = new(
                 "MapImage",
@@ -260,15 +272,23 @@ namespace TerrainCollapse
             MinimapView view = mapObject.AddComponent<MinimapView>();
             SetObjectReference(view, "mapImage", mapImage);
             SetObjectReference(view, "playerMarker", markerRect);
+            SetObjectReference(view, "mapFrame", mapFrame);
+            SetObjectReference(view, "fullMapDimmer", fullMapDimmer);
 
-            presenter = panel.gameObject.AddComponent<TerrainMinimapPresenter>();
+            presenter = mapFrame.gameObject.AddComponent<TerrainMinimapPresenter>();
             SetObjectReference(presenter, "minimapView", view);
             return view;
         }
 
         private static void CreatePrototypeScene(GameObject prefab)
         {
-            Scene scene = EditorSceneManager.OpenScene(SourceScenePath, OpenSceneMode.Single);
+            string scenePath = AssetDatabase.LoadAssetAtPath<SceneAsset>(
+                PrototypeScenePath) != null
+                ? PrototypeScenePath
+                : SourceScenePath;
+            Scene scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+            RemoveExistingHud(scene);
+
             GameObject instance = PrefabUtility.InstantiatePrefab(prefab, scene) as GameObject;
             if (instance == null)
                 throw new InvalidOperationException("TPHud Prefab 인스턴스 생성에 실패했습니다.");
@@ -286,10 +306,55 @@ namespace TerrainCollapse
             SetObjectReference(presenter, "mapLoader", mapLoader);
             SetObjectReference(presenter, "terrainManager", terrainManager);
             SetObjectReference(presenter, "localPlayer", player != null ? player.transform : null);
+            ReconnectPrototypeReferences(player, instance, terrainManager);
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (EditorSceneManager.SaveScene(scene, PrototypeScenePath) == false)
                 throw new InvalidOperationException($"UI 프로토타입 씬 저장에 실패했습니다: {PrototypeScenePath}");
+        }
+
+        private static void RemoveExistingHud(Scene scene)
+        {
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                string assetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root);
+                if (assetPath != PrefabPath && root.name != "TPHud") continue;
+
+                Object.DestroyImmediate(root);
+            }
+        }
+
+        private static void ReconnectPrototypeReferences(
+            GameObject player,
+            GameObject hud,
+            TerrainManager terrainManager)
+        {
+            if (player == null) return;
+
+            InventoryView inventoryView = hud.GetComponentInChildren<InventoryView>(true);
+            PlayerInventory inventory = player.GetComponent<PlayerInventory>();
+            PlayerItemDropController itemDropController =
+                player.GetComponent<PlayerItemDropController>();
+            FallingTerrainInteraction fallingInteraction =
+                player.GetComponent<FallingTerrainInteraction>();
+            RespawnController respawnController =
+                player.GetComponent<RespawnController>();
+            TestPlayerController playerController =
+                player.GetComponent<TestPlayerController>();
+
+            PlayerInventoryHudPresenter inventoryPresenter =
+                hud.GetComponent<PlayerInventoryHudPresenter>();
+
+            SetObjectReference(inventoryPresenter, "inventory", inventory);
+            SetObjectReference(inventoryPresenter, "inventoryView", inventoryView);
+            SetObjectReference(itemDropController, "inventoryView", inventoryView);
+            SetObjectReference(itemDropController, "itemDropSpawner",
+                Object.FindFirstObjectByType<ItemDropSpawner>());
+            SetObjectReference(fallingInteraction, "terrainManager", terrainManager);
+            SetObjectReference(respawnController, "terrainManager", terrainManager);
+            SetObjectReference(playerController, "terrainManager", terrainManager);
+            SetObjectReference(hud.GetComponent<HudPrototypeDriver>(), "playerHp",
+                player.GetComponent<Character.PlayerHp>());
         }
 
         private static RectTransform CreatePanel(string name, Transform parent)

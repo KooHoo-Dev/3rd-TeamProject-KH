@@ -13,10 +13,12 @@ namespace TerrainCollapse
     {
         [SerializeField] private InventorySlotView[] slotViews;
         [SerializeField] private TMP_Text goldText;
-        [SerializeField, Min(0f)] private float scrollFocusInterval = 0.1f;
+
+        private const float SCROLL_THRESHOLD = 4.2f; // 휠 입력 한 단계로 판정할 델타 기준값
 
         private int focusedSlotIndex;
-        private float nextScrollFocusTime;
+        private float scrollFocusAccumulator;
+        private MinimapView minimapView;
 
         public int FocusedSlotIndex => focusedSlotIndex;
         public int FocusedItemID => GetFocusedSlot()?.ItemID ?? -1;
@@ -24,6 +26,11 @@ namespace TerrainCollapse
         public void SetHoldProgress(float progress)
         {
             GetFocusedSlot()?.SetHoldProgress(progress);
+        }
+
+        private void Awake()
+        {
+            minimapView ??= FindFirstObjectByType<MinimapView>();
         }
 
         private void Update()
@@ -47,12 +54,16 @@ namespace TerrainCollapse
 
             Mouse mouse = Mouse.current;
             if (mouse == null) return;
+            if (minimapView.IsFullMapOpen) return;
 
-            float scrollY = mouse.scroll.ReadValue().y;
-            if (Mathf.Approximately(scrollY, 0f) || Time.unscaledTime < nextScrollFocusTime) return;
+            scrollFocusAccumulator += Mathf.Clamp(mouse.scroll.ReadValue().y, -1f, 1f);
 
-            nextScrollFocusTime = Time.unscaledTime + scrollFocusInterval;
-            MoveFocus(scrollY > 0f ? -1 : 1);
+            while (Mathf.Abs(scrollFocusAccumulator) >= SCROLL_THRESHOLD)
+            {
+                int scrollDirection = scrollFocusAccumulator > 0f ? 1 : -1;
+                scrollFocusAccumulator -= scrollDirection * SCROLL_THRESHOLD;
+                MoveFocus(scrollDirection > 0 ? -1 : 1);
+            }
         }
 
         public void Render(

@@ -29,6 +29,8 @@ namespace TerrainCollapse
         private Material fogMaterial;
         private float cellSize;
         private bool initialized;
+        private int mapWidth;
+        private int mapHeight;
 
         private void Awake()
         {
@@ -41,11 +43,13 @@ namespace TerrainCollapse
         private void OnEnable()
         {
             explorationController.CellsExplored += HandleCellsExplored;
+            explorationController.ExplorationRestored += HandleExplorationRestored;
         }
 
         private void OnDisable()
         {
             explorationController.CellsExplored -= HandleCellsExplored;
+            explorationController.ExplorationRestored -= HandleExplorationRestored;
         }
 
         private void CreateFogMaterial()
@@ -60,8 +64,7 @@ namespace TerrainCollapse
 
         private void OnDestroy()
         {
-            foreach (MeshFilter filter in chunkViews.Values)
-                Destroy(filter?.sharedMesh);
+            ClearChunks();
 
             if (fogMaterial != null) Destroy(fogMaterial);
         }
@@ -104,6 +107,8 @@ namespace TerrainCollapse
             TerrainMapFile map = mapLoader.LoadedMap;
 
             cellSize = map.CellSize;
+            mapWidth = map.Width;
+            mapHeight = map.Height;
 
             GameObject root = new("ExplorationFogRoot");
             fogRoot = root.transform;
@@ -278,6 +283,30 @@ namespace TerrainCollapse
             mesh.RecalculateBounds();
 
             return mesh;
+        }
+
+        private void ClearChunks()
+        {
+            foreach (MeshFilter filter in chunkViews.Values)
+            {
+                if (filter == null) continue;
+
+                if (filter.sharedMesh != null)
+                    Destroy(filter.sharedMesh);
+
+                Destroy(filter.gameObject);
+            }
+
+            chunkViews.Clear();
+            dirtyChunks.Clear();
+        }
+
+        private void HandleExplorationRestored()
+        {
+            if (initialized == false) return;
+
+            ClearChunks();
+            BuildAllChunks(mapWidth, mapHeight);
         }
     }
 }

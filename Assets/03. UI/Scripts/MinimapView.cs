@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace TerrainCollapse
@@ -8,10 +9,80 @@ namespace TerrainCollapse
     {
         [SerializeField] private RawImage mapImage;
         [SerializeField] private RectTransform playerMarker;
+        [SerializeField, Min(1)] private int visibleRadius = 6;
+        [SerializeField] private RectTransform mapFrame;
+        [SerializeField] private GameObject fullMapDimmer;
+        [SerializeField] private Vector2 fullMapSize = new(900f, 900f);
+        [SerializeField, Min(0.1f)] private float fullMapZoomStep = 0.25f;
+        [SerializeField, Min(1f)] private float minFullMapZoom = 1f;
+        [SerializeField, Min(1f)] private float maxFullMapZoom = 5f;
+        [SerializeField, Min(0.1f)] private float fullMapPanMultiplier = 2.5f;
+
+        private const float SCROLL_THRESHOLD = 3.5f; // 지도 확대/축소 한 단계로 판정할 휠 누적 델타 기준값
 
         private Texture2D mapTexture;
         private int mapWidth;
         private int mapHeight;
+        private Rect currentViewUvRect;
+        private Vector2 normalMapFrameAnchoredPosition;
+        private Vector2 normalMapFrameSize;
+        private Vector2 normalMapFrameAnchorMin;
+        private Vector2 normalMapFrameAnchorMax;
+        private Vector2 normalMapFramePivot;
+        private RectTransform mapRect;
+        private Vector2 normalMapAnchorMin;
+        private Vector2 normalMapAnchorMax;
+        private Vector2 normalMapPivot;
+        private Vector2 normalMapAnchoredPosition;
+        private Vector2 normalMapSize;
+        private Vector2 playerNormalizedPosition;
+        private Vector2 fullMapPan;
+        private float fullMapZoom = 1f;
+        private float fullMapZoomAccumulator;
+        private bool hasPlayerNormalizedPosition;
+        private bool isFullMapOpen;
+
+        public bool IsFullMapOpen => isFullMapOpen;
+
+        private void Awake()
+        {
+            mapFrame ??= transform.parent as RectTransform;
+            mapRect = mapImage != null ? mapImage.rectTransform : null;
+
+            if (mapFrame != null)
+            {
+                normalMapFrameAnchoredPosition = mapFrame.anchoredPosition;
+                normalMapFrameSize = mapFrame.sizeDelta;
+                normalMapFrameAnchorMin = mapFrame.anchorMin;
+                normalMapFrameAnchorMax = mapFrame.anchorMax;
+                normalMapFramePivot = mapFrame.pivot;
+                if (mapFrame.GetComponent<RectMask2D>() == null)
+                    mapFrame.gameObject.AddComponent<RectMask2D>();
+            }
+
+            if (mapRect != null)
+            {
+                normalMapAnchorMin = mapRect.anchorMin;
+                normalMapAnchorMax = mapRect.anchorMax;
+                normalMapPivot = mapRect.pivot;
+                normalMapAnchoredPosition = mapRect.anchoredPosition;
+                normalMapSize = mapRect.sizeDelta;
+            }
+
+            fullMapDimmer?.SetActive(false);
+        }
+
+        private void Update()
+        {
+            if (Keyboard.current?.mKey.wasPressedThisFrame == true)
+                ToggleFullMap();
+
+            if (Keyboard.current?.escapeKey.wasPressedThisFrame == true && isFullMapOpen)
+                ToggleFullMap();
+
+            if (isFullMapOpen)
+                HandleFullMapInput();
+        }
 
         public bool Initialize(int width, int height)
         {
@@ -39,6 +110,8 @@ namespace TerrainCollapse
             };
 
             mapImage.texture = mapTexture;
+            currentViewUvRect = new Rect(0f, 0f, 1f, 1f);
+            mapImage.uvRect = currentViewUvRect;
             SetPlayerVisible(false);
             return true;
         }
@@ -63,10 +136,21 @@ namespace TerrainCollapse
 
         public void SetPlayerCell(Vector2Int cell)
         {
-            if (playerMarker == null) return;
+            if (mapWidth <= 0 || mapHeight <= 0)
+            {
+                SetPlayerVisible(false);
+                return;
+            }
 
-            bool isInside = cell.x >= 0 && cell.x < mapWidth &&
-                            cell.y >= 0 && cell.y < mapHeight;
+            Vector2 normalizedPosition = new((cell.x + 0.5f) / mapWidth, (cell.y + 0.5f) / mapHeight);
+
+            SetPlayerNormalizedPosition(normalizedPosition);
+        }
+
+        public void SetPlayerNormalizedPosition(Vector2 normalizedPosition)
+        {
+            bool isInside = normalizedPosition.x >= 0f && normalizedPosition.x <= 1f &&
+                            normalizedPosition.y >= 0f && normalizedPosition.y <= 1f;
 
             if (isInside == false)
             {
@@ -74,14 +158,192 @@ namespace TerrainCollapse
                 return;
             }
 
-            float normalizedX = (cell.x + 0.5f) / mapWidth;
-            float normalizedY = (cell.y + 0.5f) / mapHeight;
-            Vector2 markerAnchor = new Vector2(normalizedX, normalizedY);
+            playerNormalizedPosition = normalizedPosition;
+            hasPlayerNormalizedPosition = true;
+            UpdateViewUvRect();
+
+            float markerX = (normalizedPosition.x - currentViewUvRect.x) / currentViewUvRect.width;
+            float markerY = (normalizedPosition.y - currentViewUvRect.y) / currentViewUvRect.height;
+            Vector2 markerAnchor = new(Mathf.Clamp01(markerX), Mathf.Clamp01(markerY));
 
             playerMarker.anchorMin = markerAnchor;
             playerMarker.anchorMax = markerAnchor;
             playerMarker.anchoredPosition = Vector2.zero;
+
             SetPlayerVisible(true);
+        }
+
+        public void ToggleFullMap()
+        {
+            SetFullMapOpen(isFullMapOpen == false);
+        }
+
+        private void SetFullMapOpen(bool isOpen)
+        {
+            if (mapFrame == null) return;
+
+            isFullMapOpen = isOpen;
+            fullMapZoomAccumulator = 0f;
+            fullMapDimmer?.SetActive(isFullMapOpen);
+
+            if (isFullMapOpen)
+            {
+                fullMapZoom = minFullMapZoom;
+                fullMapPan = Vector2.zero;
+                mapFrame.anchorMin = new Vector2(0.5f, 0.5f);
+                mapFrame.anchorMax = new Vector2(0.5f, 0.5f);
+                mapFrame.pivot = new Vector2(0.5f, 0.5f);
+                mapFrame.anchoredPosition = Vector2.zero;
+                mapFrame.sizeDelta = fullMapSize;
+
+                ApplyFullMapTransform();
+                mapFrame.SetAsLastSibling();
+            }
+            else
+            {
+                mapFrame.anchorMin = normalMapFrameAnchorMin;
+                mapFrame.anchorMax = normalMapFrameAnchorMax;
+                mapFrame.pivot = normalMapFramePivot;
+                mapFrame.anchoredPosition = normalMapFrameAnchoredPosition;
+                mapFrame.sizeDelta = normalMapFrameSize;
+
+                RestoreMinimapTransform();
+            }
+
+            if (hasPlayerNormalizedPosition) SetPlayerNormalizedPosition(playerNormalizedPosition);
+            else UpdateViewUvRect();
+        }
+
+        private void HandleFullMapInput()
+        {
+            Mouse mouse = Mouse.current;
+            if (mouse == null || mapRect == null) return;
+
+            fullMapZoomAccumulator += Mathf.Clamp(mouse.scroll.ReadValue().y, -1f, 1f);
+            bool hasZoomChanged = false;
+
+            while (Mathf.Abs(fullMapZoomAccumulator) >= SCROLL_THRESHOLD)
+            {
+                int scrollDirection = fullMapZoomAccumulator > 0f ? 1 : -1;
+                fullMapZoomAccumulator -= scrollDirection * SCROLL_THRESHOLD;
+
+                if (ZoomFullMapAtCursor(
+                        scrollDirection * fullMapZoomStep,
+                        mouse.position.ReadValue()))
+                    hasZoomChanged = true;
+            }
+
+            if (hasZoomChanged)
+            {
+                ApplyFullMapTransform();
+            }
+
+            if (mouse.middleButton.isPressed == false) return;
+
+            Canvas canvas = GetComponentInParent<Canvas>();
+            float scaleFactor = canvas != null ? canvas.scaleFactor : 1f;
+            fullMapPan += mouse.delta.ReadValue() * (fullMapZoom * fullMapPanMultiplier) / scaleFactor;
+            ClampFullMapPan();
+            ApplyFullMapTransform();
+        }
+
+        private bool ZoomFullMapAtCursor(float zoomDelta, Vector2 screenPosition)
+        {
+            float previousZoom = fullMapZoom;
+            fullMapZoom = Mathf.Clamp(
+                fullMapZoom + zoomDelta,
+                minFullMapZoom,
+                Mathf.Max(minFullMapZoom, maxFullMapZoom));
+
+            if (Mathf.Approximately(previousZoom, fullMapZoom))
+                return false;
+
+            if (TryGetCursorLocalPosition(screenPosition, out Vector2 cursorLocal))
+            {
+                float zoomRatio = fullMapZoom / previousZoom;
+                fullMapPan = cursorLocal - (cursorLocal - fullMapPan) * zoomRatio;
+                ClampFullMapPan();
+            }
+
+            return true;
+        }
+
+        private bool TryGetCursorLocalPosition(
+            Vector2 screenPosition,
+            out Vector2 cursorLocal)
+        {
+            Canvas canvas = GetComponentInParent<Canvas>();
+            Camera eventCamera = canvas != null &&
+                                 canvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? canvas.worldCamera
+                : null;
+
+            return RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                mapFrame,
+                screenPosition,
+                eventCamera,
+                out cursorLocal);
+        }
+
+        private void ApplyFullMapTransform()
+        {
+            if (mapRect == null) return;
+
+            mapRect.anchorMin = new Vector2(0.5f, 0.5f);
+            mapRect.anchorMax = new Vector2(0.5f, 0.5f);
+            mapRect.pivot = new Vector2(0.5f, 0.5f);
+            mapRect.sizeDelta = GetFullMapContentSize() * fullMapZoom;
+            mapRect.anchoredPosition = fullMapPan;
+        }
+
+        private void RestoreMinimapTransform()
+        {
+            if (mapRect == null) return;
+
+            mapRect.anchorMin = normalMapAnchorMin;
+            mapRect.anchorMax = normalMapAnchorMax;
+            mapRect.pivot = normalMapPivot;
+            mapRect.anchoredPosition = normalMapAnchoredPosition;
+            mapRect.sizeDelta = normalMapSize;
+        }
+
+        private void ClampFullMapPan()
+        {
+            Vector2 contentSize = GetFullMapContentSize();
+            Vector2 mapSize = contentSize * fullMapZoom;
+            Vector2 maxPan = (mapSize - contentSize) * 0.5f;
+
+            fullMapPan.x = Mathf.Clamp(fullMapPan.x, -maxPan.x, maxPan.x);
+            fullMapPan.y = Mathf.Clamp(fullMapPan.y, -maxPan.y, maxPan.y);
+        }
+
+        private Vector2 GetFullMapContentSize()
+        {
+            return fullMapSize + normalMapSize;
+        }
+
+        private void UpdateViewUvRect()
+        {
+            if (mapImage == null) return;
+            if (mapWidth <= 0 || mapHeight <= 0) return;
+
+            if (isFullMapOpen)
+            {
+                currentViewUvRect = new Rect(0f, 0f, 1f, 1f);
+                mapImage.uvRect = currentViewUvRect;
+                return;
+            }
+
+            float visibleCellCount = visibleRadius * 2 + 1;
+
+            float viewWidth = Mathf.Min(1f, visibleCellCount / mapWidth);
+            float viewHeight = Mathf.Min(1f, visibleCellCount / mapHeight);
+
+            float viewX = Mathf.Clamp(playerNormalizedPosition.x - viewWidth * 0.5f, 0f, 1f - viewWidth);
+            float viewY = Mathf.Clamp(playerNormalizedPosition.y - viewHeight * 0.5f, 0f, 1f - viewHeight);
+
+            currentViewUvRect = new Rect(viewX, viewY, viewWidth, viewHeight);
+            mapImage.uvRect = currentViewUvRect;
         }
 
         public void SetPlayerVisible(bool visible)
@@ -104,4 +366,5 @@ namespace TerrainCollapse
             mapTexture = null;
         }
     }
+
 }

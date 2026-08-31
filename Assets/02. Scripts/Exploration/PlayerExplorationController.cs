@@ -30,6 +30,7 @@ namespace TerrainCollapse
 
         public event Action<IReadOnlyList<Vector2Int>> CellsExplored;
         public event Action<IReadOnlyList<Vector2Int>> CellsObserved;
+        public event Action ExplorationRestored;
 
         public void SetLocalPlayer(Transform playerTransform)
         {
@@ -182,8 +183,8 @@ namespace TerrainCollapse
                 bool movesY = doubledError < deltaX;
 
                 if (movesX && movesY &&
-                    (terrainManager.HasTerrain(new Vector2Int(x + stepX, y)) ||
-                     terrainManager.HasTerrain(new Vector2Int(x, y + stepY))))
+                    terrainManager.HasTerrain(new Vector2Int(x + stepX, y)) &&
+                    terrainManager.HasTerrain(new Vector2Int(x, y + stepY)))
                     return false;
 
                 if (movesX)
@@ -205,6 +206,21 @@ namespace TerrainCollapse
                 if (terrainManager.HasTerrain(cell)) return false;
             }
 
+            return true;
+        }
+
+        public ExplorationSnapshot CreateSnapshot()
+        {
+            return explorationData?.CreateSnapshot();
+        }
+
+        public bool TryApplySnapshot(ExplorationSnapshot snapshot)
+        {
+            if (initialized == false) return false;
+            if (explorationData.TryApplySnapshot(snapshot) == false) return false;
+
+            ExplorationRestored?.Invoke();
+            needsVisionRefresh = true;
             return true;
         }
     }
