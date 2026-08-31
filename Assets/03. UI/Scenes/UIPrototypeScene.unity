@@ -1790,7 +1790,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea6c3efad57f4e199d6ca3496741e9f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerHp
-  maxHp: 1000
+  maxHp: 500
 --- !u!114 &1971883707
 MonoBehaviour:
   m_ObjectHideFlags: 0

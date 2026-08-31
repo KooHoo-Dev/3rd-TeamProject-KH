@@ -23,6 +23,7 @@ namespace TerrainCollapse
         private ExplorationMapData explorationData;
         private bool initialized;
         private bool hasLastExplorationCell;
+        private bool needsVisionRefresh;
         private Vector2Int lastExplorationCell;
 
         public ExplorationMapData ExplorationData => explorationData;
@@ -34,6 +35,7 @@ namespace TerrainCollapse
         {
             localPlayer = playerTransform;
             hasLastExplorationCell = false;
+            needsVisionRefresh = true;
         }
 
         private void Awake()
@@ -66,6 +68,20 @@ namespace TerrainCollapse
             }
         }
 
+        private void OnEnable()
+        {
+            if (terrainManager != null)
+                terrainManager.TerrainChanged += HandleTerrainChanged;
+
+            needsVisionRefresh = true;
+        }
+
+        private void OnDisable()
+        {
+            if (terrainManager != null)
+                terrainManager.TerrainChanged -= HandleTerrainChanged;
+        }
+
         private bool CanInitialize()
         {
             if (mapLoader == null) return false;
@@ -84,6 +100,7 @@ namespace TerrainCollapse
             explorationData = new ExplorationMapData(map.Width, map.Height);
             initialized = true;
             hasLastExplorationCell = false;
+            needsVisionRefresh = true;
 
             RefreshPlayerVision();
         }
@@ -101,12 +118,20 @@ namespace TerrainCollapse
                     localPlayer.position,
                     out Vector2Int playerCell) == false) return;
 
-            if (hasLastExplorationCell && playerCell == lastExplorationCell) return;
+            if (hasLastExplorationCell &&
+                playerCell == lastExplorationCell &&
+                needsVisionRefresh == false) return;
 
             lastExplorationCell = playerCell;
             hasLastExplorationCell = true;
+            needsVisionRefresh = false;
 
             ExploreVisionRadius(playerCell);
+        }
+
+        private void HandleTerrainChanged(TerrainChangeReason _)
+        {
+            needsVisionRefresh = true;
         }
 
         private void ExploreVisionRadius(Vector2Int centerCell)
