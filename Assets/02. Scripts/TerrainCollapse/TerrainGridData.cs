@@ -30,7 +30,8 @@ namespace TerrainCollapse
             Vector2Int coord,
             TerrainTileType type,
             int durability,
-            int resourceID = 0)
+            int resourceID = 0,
+            IReadOnlyList<TerrainCellLootEntry> lootEntries = null)
         {
             if (type == TerrainTileType.Empty) return Remove(coord);
             
@@ -38,19 +39,43 @@ namespace TerrainCollapse
             {
                 if (existing.Type == type &&
                     existing.CurrentDurability == durability &&
-                    existing.ResourceID == resourceID)
+                    existing.ResourceID == resourceID &&
+                    AreLootEntriesEqual(existing.LootEntries, lootEntries))
                     return false;
                 
-                existing.ChangeType(type, durability, resourceID);
+                existing.ChangeType(type, durability, resourceID, lootEntries);
                 return true;
             }
             
-            cells.Add(coord, new TerrainCell(coord, type, durability, resourceID));
+            cells.Add(coord, new TerrainCell(
+                coord,
+                type,
+                durability,
+                resourceID,
+                lootEntries));
             
             return true;
         }
 
         public bool SetOccupied(Vector2Int coord, int durability) => SetCell(coord, TerrainTileType.Ground, durability);
+
+        private static bool AreLootEntriesEqual(
+            IReadOnlyList<TerrainCellLootEntry> left,
+            IReadOnlyList<TerrainCellLootEntry> right)
+        {
+            int rightCount = right?.Count ?? 0;
+
+            if (left.Count != rightCount) return false;
+
+            for (int i = 0; i < left.Count; i++)
+            {
+                if (left[i].ItemID != right[i].ItemID ||
+                    left[i].Quantity != right[i].Quantity)
+                    return false;
+            }
+
+            return true;
+        }
 
         public bool TryDamage(
             Vector2Int coord,
@@ -117,7 +142,12 @@ namespace TerrainCollapse
             }
 
             foreach (TerrainCellChange change in batch.Changes)
-                SetCell(change.Coord, change.Type, change.Durability, change.ResourceID);
+                SetCell(
+                    change.Coord,
+                    change.Type,
+                    change.Durability,
+                    change.ResourceID,
+                    change.LootEntries);
             
             Revision = batch.ResultRevision;
             error = string.Empty;
@@ -139,7 +169,8 @@ namespace TerrainCollapse
                     cell.Coord,
                     cell.Type,
                     cell.CurrentDurability,
-                    cell.ResourceID));
+                    cell.ResourceID,
+                    cell.LootEntries));
             
             snapshot.Cells.Sort(TerrainCoordinateComparer.CompareChanges);
             
@@ -155,7 +186,12 @@ namespace TerrainCollapse
             
             if (snapshot.Cells != null)
                 foreach (TerrainCellChange cell in snapshot.Cells)
-                    result.SetCell(cell.Coord, cell.Type, cell.Durability, cell.ResourceID);
+                    result.SetCell(
+                        cell.Coord,
+                        cell.Type,
+                        cell.Durability,
+                        cell.ResourceID,
+                        cell.LootEntries);
             
             result.Revision = snapshot.Revision;
             return result;

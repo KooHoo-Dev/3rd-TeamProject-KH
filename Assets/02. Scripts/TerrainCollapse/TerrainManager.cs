@@ -22,7 +22,8 @@ namespace TerrainCollapse
     {
         Excavation,
         AuthoritativeBatch,
-        CollapsePlacement
+        CollapsePlacement,
+        DeathLootPlacement,
     }
     
     /// <summary>
@@ -52,8 +53,8 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            if (TryGetComponent<TerrainResourceDropSpawner>(out _) == false)
-                gameObject.AddComponent<TerrainResourceDropSpawner>();
+            if (TryGetComponent<TerrainDropSpawner>(out _) == false)
+                gameObject.AddComponent<TerrainDropSpawner>();
         }
 
         public void Configure(TerrainGridWorld world, Camera camera)
@@ -138,6 +139,44 @@ namespace TerrainCollapse
             return true;
         }
 
+        public bool CanCreateDeathLootCell(Vector2Int cell)
+        {
+            if (IsReady == false) return false;
+            if (TryGetTileType(cell, out TerrainTileType type) &&
+                (type == TerrainTileType.Bedrock || type == TerrainTileType.DeathLoot))
+                return false;
+
+            return true;
+        }
+
+        public bool TryCreateDeathLootCell(
+            Vector2Int cell,
+            IReadOnlyList<TerrainCellLootEntry> lootEntries)
+        {
+            if (CanCreateDeathLootCell(cell) == false) return false;
+            if (lootEntries == null || lootEntries.Count == 0) return false;
+
+            TerrainDataManager dataManager = TerrainDataManager.Instance;
+            dataManager.EnsureLoaded();
+
+            if (dataManager.TryGetTileDef(
+                    TerrainTileType.DeathLoot,
+                    out TerrainTileDef tileDef) == false)
+                return false;
+
+            if (terrainWorld.SetCell(
+                    cell,
+                    TerrainTileType.DeathLoot,
+                    tileDef.MaxDurability,
+                    0,
+                    lootEntries) == false)
+                return false;
+
+            TerrainChanged?.Invoke(TerrainChangeReason.DeathLootPlacement);
+
+            return true;
+        }
+
         /// <summary>지정 Grid 좌표의 채굴 가능 지형 제거 요청</summary>
         public TerrainRemoveResult RequestRemoveCell(Vector2Int cell)
         {
@@ -156,7 +195,8 @@ namespace TerrainCollapse
                 cell,
                 targetCell.Type,
                 targetCell.ResourceID,
-                terrainWorld.CellToWorldCenter(cell));
+                terrainWorld.CellToWorldCenter(cell),
+                targetCell.LootEntries);
 
             if (terrainWorld.TryDamageCell(
                     cell,
@@ -231,7 +271,9 @@ namespace TerrainCollapse
             foreach (Vector2Int start in occupiedSnapshot)
             {
                 if (TryGetTileType(start, out TerrainTileType startType) == false ||
-                    startType == TerrainTileType.Bedrock || visited.Add(start) == false)
+                    startType == TerrainTileType.Bedrock ||
+                    startType == TerrainTileType.DeathLoot ||
+                    visited.Add(start) == false)
                     continue;
 
                 List<Vector2Int> group = new();
@@ -257,6 +299,9 @@ namespace TerrainCollapse
                             supported = true;
                             continue;
                         }
+
+                        if (nextType == TerrainTileType.DeathLoot)
+                            continue;
 
                         if (visited.Add(next))
                             queue.Enqueue(next);

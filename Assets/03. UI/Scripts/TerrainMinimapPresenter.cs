@@ -184,6 +184,7 @@ namespace TerrainCollapse
                 TerrainTileType.Stone => stoneColor,
                 TerrainTileType.Bedrock => bedrockColor,
                 TerrainTileType.DeepStone => deepStoneColor,
+                TerrainTileType.DeathLoot => Color.red,
                 _ => unknownTileColor
             };
         }

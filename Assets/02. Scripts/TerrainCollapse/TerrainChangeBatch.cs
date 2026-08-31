@@ -18,6 +18,7 @@ namespace TerrainCollapse
         public TerrainTileType Type; // 서버가 확정한 변경 후 타일 타입
         public int Durability;       // 변경 후 현재 내구도, Empty이면 0
         public int ResourceID;       // 타일에 부착된 자원 ID, 자원이 없으면 0
+        public List<TerrainCellLootEntry> LootEntries; // 타일이 보관하는 드롭 항목, 일반 타일이면 비어 있음
 
         /// <summary>좌표와 해당 좌표의 최종 타일 타입으로 변경 항목을 생성</summary>
         /// <param name="coord">변경할 Grid 좌표</param>
@@ -26,12 +27,16 @@ namespace TerrainCollapse
             Vector2Int coord,
             TerrainTileType type,
             int durability = 0,
-            int resourceID = 0)
+            int resourceID = 0,
+            IEnumerable<TerrainCellLootEntry> lootEntries = null)
         {
             Coord = coord;
             Type = type;
             Durability = type == TerrainTileType.Empty ? 0 : Mathf.Max(0, durability);
             ResourceID = type == TerrainTileType.Empty ? 0 : Mathf.Max(0, resourceID);
+            LootEntries = type == TerrainTileType.Empty || lootEntries == null
+                ? new List<TerrainCellLootEntry>()
+                : new List<TerrainCellLootEntry>(lootEntries);
         }
     }
 
