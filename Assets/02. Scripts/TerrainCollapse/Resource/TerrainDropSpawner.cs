@@ -2,11 +2,11 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 자원 타일 파괴 이벤트를 필드 아이템 드롭으로 변환
+    // 지형 셀 파괴 파괴 이벤트를 자원 및 사망 보관 아이템 드롭으로 변환
 
     [RequireComponent(typeof(TerrainManager))]
     [RequireComponent(typeof(ItemDropSpawner))]
-    public sealed class TerrainResourceDropSpawner : MonoBehaviour
+    public sealed class TerrainDropSpawner : MonoBehaviour
     {
         private TerrainManager terrainManager;
         private ItemDropSpawner itemDropSpawner;
@@ -27,21 +27,45 @@ namespace TerrainCollapse
             terrainManager.CellDestroyed -= HandleCellDestroyed;
         }
 
-        private void HandleCellDestroyed(TerrainCellDestroyedInfo destroyedInfo)
+        private void HandleCellDestroyed(
+            TerrainCellDestroyedInfo destroyedInfo)
         {
-            if (destroyedInfo.HasResource == false) return;
+            if (destroyedInfo.TileType == TerrainTileType.DeathLoot)
+            {
+                SpawnDeathLoot(destroyedInfo);
+                return;
+            }
 
+            if (destroyedInfo.HasResource == false)
+                return;
+
+            SpawnResourceLoot(destroyedInfo);
+        }
+
+        private void SpawnDeathLoot(TerrainCellDestroyedInfo destroyedInfo)
+        {
+            foreach (TerrainCellLootEntry loot in destroyedInfo.LootEntries)
+            {
+                if (loot.ItemID <= 0 || loot.Quantity <= 0)
+                    continue;
+
+                itemDropSpawner.TrySpawn(loot.ItemID,
+                    loot.Quantity,
+                    destroyedInfo.WorldPosition,
+                    0f,
+                    out _);
+            }
+        }
+
+        private void SpawnResourceLoot(TerrainCellDestroyedInfo destroyedInfo)
+        {
             TerrainDataManager terrainDataManager = TerrainDataManager.Instance;
             terrainDataManager.EnsureLoaded();
 
             if (terrainDataManager.Resources.TryGet(
                     destroyedInfo.ResourceID,
                     out TerrainResourceDef resourceDef) == false)
-            {
-                Debug.LogWarning(
-                    $"[Terrain Resource] Drop data missing: resource={destroyedInfo.ResourceID}");
                 return;
-            }
 
             itemDropSpawner.TrySpawn(
                 resourceDef.DropItemID,

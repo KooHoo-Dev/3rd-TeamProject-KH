@@ -35,8 +35,8 @@ namespace TerrainCollapse
 
     public sealed class PlayerDeathDropService
     {
-        private const float ITEM_DROP_CHANCE = 0.5f;
-        private const float GOLD_DROP_RATIO = 0.5f;
+        private const float ITEM_DROP_CHANCE = 1f;
+        private const float GOLD_DROP_RATIO = 1f;
 
         private sealed class DeathLootPlan
         {

@@ -53,8 +53,8 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            if (TryGetComponent<TerrainResourceDropSpawner>(out _) == false)
-                gameObject.AddComponent<TerrainResourceDropSpawner>();
+            if (TryGetComponent<TerrainDropSpawner>(out _) == false)
+                gameObject.AddComponent<TerrainDropSpawner>();
         }
 
         public void Configure(TerrainGridWorld world, Camera camera)
