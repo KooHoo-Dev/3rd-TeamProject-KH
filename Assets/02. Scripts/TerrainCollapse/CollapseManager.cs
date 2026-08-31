@@ -110,7 +110,7 @@ namespace TerrainCollapse
             
             SpriteRenderer renderer = cell.GetComponent<SpriteRenderer>();
             renderer.sprite = source.GetTileSprite(type);
-            renderer.color = source.GetTileColor(type, resourceID);
+            renderer.color = source.GetTileColor(type);
             renderer.sortingOrder = 1;
             
             BoxCollider2D collider = cell.GetComponent<BoxCollider2D>();

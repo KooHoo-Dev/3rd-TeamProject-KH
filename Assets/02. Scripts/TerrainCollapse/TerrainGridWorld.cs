@@ -26,7 +26,6 @@ namespace TerrainCollapse
         [SerializeField] private bool isDebugTileColorEnabled;
 #if UNITY_EDITOR
         [SerializeField] private bool isDurabilityTextEnabled;
-        [SerializeField] private bool isDebugResourceColorEnabled = true;
 #endif
         
         private static readonly Vector2Int[] NoCells = new Vector2Int[0];
@@ -66,23 +65,6 @@ namespace TerrainCollapse
             if (isDebugTileColorEnabled) return GetDebugTileColor(type);
             
             return type == TerrainTileType.Bedrock ? Color.black : terrainColor;
-        }
-
-        public Color GetTileColor(TerrainTileType type, int resourceID)
-        {
-#if UNITY_EDITOR
-            if (isDebugResourceColorEnabled)
-            {
-                return resourceID switch
-                {
-                    1 => new Color(0.2f, 0.2f, 0.2f),
-                    2 => new Color(0.85f, 0.4f, 0.15f),
-                    _ => GetTileColor(type)
-                };
-            }
-#endif
-
-            return GetTileColor(type);
         }
 
         private static Color GetDebugTileColor(TerrainTileType type)
@@ -499,7 +481,7 @@ namespace TerrainCollapse
                 Vector2Int local = cells[i] - chunkOrigin;
                 TerrainCell cell = data.GetCellOrNull(cells[i]);
                 Sprite sprite = GetTileSprite(cell.Type);
-                Color color = GetTileColor(cell.Type, cell.ResourceID);
+                Color color = GetTileColor(cell.Type);
                 Rect textureRect = sprite.textureRect;
                 float uMin = textureRect.xMin / sprite.texture.width;
                 float uMax = textureRect.xMax / sprite.texture.width;
