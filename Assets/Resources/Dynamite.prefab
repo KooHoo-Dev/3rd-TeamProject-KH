@@ -44,3 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f542fdfb5a040cb9c42ec75ebb6086e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.DynamiteItem
+  trajectoryLine: {fileID: 0}
+  landingHighlight: {fileID: 0}
+  trajectorySegments: 20
+  explosivePrefab: {fileID: 5800443297313628158, guid: e13d0ad6707377b4eb949e8d55a4cfd6, type: 3}

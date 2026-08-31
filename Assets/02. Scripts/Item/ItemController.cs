@@ -37,7 +37,7 @@ namespace TerrainCollapse
                 SetEquippedItem(itemInstance);
             }
 
-            EquipItemFromTable(2);
+            EquipItemFromTable(1);
         }
 
         private void Update()

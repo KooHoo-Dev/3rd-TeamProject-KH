@@ -1,101 +1,138 @@
-using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace TerrainCollapse
 {
-    /// <summary>
-    /// DynamiteItem이 투척(Use) 시 씬에 생성하는 실제 다이너마이트 오브젝트.
-    /// 포물선 비행 -> 뇌관(퓨즈) 대기 -> 폭발(범위 채굴) 순으로 동작한다.
-    /// </summary>
-    public class DynamiteProjectile : MonoBehaviour
+    public class DynamiteItem : Item
     {
-        [Header("VFX (Optional)")]
-        [SerializeField] private GameObject explosionEffectPrefab;
+        [Header("Preview Settings")]
+        [SerializeField] private LineRenderer trajectoryLine; // 투척 예상 경로선
+        [SerializeField] private GameObject landingHighlight; // 착탄 지점 하이라이트
+        [SerializeField, Min(2)] private int trajectorySegments = 20; // 경로선 정밀도
 
-        public void Launch(
-            TerrainManager manager,
-            Vector3 startPos,
-            Vector3 landingPos,
-            Vector2Int landingCell,
-            float arcHeight,
-            float throwDuration,
-            float fuseTime,
-            int explosionRadius,
-            int explosionPower)
+        [Header("Throw Settings")]
+        [SerializeField] private DynamiteExplosive explosivePrefab; // 투척되는 실제 폭발물 프리팹
+
+        private GameObject highlightInstance;
+
+        public override void Init(ItemDef def)
         {
-            StartCoroutine(ThrowRoutine(manager, startPos, landingPos, landingCell,
-                arcHeight, throwDuration, fuseTime, explosionRadius, explosionPower));
+            base.Init(def);
+
+            if (highlightInstance == null && landingHighlight != null)
+            {
+                highlightInstance = Instantiate(landingHighlight, transform);
+                highlightInstance.SetActive(false);
+            }
+
+            void SetupLineRenderer()
+            {
+                if (trajectoryLine == null)
+                    trajectoryLine = gameObject.AddComponent<LineRenderer>();
+
+                // 1. 점 개수 및 공간 좌표계 설정 (포물선 표현을 위해 다수의 점 사용)
+                trajectoryLine.positionCount = trajectorySegments;
+                trajectoryLine.useWorldSpace = true;
+
+                // 2. 두께 및 정렬 레이어 설정
+                trajectoryLine.startWidth = 0.05f;
+                trajectoryLine.endWidth = 0.05f;
+                trajectoryLine.sortingLayerName = "Foreground";
+                trajectoryLine.sortingOrder = 10;
+
+                // 3. 머티리얼 및 색상 설정 (다이너마이트 느낌의 주황색 계열)
+                trajectoryLine.material = new Material(Shader.Find("Sprites/Default"));
+                trajectoryLine.startColor = new Color(1f, 0.55f, 0f, 0.85f);
+                trajectoryLine.endColor = new Color(1f, 0.2f, 0f, 0.25f);
+
+                // 4. 기본 비활성화
+                trajectoryLine.enabled = false;
+            }
+            SetupLineRenderer();
         }
 
-        private IEnumerator ThrowRoutine(
-            TerrainManager manager,
-            Vector3 startPos,
-            Vector3 landingPos,
-            Vector2Int landingCell,
-            float arcHeight,
-            float throwDuration,
-            float fuseTime,
-            int explosionRadius,
-            int explosionPower)
+        public override void OnUpdatePreview(Vector3 ownerPos, Vector3 targetPos)
         {
-            // 1. 포물선 비행 (DynamiteItem의 프리뷰와 동일한 보간식 사용)
-            float elapsed = 0f;
-            while (elapsed < throwDuration)
+            if (Mouse.current == null || Mouse.current.rightButton.isPressed == false)
             {
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / throwDuration);
-                Vector3 point = Vector3.Lerp(startPos, landingPos, t);
-                point.y += arcHeight * 4f * t * (1f - t);
-                transform.position = point;
-                yield return null;
-            }
-            transform.position = landingPos;
-
-            // 2. 뇌관(퓨즈) 시간 대기
-            yield return new WaitForSeconds(fuseTime);
-
-            // 3. 폭발
-            Explode(manager, landingCell, explosionRadius, explosionPower);
-        }
-
-        private void Explode(TerrainManager manager, Vector2Int center, int radius, int power)
-        {
-            if (explosionEffectPrefab != null)
-            {
-                Instantiate(explosionEffectPrefab, transform.position, Quaternion.identity);
+                OnClearPreview();
+                return;
             }
 
-            if (manager != null)
+            // 1. 마우스 방향 벡터 계산
+            Vector3 throwDirection = (targetPos - ownerPos).normalized;
+
+            // 2. 물리/중력을 반영한 궤적 및 예상 최종 위치 계산
+            Vector3 expectedLandingPos = DrawTrajectory(ownerPos, throwDirection);
+
+            // 3. 착탄 하이라이트 위치 업데이트
+            if (highlightInstance != null)
             {
-                int radiusSqr = radius * radius;
-                for (int dx = -radius; dx <= radius; dx++)
-                {
-                    for (int dy = -radius; dy <= radius; dy++)
-                    {
-                        // 원형 범위만 채굴 (사각 범위를 원하면 이 체크를 제거)
-                        if (dx * dx + dy * dy > radiusSqr) continue;
-
-                        Vector2Int cell = new Vector2Int(center.x + dx, center.y + dy);
-                        ExecuteDigPower(manager, cell, power);
-                    }
-                }
+                highlightInstance.transform.position = expectedLandingPos;
+                highlightInstance.SetActive(true);
             }
-
-            Destroy(gameObject);
         }
 
         /// <summary>
-        /// PickaxeItem.ExecuteDigPower와 동일한 방식으로 한 셀에 채굴 명령을 반복 호출한다.
+        /// 마우스 방향과 속도, 중력을 반영하여 시간 경과에 따른 실제 낙하 궤적을 그립니다.
         /// </summary>
-        private void ExecuteDigPower(TerrainManager manager, Vector2Int cell, int digPower)
+        private Vector3 DrawTrajectory(Vector3 startPos, Vector3 direction)
         {
-            for (int i = 0; i < digPower; i++)
+            trajectoryLine.enabled = true;
+            trajectoryLine.positionCount = trajectorySegments;
+
+            // DynamiteExplosive에 설정한 속도 및 퓨즈 타임과 동일한 값을 사용합니다.
+            float throwSpeed = 6f; // DynamteExplosive의 throwSpeed와 맞춤
+            float timeStep = 0.05f; // 점 사이의 시간 간격 (시뮬레이션 정밀도)
+    
+            // Rigidbody2D 물리를 사용하는 경우 Physics2D.gravity.y를, 
+            // 아니면 직접 정의한 중력값(예: -9.81f)을 사용하세요.
+            Vector3 gravity = Physics2D.gravity; 
+
+            Vector3 currentPos = startPos;
+            Vector3 velocity = direction * throwSpeed;
+
+            for (int i = 0; i < trajectorySegments; i++)
             {
-                TerrainRemoveResult result = manager.RequestRemoveCell(cell);
-                if (result == TerrainRemoveResult.NotMineable ||
-                    result == TerrainRemoveResult.EmptyCell ||
-                    result == TerrainRemoveResult.Removed) break;
+                trajectoryLine.SetPosition(i, currentPos);
+
+                // 물리 등가속도 운동 공식: pos = pos + v*dt + 0.5*g*dt^2
+                currentPos += velocity * timeStep + gravity * (0.5f * (timeStep * timeStep));
+                velocity += gravity * timeStep;
             }
+
+            // 예상 최종 위치 반환 (하이라이트 표시용)
+            return currentPos;
         }
+
+        public override void OnClearPreview()
+        {
+            if (trajectoryLine != null)
+                trajectoryLine.enabled = false;
+
+            if (highlightInstance != null)
+                highlightInstance.SetActive(false);
+        }
+
+        // 좌클릭 시 ItemController에 의해 호출됨 -> 실제 투척 실행
+        public override void Use(Vector3 ownerPos, Vector3 targetPos)
+        {
+            if (explosivePrefab == null)
+            {
+                Debug.LogWarning("[DynamiteItem] explosivePrefab이 설정되지 않아 투척할 수 없습니다.");
+                return;
+            }
+
+            // 마우스 위치 - 플레이어 위치 (방향 벡터)
+            Vector3 throwDirection = (targetPos - ownerPos).normalized;
+
+            DynamiteExplosive thrown = Instantiate(explosivePrefab, ownerPos, Quaternion.identity);
+            // targetPos 대신 throwDirection을 넘겨줍니다.
+            thrown.Launch(ownerPos, throwDirection, Def.DynamiteData.Value);
+
+            OnClearPreview();
+        }
+        
     }
 }

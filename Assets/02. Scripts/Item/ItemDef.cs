@@ -25,7 +25,7 @@ namespace TerrainCollapse
         public int DigPower;
 
         // 다이너마이트 전용 데이터
-        public int ExplosionRadius;
+        public float ExplosionRadius;
         public int ExplosionPower;
         public float FuseTime;
     }
@@ -40,10 +40,10 @@ namespace TerrainCollapse
 
     public struct DynamiteInfo
     {
-        public int Radius { get; }
+        public float Radius { get; }
         public int Power { get; }
         public float FuseTime { get; }
-        public DynamiteInfo(int radius, int power, float fuseTime) => (Radius, Power, FuseTime) = (radius, power, fuseTime);
+        public DynamiteInfo(float radius, int power, float fuseTime) => (Radius, Power, FuseTime) = (radius, power, fuseTime);
     }
 
     public class ItemDef
