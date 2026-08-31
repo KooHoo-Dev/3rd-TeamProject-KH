@@ -182,8 +182,8 @@ namespace TerrainCollapse
                 bool movesY = doubledError < deltaX;
 
                 if (movesX && movesY &&
-                    (terrainManager.HasTerrain(new Vector2Int(x + stepX, y)) ||
-                     terrainManager.HasTerrain(new Vector2Int(x, y + stepY))))
+                    terrainManager.HasTerrain(new Vector2Int(x + stepX, y)) &&
+                    terrainManager.HasTerrain(new Vector2Int(x, y + stepY)))
                     return false;
 
                 if (movesX)

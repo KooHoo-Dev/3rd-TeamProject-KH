@@ -8,10 +8,12 @@ namespace TerrainCollapse
     {
         [SerializeField] private RawImage mapImage;
         [SerializeField] private RectTransform playerMarker;
+        [SerializeField, Min(1)] private int visibleRadius = 6;
 
         private Texture2D mapTexture;
         private int mapWidth;
         private int mapHeight;
+        private Rect currentViewUvRect;
 
         public bool Initialize(int width, int height)
         {
@@ -39,6 +41,8 @@ namespace TerrainCollapse
             };
 
             mapImage.texture = mapTexture;
+            currentViewUvRect = new Rect(0f, 0f, 1f, 1f);
+            mapImage.uvRect = currentViewUvRect;
             SetPlayerVisible(false);
             return true;
         }
@@ -63,10 +67,21 @@ namespace TerrainCollapse
 
         public void SetPlayerCell(Vector2Int cell)
         {
-            if (playerMarker == null) return;
+            if (mapWidth <= 0 || mapHeight <= 0)
+            {
+                SetPlayerVisible(false);
+                return;
+            }
 
-            bool isInside = cell.x >= 0 && cell.x < mapWidth &&
-                            cell.y >= 0 && cell.y < mapHeight;
+            Vector2 normalizedPosition = new((cell.x + 0.5f) / mapWidth, (cell.y + 0.5f) / mapHeight);
+
+            SetPlayerNormalizedPosition(normalizedPosition);
+        }
+
+        public void SetPlayerNormalizedPosition(Vector2 normalizedPosition)
+        {
+            bool isInside = normalizedPosition.x >= 0f && normalizedPosition.x <= 1f &&
+                            normalizedPosition.y >= 0f && normalizedPosition.y <= 1f;
 
             if (isInside == false)
             {
@@ -74,14 +89,36 @@ namespace TerrainCollapse
                 return;
             }
 
-            float normalizedX = (cell.x + 0.5f) / mapWidth;
-            float normalizedY = (cell.y + 0.5f) / mapHeight;
-            Vector2 markerAnchor = new Vector2(normalizedX, normalizedY);
+            UpdateViewUvRect(normalizedPosition);
+
+            float markerX = (normalizedPosition.x - currentViewUvRect.x) / currentViewUvRect.width;
+            float markerY = (normalizedPosition.y - currentViewUvRect.y) / currentViewUvRect.height;
+            Vector2 markerAnchor = new(Mathf.Clamp01(markerX), Mathf.Clamp01(markerY));
 
             playerMarker.anchorMin = markerAnchor;
             playerMarker.anchorMax = markerAnchor;
             playerMarker.anchoredPosition = Vector2.zero;
+
             SetPlayerVisible(true);
+        }
+
+        private void UpdateViewUvRect(Vector2 normalizedPosition)
+        {
+            float visibleCellCount = visibleRadius * 2 + 1;
+
+            float viewWidth = Mathf.Min(1f, visibleCellCount / mapWidth);
+            float viewHeight = Mathf.Min(1f, visibleCellCount / mapHeight);
+
+            float viewX = Mathf.Clamp(normalizedPosition.x - viewWidth * 0.5f, 0f, 1f - viewWidth);
+            float viewY = Mathf.Clamp(normalizedPosition.y - viewHeight * 0.5f, 0f, 1f - viewHeight);
+
+            currentViewUvRect = new Rect(
+                viewX,
+                viewY,
+                viewWidth,
+                viewHeight);
+
+            mapImage.uvRect = currentViewUvRect;
         }
 
         public void SetPlayerVisible(bool visible)

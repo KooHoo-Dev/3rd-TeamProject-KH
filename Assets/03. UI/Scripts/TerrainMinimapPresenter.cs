@@ -197,14 +197,27 @@ namespace TerrainCollapse
                 return;
             }
 
-            if (terrainManager.TryWorldToCell(localPlayer.position, out Vector2Int cell) == false)
+            TerrainMapFile loadedMap = mapLoader.LoadedMap;
+
+            if (loadedMap == null)
             {
                 minimapView.SetPlayerVisible(false);
                 return;
             }
 
-            minimapView.SetPlayerCell(cell);
-        }
+            float mapWorldWidth = loadedMap.Width * loadedMap.CellSize;
+            float mapWorldHeight = loadedMap.Height * loadedMap.CellSize;
 
+            float normalizedX = Mathf.InverseLerp(
+                loadedMap.Origin.x,
+                loadedMap.Origin.x + mapWorldWidth,
+                localPlayer.position.x);
+            float normalizedY = Mathf.InverseLerp(
+                loadedMap.Origin.y,
+                loadedMap.Origin.y + mapWorldHeight,
+                localPlayer.position.y);
+
+            minimapView.SetPlayerNormalizedPosition(new Vector2(normalizedX, normalizedY));
+        }
     }
 }

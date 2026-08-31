@@ -716,6 +716,10 @@ PrefabInstance:
       propertyPath: m_TextStyleHashCode
       value: -1183493901
       objectReference: {fileID: 0}
+    - target: {fileID: 260133392666380022, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: visibleRadius
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 260795540212273457, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
