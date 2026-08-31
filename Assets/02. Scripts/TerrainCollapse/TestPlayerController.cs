@@ -41,6 +41,7 @@ namespace TerrainCollapse
         private bool isEscaping;
         private bool isClimbing;
         private bool isDead;
+        private bool justRespawned;
 
         private float escapePushSpeed;
         private float escapeTargetBodyX;

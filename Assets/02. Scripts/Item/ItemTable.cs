@@ -51,7 +51,7 @@ namespace TerrainCollapse
                     itemDto.SpriteKey = cells[6];
                     itemDto.PickaxeRange = float.Parse(cells[7]);
                     itemDto.DigPower  = int.Parse(cells[8]);
-                    itemDto.ExplosionRadius = float.Parse(cells[9]);
+                    itemDto.ExplosionRadius = int.Parse(cells[9]);
                     itemDto.ExplosionPower = int.Parse(cells[10]);
                     
                     rows.Add(itemDto);
