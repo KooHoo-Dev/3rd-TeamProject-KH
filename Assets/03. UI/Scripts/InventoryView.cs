@@ -17,6 +17,7 @@ namespace TerrainCollapse
 
         private int focusedSlotIndex;
         private float nextScrollFocusTime;
+        private MinimapView minimapView;
 
         public int FocusedSlotIndex => focusedSlotIndex;
         public int FocusedItemID => GetFocusedSlot()?.ItemID ?? -1;
@@ -24,6 +25,11 @@ namespace TerrainCollapse
         public void SetHoldProgress(float progress)
         {
             GetFocusedSlot()?.SetHoldProgress(progress);
+        }
+
+        private void Awake()
+        {
+            minimapView ??= FindFirstObjectByType<MinimapView>();
         }
 
         private void Update()
@@ -47,6 +53,7 @@ namespace TerrainCollapse
 
             Mouse mouse = Mouse.current;
             if (mouse == null) return;
+            if (minimapView.IsFullMapOpen) return;
 
             float scrollY = mouse.scroll.ReadValue().y;
             if (Mathf.Approximately(scrollY, 0f) || Time.unscaledTime < nextScrollFocusTime) return;
