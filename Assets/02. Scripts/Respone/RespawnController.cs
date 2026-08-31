@@ -15,10 +15,7 @@ namespace TerrainCollapse
         [SerializeField, Min(0f)] private float respawnDelay = 2f;
         [SerializeField] private Transform spawnPoint;
 
-        [Header("Death Drop Settings")]
-        [SerializeField] private ItemDropSpawner itemDropSpawner;
-        [SerializeField, Min(0f)] private float deathDropSpreadRadius = 0.3f;
-        [SerializeField, Min(0f)] private float deathDropPickupDelay = 1f;
+        [SerializeField] private TerrainManager terrainManager;
 
         private TestPlayerController playerController;
         private PlayerHp playerHp;
@@ -35,17 +32,13 @@ namespace TerrainCollapse
             playerController = GetComponent<TestPlayerController>();
             playerHp = GetComponent<PlayerHp>();
             inventory = GetComponent<PlayerInventory>();
+
+            terrainManager ??= FindFirstObjectByType<TerrainManager>();
+            deathDropService = new PlayerDeathDropService();
         }
 
         private void Start()
         {
-            itemDropSpawner ??= FindFirstObjectByType<ItemDropSpawner>();
-
-            deathDropService = new PlayerDeathDropService(
-                itemDropSpawner,
-                deathDropSpreadRadius,
-                deathDropPickupDelay);
-
             spawnPosition = spawnPoint != null
                 ? spawnPoint.position
                 : playerController.CurrentPosition;
@@ -63,8 +56,18 @@ namespace TerrainCollapse
 
         private void HandleDied()
         {
-            deathDropService.DropInventory(inventory, playerController.CurrentPosition);
-            playerController.EnterDeadState();
+            bool isDeathLootCreated = false;
+
+            if (terrainManager.TryWorldToCell(
+                    playerController.CurrentPosition, out Vector2Int deathCell))
+            {
+                isDeathLootCreated = deathDropService.TryStoreInventory(
+                    inventory,
+                    terrainManager,
+                    deathCell);
+            }
+
+            playerController.EnterDeadState(isDeathLootCreated);
             PlayerDied?.Invoke();
 
             if (respawnRoutine != null) StopCoroutine(respawnRoutine);

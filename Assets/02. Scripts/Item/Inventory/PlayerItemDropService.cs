@@ -38,25 +38,46 @@ namespace TerrainCollapse
         private const float ITEM_DROP_CHANCE = 0.5f;
         private const float GOLD_DROP_RATIO = 0.5f;
 
-        private readonly ItemDropSpawner itemDropSpawner;
-        private readonly float dropSpreadRadius;
-        private readonly float pickupDelay;
-
-        public PlayerDeathDropService(
-            ItemDropSpawner itemDropSpawner,
-            float dropSpreadRadius,
-            float pickupDelay)
+        private sealed class DeathLootPlan
         {
-            this.itemDropSpawner = itemDropSpawner;
-            this.dropSpreadRadius = dropSpreadRadius;
-            this.pickupDelay = pickupDelay;
+            public List<TerrainCellLootEntry> LootEntries { get; } = new();
+            public List<TerrainCellLootEntry> RemoveEntries { get; } = new();
         }
 
-        public void DropInventory(IItemInventory inventory, Vector2 deathPosition)
+        public bool TryStoreInventory(
+            IItemInventory inventory,
+            TerrainManager terrainManager,
+            Vector2Int deathCell)
         {
-            if (inventory == null) return;
-            if (DataManager.Instance == null) return;
+            if (inventory == null || terrainManager == null) return false;
+            if (DataManager.Instance == null) return false;
 
+            DeathLootPlan plan = CreateLootPlan(inventory);
+
+            if (plan.RemoveEntries.Count == 0) return false;
+
+            // 실제 보관할 항목이 있을 때만 타일 생성 가능 여부 검사
+            if (plan.LootEntries.Count > 0 &&
+                terrainManager.CanCreateDeathLootCell(deathCell) == false)
+                return false;
+
+            if (TryRemoveEntries(inventory, plan.RemoveEntries) == false)
+                return false;
+
+            // 드롭 확률 판정 결과 보관할 항목이 없으면 전부 삭제 후 종료
+            if (plan.LootEntries.Count == 0) return false;
+
+            if (terrainManager.TryCreateDeathLootCell(deathCell, plan.LootEntries))
+                return true;
+
+            RestoreEntries(inventory, plan.RemoveEntries);
+
+            return false;
+        }
+
+        private static DeathLootPlan CreateLootPlan(IItemInventory inventory)
+        {
+            DeathLootPlan plan = new();
             List<KeyValuePair<int, int>> items = new(inventory.Quantities);
 
             foreach (KeyValuePair<int, int> item in items)
@@ -64,72 +85,59 @@ namespace TerrainCollapse
                 if (item.Value <= 0) continue;
 
                 if (DataManager.Instance.ItemTable.TryGet(item.Key, out ItemDef itemDef) == false)
-                {
-                    Debug.LogWarning(
-                        $"[Death Drop] Item data missing: itemID={item.Key}");
-
                     continue;
-                }
+
+                // 드롭 여부와 관계없이 사망 시 기존 수량은 모두 소모
+                plan.RemoveEntries.Add(new TerrainCellLootEntry(item.Key, item.Value));
 
                 if (itemDef.Type == ItemType.Gold)
                 {
-                    DropGold(inventory, item.Key, item.Value, deathPosition);
+                    int droppedGold = Mathf.FloorToInt(item.Value * GOLD_DROP_RATIO);
+
+                    if (droppedGold > 0)
+                        plan.LootEntries.Add(new TerrainCellLootEntry(item.Key, droppedGold));
+
                     continue;
                 }
 
-                DropNormalItem(inventory, item.Key, item.Value, deathPosition);
+                if (Random.value < ITEM_DROP_CHANCE)
+                    plan.LootEntries.Add(new TerrainCellLootEntry(item.Key, item.Value));
+
             }
+
+            return plan;
         }
 
-        private void DropNormalItem(
+        private static bool TryRemoveEntries(
             IItemInventory inventory,
-            int itemID,
-            int quantity,
-            Vector2 deathPosition)
+            IReadOnlyList<TerrainCellLootEntry> entries)
         {
-            bool isDropped = Random.value < ITEM_DROP_CHANCE;
-
-            if (isDropped)
+            for (int i = 0; i < entries.Count; i++)
             {
-                TryDrop(inventory, itemID, quantity, deathPosition);
-                return;
+                TerrainCellLootEntry entry = entries[i];
+
+                if (inventory.TryRemove(entry.ItemID, entry.Quantity))
+                    continue;
+
+                for (int index = 0; index < i; index++)
+                {
+                    TerrainCellLootEntry restored = entries[index];
+                    inventory.TryAdd(restored.ItemID, restored.Quantity);
+                }
+
+                return false;
             }
 
-            inventory.TryRemove(itemID, quantity);
+            return true;
         }
 
-        private void DropGold(
+        private static void RestoreEntries(
             IItemInventory inventory,
-            int goldItemID,
-            int goldAmount,
-            Vector2 deathPosition)
+            IReadOnlyList<TerrainCellLootEntry> entries)
         {
-            int dropAmount = Mathf.FloorToInt(goldAmount * GOLD_DROP_RATIO);
-
-            if (dropAmount > 0)
-                TryDrop(inventory, goldItemID, dropAmount, deathPosition);
-
-            int remainingGold = inventory.GetQuantity(goldItemID);
-            if (remainingGold > 0)
-                inventory.TryRemove(goldItemID, remainingGold);
+            foreach (TerrainCellLootEntry entry in entries)
+                inventory.TryAdd(entry.ItemID, entry.Quantity);
         }
 
-        private void TryDrop(
-            IItemInventory inventory,
-            int itemID,
-            int quantity,
-            Vector2 deathPosition)
-        {
-            if (inventory.TryRemove(itemID, quantity) == false)
-                return;
-
-            Vector2 dropPosition =
-                deathPosition + new Vector2(Random.Range(-dropSpreadRadius, dropSpreadRadius), 0f);
-
-            if (itemDropSpawner?.TrySpawn(itemID, quantity, dropPosition, pickupDelay, out _) == true)
-                return;
-
-            inventory.TryAdd(itemID, quantity);
-        }
     }
 }

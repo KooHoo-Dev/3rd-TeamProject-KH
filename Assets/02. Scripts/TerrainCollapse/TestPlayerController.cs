@@ -180,13 +180,13 @@ namespace TerrainCollapse
 
         /// <summary>사망 상태로 전환하고 매몰/탈출/등반/이동 등 이전 플레이 상태를 모두 정리
         /// 리스폰 타이밍과 체력 복구는 RespawnController가 담당</summary>
-        public void EnterDeadState()
+        public void EnterDeadState(bool isPositionLocked = false)
         {
             if (isDead) return;
 
             bool diedWhileBuried = buried;
             isDead = true;
-            isDeadFalling = diedWhileBuried == false;
+            isDeadFalling = isPositionLocked == false && diedWhileBuried == false;
             
             fallingTerrainInteraction.ResetState();
             fallingTerrainInteraction.enabled = false;
@@ -195,8 +195,8 @@ namespace TerrainCollapse
             terrainInteractionLocked = false;
             grounded = false;
 
-            // 매몰 사망: 위치 고정
-            if (diedWhileBuried)
+            // 매몰 또는 사망 보관 타일 생성: 위치 고정
+            if (diedWhileBuried || isPositionLocked)
             {
                 velocity = Vector2.zero;
                 body.linearVelocity = Vector2.zero;

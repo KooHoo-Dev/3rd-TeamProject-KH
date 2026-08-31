@@ -58,6 +58,8 @@ namespace TerrainCollapse
 
         public Color GetTileColor(TerrainTileType type)
         {
+            if (type == TerrainTileType.DeathLoot) return Color.red;
+
             TerrainTileDefinition definition = tileCatalog?.Get(type);
             
             if (definition != null) return definition.Color;
@@ -91,6 +93,7 @@ namespace TerrainCollapse
                 TerrainTileType.Stone => new Color(0.55f, 0.58f, 0.62f),
                 TerrainTileType.Bedrock => new Color(0.05f, 0.05f, 0.05f),
                 TerrainTileType.DeepStone => new Color(0.28f, 0.3f, 0.38f),
+                TerrainTileType.DeathLoot => Color.red,
                 _ => Color.magenta
             };
 
@@ -288,10 +291,16 @@ namespace TerrainCollapse
             Vector2Int coord,
             TerrainTileType type,
             int durability,
-            int resourceID = 0)
+            int resourceID = 0,
+            IReadOnlyList<TerrainCellLootEntry> lootEntries = null)
         {
             if (data == null) return false;
-            if (data.SetCell(coord, type, durability, resourceID) == false) return false;
+            if (data.SetCell(
+                    coord,
+                    type,
+                    durability,
+                    resourceID,
+                    lootEntries) == false) return false;
             
             MarkCellDirty(coord);
             resourceViewManager.RefreshCell(this, coord);
