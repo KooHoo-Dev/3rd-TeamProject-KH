@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace TerrainCollapse
@@ -43,6 +44,41 @@ namespace TerrainCollapse
         private int GetIndex(Vector2Int cell)
         {
             return cell.y * Width + cell.x;
+        }
+
+        public ExplorationSnapshot CreateSnapshot()
+        {
+            ExplorationSnapshot snapshot = new()
+            {
+                MapWidth = Width,
+                MapHeight = Height
+            };
+
+            for (int index = 0; index < exploredCells.Length; index++)
+            {
+                if (exploredCells[index] == false) continue;
+
+                snapshot.ExploredCellIndices.Add(index);
+            }
+
+            return snapshot;
+        }
+
+        public bool TryApplySnapshot(ExplorationSnapshot snapshot)
+        {
+            if (snapshot == null) return false;
+            if (snapshot.MapWidth != Width || snapshot.MapHeight != Height) return false;
+
+            Array.Clear(exploredCells, 0, exploredCells.Length);
+
+            foreach (int index in snapshot.ExploredCellIndices)
+            {
+                if (index < 0 || index >= exploredCells.Length) continue;
+
+                exploredCells[index] = true;
+            }
+
+            return true;
         }
     }
 }

@@ -57,14 +57,14 @@ namespace TerrainCollapse
 
         private void OnEnable()
         {
-            if (explorationController != null)
-                explorationController.CellsObserved += HandleCellsObserved;
+            explorationController.CellsObserved += HandleCellsObserved;
+            explorationController.ExplorationRestored += RefreshMap;
         }
 
         private void OnDisable()
         {
-            if (explorationController != null)
-                explorationController.CellsObserved -= HandleCellsObserved;
+            explorationController.CellsObserved -= HandleCellsObserved;
+            explorationController.ExplorationRestored -= RefreshMap;
         }
 
         private IEnumerator Start()
