@@ -36,6 +36,7 @@ namespace TerrainCollapse
         }
 
         private readonly List<Vector2Int> localCells = new();
+        private readonly List<Vector2Int> sourceCells = new();
         private readonly List<TerrainTileType> cellTypes = new();
         private readonly List<int> cellDurabilities = new();
         private readonly List<int> cellResourceIDs = new();
@@ -61,6 +62,7 @@ namespace TerrainCollapse
         public bool IsExpired => expired;
         public bool IsComplete => settled || expired;
         public IReadOnlyList<Vector2Int> LocalCells => localCells;
+        public IReadOnlyList<Vector2Int> SourceCells => sourceCells;
         public IReadOnlyList<TerrainTileType> CellTypes => cellTypes;
         public IReadOnlyList<int> CellDurabilities => cellDurabilities;
         public IReadOnlyList<int> CellResourceIDs => cellResourceIDs;
@@ -83,6 +85,7 @@ namespace TerrainCollapse
         }
 
         public void Configure(
+            IReadOnlyList<Vector2Int> originalCells,
             IReadOnlyList<Vector2Int> cells,
             IReadOnlyList<TerrainTileType> types,
             IReadOnlyList<int> durabilities,
@@ -91,6 +94,8 @@ namespace TerrainCollapse
             long id,
             float minimumY)
         {
+            sourceCells.Clear();
+            sourceCells.AddRange(originalCells);
             localCells.Clear();
             localCells.AddRange(cells);
             cellTypes.Clear();

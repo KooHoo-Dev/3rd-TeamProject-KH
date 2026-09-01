@@ -22,6 +22,9 @@ namespace TerrainCollapse
         [Header("Scene References")]
         [SerializeField] private TerrainGridWorld terrainWorld;
         [SerializeField] private TerrainManager terrainManager;
+        [SerializeField] private CollapseManager collapseManager;
+        [SerializeField] private ItemDropSpawner itemDropSpawner;
+        [SerializeField] private PlayerInventory playerInventory;
 
         [SerializeField] private TestPlayerController localPlayer;
         [SerializeField, Min(1f)] private float positionSendRate = 10f;
@@ -33,19 +36,23 @@ namespace TerrainCollapse
         private readonly ConcurrentQueue<string> outgoingJson = new();
         private readonly ConcurrentQueue<Action> mainThreadActions = new();
         private readonly SemaphoreSlim sendSignal = new(0);
-        private readonly HashSet<long> pendingExcavations = new();
+        private readonly HashSet<string> pendingWorldItemPickups = new();
         private ClientWebSocket socket;
         private CancellationTokenSource cancellation;
         private Task receiveTask;
         private Task sendTask;
         private long nextRequestId;
+        private long pendingExcavationId;
         private bool hasTerrainSnapshot;
         private bool handshakeComplete;
+        private long pendingCollapsePlacementId;
 
         public static RoomClient Instance { get; private set; }
         public bool IsConnected => socket?.State == WebSocketState.Open;
         public bool IsAuthoritativeTerrainMode => IsConnected && hasTerrainSnapshot;
         public MapSessionDescriptor MapSession { get; private set; }
+        public TerrainSnapshot CurrentTerrainSnapshot { get; private set; }
+        public event Action<TerrainSnapshot> TerrainSnapshotLoaded;
 
         private void Awake()
         {
@@ -56,6 +63,24 @@ namespace TerrainCollapse
                 return;
             }
             Instance = this;
+            if (collapseManager == null)
+                collapseManager = FindFirstObjectByType<CollapseManager>();
+            if (itemDropSpawner == null)
+                itemDropSpawner = FindFirstObjectByType<ItemDropSpawner>();
+            if (playerInventory == null && localPlayer != null)
+                playerInventory = localPlayer.GetComponent<PlayerInventory>();
+        }
+
+        private void OnEnable()
+        {
+            if (collapseManager != null)
+                collapseManager.PlacementProposed += HandlePlacementProposed;
+        }
+
+        private void OnDisable()
+        {
+            if (collapseManager != null)
+                collapseManager.PlacementProposed -= HandlePlacementProposed;
         }
 
         private async void Start()
@@ -107,6 +132,7 @@ namespace TerrainCollapse
             // 이전 연결에서 전송하지 못한 패킷은 새 연결의 hello보다 먼저 보내면 안 된다.
             outgoingJson.Clear();
             hasTerrainSnapshot = false;
+            CurrentTerrainSnapshot = null;
             hasSentPosition = false;
             handshakeComplete = false;
             cancellation = new CancellationTokenSource();
@@ -135,6 +161,7 @@ namespace TerrainCollapse
             cancellation = null;
             socket = null;
             hasTerrainSnapshot = false;
+            CurrentTerrainSnapshot = null;
             hasSentPosition = false;
             handshakeComplete = false;
             source?.Cancel();
@@ -151,37 +178,66 @@ namespace TerrainCollapse
             }
             source?.Dispose();
             outgoingJson.Clear();
-            pendingExcavations.Clear();
+            pendingExcavationId = 0;
+            pendingWorldItemPickups.Clear();
+            pendingCollapsePlacementId = 0;
         }
 
-        public bool RequestExcavation(Vector2Int targetCell, int damageAmount)
+        public bool RequestExcavation(Vector2Int targetCell, int itemId, int damageAmount)
         {
             if (IsAuthoritativeTerrainMode == false)
             {
                 Debug.LogWarning("[RoomClient] 지형 Snapshot을 받기 전이거나 서버에 연결되어 있지 않아 채굴 요청을 보내지 않았습니다.", this);
                 return false;
             }
-            if (pendingExcavations.Count > 0)
+            if (pendingExcavationId > 0)
             {
                 Debug.Log("[RoomClient] 이전 채굴 요청의 서버 확정을 기다리는 중입니다.", this);
                 return false;
             }
-
+            // 낙하 중인 Chunk는 로컬 물리 표현일 뿐이며 서버 지형 Revision을 점유하지 않는다.
+            // 실제 배치 요청을 서버가 처리 중인 짧은 구간에만 다음 채굴 요청을 직렬화한다.
+            if (pendingCollapsePlacementId > 0)
+            {
+                Debug.Log("[RoomClient] 낙하 지형의 서버 병합 확정을 기다리는 중입니다.", this);
+                return false;
+            }
             long requestId = Interlocked.Increment(ref nextRequestId);
-            pendingExcavations.Add(requestId);
+            pendingExcavationId = requestId;
             if (Send(new TerrainExcavationRequest
             {
                 ClientRequestID = requestId,
                 ExpectedTerrainRevision = terrainManager.Revision,
                 TargetCell = new GridCoord(targetCell.x, targetCell.y),
+                ItemID = itemId,
                 DamageAmount = Mathf.Max(1, damageAmount),
             }) == false)
             {
-                pendingExcavations.Remove(requestId);
+                pendingExcavationId = 0;
                 Debug.LogWarning("[RoomClient] 연결이 종료되어 채굴 요청을 보내지 못했습니다.", this);
                 return false;
             }
             return true;
+        }
+
+        public bool RequestWorldItemPickup(string dropID, Vector2 dropPosition)
+        {
+            if (!IsConnected || !handshakeComplete || string.IsNullOrWhiteSpace(dropID) ||
+                pendingWorldItemPickups.Add(dropID) == false)
+                return false;
+
+            string requestId = $"pickup-{Interlocked.Increment(ref nextRequestId)}";
+            if (Send(new WorldItemPickupRequest
+                {
+                    RequestId = requestId,
+                    DropID = dropID,
+                    X = dropPosition.x,
+                    Y = dropPosition.y,
+                }))
+                return true;
+
+            pendingWorldItemPickups.Remove(dropID);
+            return false;
         }
 
         private Uri BuildRoomUri()
@@ -257,16 +313,28 @@ namespace TerrainCollapse
                 switch (header?.Type)
                 {
                     case NetworkMessageTypes.MapSession:
-                        EnqueueMainThread(() => HandleMapSession(JsonConvert.DeserializeObject<MapSessionMessage>(json)));
+                        EnqueueMessage<MapSessionMessage>(json, HandleMapSession);
                         break;
                     case NetworkMessageTypes.TerrainSnapshot:
-                        EnqueueMainThread(() => HandleTerrainSnapshot(JsonConvert.DeserializeObject<TerrainSnapshotMessage>(json)));
+                        EnqueueMessage<TerrainSnapshotMessage>(json, HandleTerrainSnapshot);
                         break;
                     case NetworkMessageTypes.TerrainChangeBatch:
-                        EnqueueMainThread(() => HandleTerrainBatch(JsonConvert.DeserializeObject<TerrainChangeBatchMessage>(json)));
+                        EnqueueMessage<TerrainChangeBatchMessage>(json, HandleTerrainBatch);
+                        break;
+                    case NetworkMessageTypes.WorldItemSnapshot:
+                        EnqueueMessage<WorldItemSnapshotMessage>(json, HandleWorldItemSnapshot);
+                        break;
+                    case NetworkMessageTypes.WorldItemSpawned:
+                        EnqueueMessage<WorldItemSpawnedMessage>(json, HandleWorldItemSpawned);
+                        break;
+                    case NetworkMessageTypes.WorldItemRemoved:
+                        EnqueueMessage<WorldItemRemovedMessage>(json, HandleWorldItemRemoved);
+                        break;
+                    case NetworkMessageTypes.InventorySnapshot:
+                        EnqueueMessage<InventorySnapshotMessage>(json, HandleInventorySnapshot);
                         break;
                     case "error":
-                        EnqueueMainThread(() => HandleError(JsonConvert.DeserializeObject<ErrorMessage>(json)));
+                        EnqueueMessage<ErrorMessage>(json, HandleError);
                         break;
                     case "welcome":
                         EnqueueMainThread(HandleWelcome);
@@ -276,10 +344,6 @@ namespace TerrainCollapse
                     case "join":
                     case "leave":
                     case "state":
-                    case "world_item.snapshot":
-                    case "world_item.spawned":
-                    case "world_item.removed":
-                    case "inventory.snapshot":
                         break;
                     default:
                         EnqueueMainThread(() => Debug.LogWarning($"[RoomClient] Unsupported message type: {header?.Type}", this));
@@ -290,6 +354,12 @@ namespace TerrainCollapse
         }
 
         private void EnqueueMainThread(Action action) => mainThreadActions.Enqueue(action);
+
+        private void EnqueueMessage<T>(string json, Action<T> handler)
+        {
+            T message = JsonConvert.DeserializeObject<T>(json);
+            EnqueueMainThread(() => handler(message));
+        }
 
         private void HandleMapSession(MapSessionMessage message)
         {
@@ -313,16 +383,22 @@ namespace TerrainCollapse
                 return;
             }
             TerrainSnapshot snapshot = TerrainNetworkAdapter.ToRuntime(message?.Snapshot);
-            if (snapshot == null || snapshot.CellSize <= 0f)
+            if (snapshot == null || snapshot.CellSize <= 0f ||
+                snapshot.MapWidth <= 0 || snapshot.MapHeight <= 0)
             {
                 Debug.LogError("[RoomClient] Invalid terrain snapshot.", this);
                 return;
             }
             terrainWorld.LoadSnapshot(snapshot);
             RespawnLocalPlayerOnSnapshot(snapshot);
+            CurrentTerrainSnapshot = snapshot;
             hasTerrainSnapshot = true;
-            pendingExcavations.Clear();
-            Debug.Log($"[RoomClient] Terrain snapshot loaded: revision={snapshot.Revision}, cells={snapshot.Cells.Count}", this);
+            pendingExcavationId = 0;
+            TerrainSnapshotLoaded?.Invoke(snapshot);
+            Debug.Log(
+                $"[RoomClient] Terrain snapshot loaded: revision={snapshot.Revision}, " +
+                $"size={snapshot.MapWidth}x{snapshot.MapHeight}, cells={snapshot.Cells.Count}",
+                this);
         }
 
         private void HandleTerrainBatch(TerrainChangeBatchMessage message)
@@ -338,23 +414,122 @@ namespace TerrainCollapse
                 Debug.LogError("[RoomClient] Invalid terrain batch.", this);
                 return;
             }
-            pendingExcavations.Remove(batch.CollapseId);
+            if (pendingExcavationId == batch.CollapseId)
+                pendingExcavationId = 0;
+            if (pendingCollapsePlacementId == batch.CollapseId)
+                pendingCollapsePlacementId = 0;
             if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
                 Debug.LogWarning($"[RoomClient] Terrain batch rejected; awaiting snapshot resync. {error}", this);
         }
 
         private void HandleError(ErrorMessage message)
         {
+            // 현재는 채굴 요청을 하나만 허용하므로 terrain 오류는 해당 요청의 종료 응답이다.
+            // 성공 Batch뿐 아니라 실패 응답에서도 반드시 pending을 해제해야 다음 요청이 가능하다.
+            if (message?.Code?.StartsWith("terrain.", StringComparison.Ordinal) == true)
+            {
+                pendingExcavationId = 0;
+                pendingCollapsePlacementId = 0;
+            }
+
+            if (message?.Code?.StartsWith("item.", StringComparison.Ordinal) == true ||
+                message?.Code?.StartsWith("inventory.", StringComparison.Ordinal) == true)
+                pendingWorldItemPickups.Clear();
+
             if (message?.Code == "terrain.revision_mismatch")
             {
                 // 이 Snapshot이 도착할 때까지 이전 Revision으로 새 요청을 보내지 않는다.
                 hasTerrainSnapshot = false;
-                pendingExcavations.Clear();
                 Debug.LogWarning("[RoomClient] Revision mismatch; the server will send a terrain snapshot for resync.", this);
                 return;
             }
 
             Debug.LogError($"[RoomClient] Server error {message?.Code}: {message?.Message}", this);
+        }
+
+        private void HandleWorldItemSnapshot(WorldItemSnapshotMessage message)
+        {
+            if (itemDropSpawner == null)
+            {
+                Debug.LogError("[RoomClient] ItemDropSpawner reference is not assigned.", this);
+                return;
+            }
+
+            pendingWorldItemPickups.Clear();
+            itemDropSpawner.ReplaceNetworkDrops(message?.Drops);
+        }
+
+        private void HandleWorldItemSpawned(WorldItemSpawnedMessage message)
+        {
+            WorldItemDropDto drop = message?.Drop;
+            if (itemDropSpawner == null || drop == null) return;
+
+            itemDropSpawner.TrySpawnNetworkDrop(
+                drop.DropID,
+                drop.ItemID,
+                drop.Quantity,
+                new Vector2(drop.X, drop.Y),
+                out _);
+        }
+
+        private void HandleWorldItemRemoved(WorldItemRemovedMessage message)
+        {
+            if (string.IsNullOrWhiteSpace(message?.DropID)) return;
+
+            pendingWorldItemPickups.Remove(message.DropID);
+            itemDropSpawner?.RemoveNetworkDrop(message.DropID);
+        }
+
+        private void HandleInventorySnapshot(InventorySnapshotMessage message)
+        {
+            if (playerInventory == null || message?.Items == null) return;
+
+            List<KeyValuePair<int, int>> quantities = new(message.Items.Length);
+            foreach (InventoryItemDto item in message.Items)
+                if (item != null) quantities.Add(new KeyValuePair<int, int>(item.ItemID, item.Quantity));
+            playerInventory.ReplaceWithSnapshot(quantities);
+        }
+
+        private void HandlePlacementProposed(TerrainPlacementProposal proposal)
+        {
+            if (proposal == null || IsAuthoritativeTerrainMode == false) return;
+            if (pendingCollapsePlacementId > 0)
+            {
+                Debug.LogWarning("[RoomClient] 이미 지형 붕괴 배치 확정을 기다리고 있습니다.", this);
+                return;
+            }
+
+            TerrainCollapsePlacementRequest request = new()
+            {
+                CollapseID = proposal.CollapseId,
+                ExpectedTerrainRevision = proposal.BaseRevision,
+            };
+
+            foreach (Vector2Int sourceCell in proposal.SourceCells)
+                request.SourceCells.Add(new GridCoord(sourceCell.x, sourceCell.y));
+
+            foreach (TerrainCellChange change in proposal.Changes)
+            {
+                List<TerrainLootEntryDto> lootEntries = new();
+                if (change.LootEntries != null)
+                    foreach (TerrainCellLootEntry entry in change.LootEntries)
+                        lootEntries.Add(new TerrainLootEntryDto(entry.ItemID, entry.Quantity));
+
+                request.Changes.Add(new TerrainCellChangeDto
+                {
+                    Coord = new GridCoord(change.Coord.x, change.Coord.y),
+                    TileTypeID = (int)change.Type,
+                    Durability = change.Durability,
+                    ResourceID = change.ResourceID,
+                    LootEntries = lootEntries,
+                });
+            }
+
+            pendingCollapsePlacementId = proposal.CollapseId;
+            if (Send(request)) return;
+
+            pendingCollapsePlacementId = 0;
+            Debug.LogWarning("[RoomClient] 붕괴 지형 배치 요청을 보내지 못했습니다.", this);
         }
 
         private void QueueConnectionError(string operation, Exception exception)

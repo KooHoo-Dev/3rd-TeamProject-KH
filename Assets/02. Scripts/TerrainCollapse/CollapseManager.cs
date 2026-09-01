@@ -22,7 +22,6 @@ namespace TerrainCollapse
         private readonly HashSet<FallingChunk> rebuildingChunks = new();
         private long nextCollapseId = 1;
 
-        public bool IsRebuilding => rebuildingChunks.Count > 0;
         public bool HasActiveChunks => activeChunks.Count > 0;
         public event Action<long> RebuildCompleted;
         public event Action<TerrainPlacementProposal> PlacementProposed;
@@ -82,6 +81,7 @@ namespace TerrainCollapse
             FallingChunk chunk = root.GetComponent<FallingChunk>();
             float minimumWorldY = source.transform.position.y - outOfBoundsDistance;
             chunk.Configure(
+                cells,
                 localCells,
                 cellTypes,
                 cellDurabilities,

@@ -25,6 +25,9 @@ namespace TerrainCollapse
         /// <summary>로컬 좌표 제안을 현재 Revision 기준의 서버 확정 Batch처럼 즉시 적용</summary>
         private void HandlePlacementProposed(TerrainPlacementProposal proposal)
         {
+            // 네트워크 씬에서는 RoomClient가 서버에 제안하고 서버 Batch만 적용한다.
+            if (RoomClient.Instance != null) return;
+
             uint baseRevision = terrainManager.Revision;
             var batch = new TerrainChangeBatch(
                 proposal.CollapseId,

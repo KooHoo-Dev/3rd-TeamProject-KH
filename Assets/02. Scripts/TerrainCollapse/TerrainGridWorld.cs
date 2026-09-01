@@ -134,7 +134,7 @@ namespace TerrainCollapse
             ClearGeneratedObjects();
             cellSize = map.CellSize;
             transform.position = map.Origin;
-            data = new TerrainGridData(cellSize, map.Origin);
+            data = new TerrainGridData(cellSize, map.Origin, map.Width, map.Height);
 
             for (int y = 0; y < map.Height; y++)
             {

@@ -66,5 +66,30 @@ namespace TerrainCollapse
 
             return true;
         }
+
+        public void ReplaceWithSnapshot(IEnumerable<KeyValuePair<int, int>> snapshot)
+        {
+            Dictionary<int, int> replacement = new();
+            if (snapshot != null)
+            {
+                foreach (KeyValuePair<int, int> item in snapshot)
+                    if (item.Key >= 0 && item.Value > 0)
+                        replacement[item.Key] = item.Value;
+            }
+
+            HashSet<int> changedItemIDs = new(quantities.Keys);
+            changedItemIDs.UnionWith(replacement.Keys);
+
+            foreach (int itemID in changedItemIDs)
+            {
+                int previous = GetQuantity(itemID);
+                int current = replacement.TryGetValue(itemID, out int value) ? value : 0;
+                if (previous == current) continue;
+
+                if (current == 0) quantities.Remove(itemID);
+                else quantities[itemID] = current;
+                ItemChanged?.Invoke(new InventoryItemChange(itemID, previous, current));
+            }
+        }
     }
 }

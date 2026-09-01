@@ -33,6 +33,7 @@ namespace TerrainCollapse
 
         public int ItemID { get; private set; }
         public int Quantity { get; private set; }
+        public string DropID { get; private set; }
 
         private void Awake()
         {
@@ -43,18 +44,12 @@ namespace TerrainCollapse
                 spriteRenderer = GetComponent<SpriteRenderer>();
 
             body = GetComponent<Rigidbody2D>();
-            if (body == null)
-                body = gameObject.AddComponent<Rigidbody2D>();
-
             body.bodyType = RigidbodyType2D.Dynamic;
             body.gravityScale = gravityScale;
             body.constraints = RigidbodyConstraints2D.FreezeRotation;
             body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
             itemCollider = GetComponent<CircleCollider2D>();
-            if (itemCollider == null)
-                itemCollider = gameObject.AddComponent<CircleCollider2D>();
-
             itemCollider.radius = ColliderRadius;
             terrainManager = FindFirstObjectByType<TerrainManager>();
         }
@@ -113,7 +108,11 @@ namespace TerrainCollapse
         }
 
         public void Initialize(ItemDef itemDef, int quantity, float pickupDelay)
+            => Initialize(null, itemDef, quantity, pickupDelay);
+
+        public void Initialize(string dropID, ItemDef itemDef, int quantity, float pickupDelay)
         {
+            DropID = dropID;
             ItemID = itemDef.ID;
             Quantity = Mathf.Max(1, quantity);
             if (itemDef.Sprite != null)
@@ -131,14 +130,17 @@ namespace TerrainCollapse
                 };
             }
 
-            gameObject.name = $"WorldItem_{itemDef.Name}_{Quantity}";
+            gameObject.name = string.IsNullOrEmpty(DropID)
+                ? $"WorldItem_{itemDef.Name}_{Quantity}"
+                : $"WorldItem_{DropID}_{itemDef.Name}_{Quantity}";
             pickupAvailableTime = Time.time + pickupDelay;
             isTerrainOverlapCheckPending = true;
         }
 
         private void HandleTerrainChanged(TerrainChangeReason reason)
         {
-            if (reason == TerrainChangeReason.CollapsePlacement)
+            if (reason == TerrainChangeReason.CollapsePlacement ||
+                reason == TerrainChangeReason.AuthoritativeBatch)
                 isTerrainOverlapCheckPending = true;
         }
 
@@ -390,5 +392,7 @@ namespace TerrainCollapse
 
             return true;
         }
+
+        public bool IsPickupAvailable => Time.time >= pickupAvailableTime && isCollected == false;
     }
 }

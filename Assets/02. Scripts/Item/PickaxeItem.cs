@@ -111,7 +111,8 @@ namespace TerrainCollapse
             if (distance < 0.001f) return false;
 
             direction.Normalize();
-            float effectiveDistance = Mathf.Min(distance, Def.PickaxeData.Value.Range);
+            float allowedRange = Def.PickaxeData.Value.Range;
+            float effectiveDistance = Mathf.Min(distance, allowedRange);
             Vector3 clampedTargetPos = ownerPos + direction * effectiveDistance;
 
             if (manager.TryWorldToCell(clampedTargetPos, out Vector2Int endCell) == false) return false;
@@ -131,7 +132,8 @@ namespace TerrainCollapse
             if (roomClient != null && roomClient.IsAuthoritativeTerrainMode)
             {
                 // 로컬 지형 변경은 서버의 terrain_batch를 받은 경우에만 적용한다.
-                roomClient.RequestExcavation(cell, digPower);
+                PickaxeInfo pickaxe = Def.PickaxeData.Value;
+                roomClient.RequestExcavation(cell, Def.ID, pickaxe.DigPower);
                 return;
             }
 

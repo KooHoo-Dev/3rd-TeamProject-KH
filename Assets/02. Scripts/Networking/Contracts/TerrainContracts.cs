@@ -9,9 +9,15 @@ namespace TerrainCollapse.Networking
     {
         public const string MapSession = "map_session";
         public const string TerrainExcavationRequest = "terrain_excavate";
+        public const string TerrainCollapsePlacementRequest = "terrain_collapse_place";
         public const string TerrainChangeBatch = "terrain_batch";
         public const string TerrainSnapshot = "terrain_snapshot";
         public const string ExplorationSnapshot = "exploration_snapshot";
+        public const string WorldItemSnapshot = "world_item.snapshot";
+        public const string WorldItemSpawned = "world_item.spawned";
+        public const string WorldItemRemoved = "world_item.removed";
+        public const string WorldItemPickup = "world_item.pickup";
+        public const string InventorySnapshot = "inventory.snapshot";
     }
 
     // JSON 메시지의 Type 필드만 먼저 읽기 위한 헤더 데이터
@@ -31,9 +37,23 @@ namespace TerrainCollapse.Networking
         public long ClientRequestID { get; set; }
         public uint ExpectedTerrainRevision { get; set; }
         public GridCoord TargetCell { get; set; }
+        public int ItemID { get; set; }
         public int DamageAmount { get; set; }
 
-        public bool IsValid() => ClientRequestID > 0 && DamageAmount > 0;
+        public bool IsValid() => ClientRequestID > 0 && ItemID >= 0 && DamageAmount > 0;
+    }
+
+    [Serializable]
+    public sealed class TerrainCollapsePlacementRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.TerrainCollapsePlacementRequest;
+        public long CollapseID { get; set; }
+        public uint ExpectedTerrainRevision { get; set; }
+        public List<GridCoord> SourceCells { get; set; } = new();
+        public List<TerrainCellChangeDto> Changes { get; set; } = new();
+
+        public bool IsValid()
+            => CollapseID > 0 && SourceCells.Count > 0 && SourceCells.Count == Changes.Count;
     }
 
     [Serializable]
@@ -74,6 +94,8 @@ namespace TerrainCollapse.Networking
     {
         public string MapSessionID { get; set; }
         public uint Revision { get; set; }
+        public int MapWidth { get; set; }
+        public int MapHeight { get; set; }
         public float CellSize { get; set; }
         public float OriginX { get; set; }
         public float OriginY { get; set; }

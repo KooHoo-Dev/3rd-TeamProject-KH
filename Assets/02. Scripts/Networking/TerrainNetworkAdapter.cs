@@ -14,6 +14,8 @@ namespace TerrainCollapse
             TerrainSnapshot result = new()
             {
                 Revision = source.Revision,
+                MapWidth = source.MapWidth,
+                MapHeight = source.MapHeight,
                 CellSize = source.CellSize,
                 Origin = new Vector2(source.OriginX, source.OriginY),
             };

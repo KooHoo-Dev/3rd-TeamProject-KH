@@ -81,6 +81,8 @@ namespace TerrainCollapse
     public sealed class TerrainSnapshot
     {
         public uint Revision;                         // 스냅샷이 표현하는 지형 Revision
+        public int MapWidth;                          // 전체 Grid 너비
+        public int MapHeight;                         // 전체 Grid 높이
         public float CellSize;                        // Grid 한 칸의 월드 크기
         public Vector2 Origin;                        // Grid 좌표 (0, 0)에 대응하는 월드 원점
         public List<TerrainCellChange> Cells = new(); // 빈 칸을 제외한 전체 타일 목록, 생성 시 결정적으로 정렬

@@ -44,6 +44,16 @@ namespace TerrainCollapse
             {
                 WorldItemDrop itemDrop = overlapHits[i].GetComponent<WorldItemDrop>();
 
+                RoomClient roomClient = RoomClient.Instance;
+                if (roomClient != null && string.IsNullOrEmpty(itemDrop?.DropID) == false)
+                {
+                    if (itemDrop.IsPickupAvailable)
+                        roomClient.RequestWorldItemPickup(itemDrop.DropID, itemDrop.transform.position);
+                    continue;
+                }
+
+                // 아직 서버 드롭 요청이 없는 기존 버리기 기능은 DropID가 없는 로컬 드롭이다.
+                // 이 경우에는 기존 로컬 인벤토리 회수 경로를 유지한다.
                 if (itemDrop?.TryCollect(inventory) == true)
                     Debug.Log($"[Item Pickup] Acquired: itemID={itemDrop.ItemID}, quantity={itemDrop.Quantity}", itemDrop);
             }

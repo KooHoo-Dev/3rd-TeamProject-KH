@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TerrainCollapse
@@ -10,6 +11,7 @@ namespace TerrainCollapse
 
         private WorldItemDrop dropPrefab;
         private Transform dropRoot;
+        private readonly Dictionary<string, WorldItemDrop> networkDrops = new();
 
         private void Awake()
         {
@@ -47,6 +49,62 @@ namespace TerrainCollapse
             itemDrop.Initialize(itemDef, quantity, pickupDelay);
 
             return true;
+        }
+
+        public bool TrySpawnNetworkDrop(
+            string dropID,
+            int itemID,
+            int quantity,
+            Vector2 worldPosition,
+            out WorldItemDrop itemDrop)
+        {
+            itemDrop = null;
+            if (string.IsNullOrWhiteSpace(dropID) || quantity <= 0) return false;
+
+            if (networkDrops.TryGetValue(dropID, out WorldItemDrop existing) && existing != null)
+            {
+                itemDrop = existing;
+                return true;
+            }
+
+            if (DataManager.Instance == null ||
+                DataManager.Instance.ItemTable.TryGet(itemID, out ItemDef itemDef) == false ||
+                dropPrefab == null)
+                return false;
+
+            itemDrop = Instantiate(dropPrefab, worldPosition, Quaternion.identity, dropRoot);
+            itemDrop.Initialize(dropID, itemDef, quantity, 0f);
+            networkDrops[dropID] = itemDrop;
+            return true;
+        }
+
+        public bool RemoveNetworkDrop(string dropID)
+        {
+            if (string.IsNullOrWhiteSpace(dropID) ||
+                networkDrops.Remove(dropID, out WorldItemDrop itemDrop) == false)
+                return false;
+
+            if (itemDrop != null) Destroy(itemDrop.gameObject);
+            return true;
+        }
+
+        public void ReplaceNetworkDrops(IEnumerable<Networking.WorldItemDropDto> drops)
+        {
+            foreach (WorldItemDrop itemDrop in networkDrops.Values)
+                if (itemDrop != null) Destroy(itemDrop.gameObject);
+            networkDrops.Clear();
+
+            if (drops == null) return;
+            foreach (Networking.WorldItemDropDto drop in drops)
+            {
+                if (drop == null) continue;
+                TrySpawnNetworkDrop(
+                    drop.DropID,
+                    drop.ItemID,
+                    drop.Quantity,
+                    new Vector2(drop.X, drop.Y),
+                    out _);
+            }
         }
     }
 }
