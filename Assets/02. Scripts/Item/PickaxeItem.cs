@@ -127,11 +127,27 @@ namespace TerrainCollapse
 
         private void ExecuteDigPower(TerrainManager manager, Vector2Int cell, int digPower)
         {
+            RoomClient roomClient = RoomClient.Instance;
+            if (roomClient != null && roomClient.IsAuthoritativeTerrainMode)
+            {
+                // 로컬 지형 변경은 서버의 terrain_batch를 받은 경우에만 적용한다.
+                roomClient.RequestExcavation(cell, digPower);
+                return;
+            }
+
+            // RoomClient가 씬에 있으면 연결/초기 Snapshot 완료 전에도 로컬 확정을 금지한다.
+            if (roomClient != null)
+            {
+                Debug.LogWarning("[PickaxeItem] 서버 지형 동기화가 준비되지 않아 채굴 요청을 보류했습니다.");
+                return;
+            }
+
+            // RoomClient를 사용하지 않는 기존 오프라인 씬의 동작은 보존한다.
             for (int i = 0; i < digPower; i++)
             {
                 TerrainRemoveResult result = manager.RequestRemoveCell(cell);
-                if (result == TerrainRemoveResult.NotMineable || 
-                    result == TerrainRemoveResult.EmptyCell || 
+                if (result == TerrainRemoveResult.NotMineable ||
+                    result == TerrainRemoveResult.EmptyCell ||
                     result == TerrainRemoveResult.Removed) break;
             }
         }
