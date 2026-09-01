@@ -1210,6 +1210,58 @@ MonoBehaviour:
   fogColor: {r: 0, g: 0, b: 0, a: 0.88235295}
   sortingOrder: 10
   initializationTimeout: 5
+--- !u!1 &1934651726
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1934651728}
+  - component: {fileID: 1934651727}
+  m_Layer: 0
+  m_Name: RoomClient
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1934651727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1934651726}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0f4bb7f712e7474e87b899faeaaf0c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.RoomClient
+  serverUrl: ws://34.50.63.204:5002/
+  roomCode: ABCE
+  nickName: Player
+  connectOnStart: 1
+  terrainWorld: {fileID: 190307189}
+  terrainManager: {fileID: 190307187}
+  localPlayer: {fileID: 1971883697}
+  positionSendRate: 10
+--- !u!4 &1934651728
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1934651726}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -4.8595, y: 4.27425, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1971883696
 GameObject:
   m_ObjectHideFlags: 0
@@ -1467,7 +1519,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea6c3efad57f4e199d6ca3496741e9f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerHp
-  maxHp: 10
+  maxHp: 500
 --- !u!114 &1971883707
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1584,3 +1636,4 @@ SceneRoots:
   - {fileID: 203460948}
   - {fileID: 1873007158}
   - {fileID: 1100222295}
+  - {fileID: 1934651728}
