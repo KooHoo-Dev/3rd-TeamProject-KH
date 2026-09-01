@@ -42,6 +42,7 @@ namespace TerrainCollapse
         private bool isClimbing;
         private bool isDead;
         private bool isDeadFalling;
+        private bool isWaitingForTerrainSnapshot;
 
         private float escapePushSpeed;
         private float escapeTargetBodyX;
@@ -84,7 +85,7 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (isDead || terrainInteractionLocked || isEscaping) return;
+            if (isWaitingForTerrainSnapshot || isDead || terrainInteractionLocked || isEscaping) return;
 
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && (keyboard.leftShiftKey.wasPressedThisFrame || keyboard.rightShiftKey.wasPressedThisFrame))
@@ -99,6 +100,12 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
+            if (isWaitingForTerrainSnapshot)
+            {
+                SetPosition(terrainInteractionLockedPosition);
+                return;
+            }
+
             if (isDead)
             {
                 if (isDeadFalling) TickDeadFall();
@@ -233,6 +240,19 @@ namespace TerrainCollapse
             isDeadFalling = false;
 
             Debug.Log("[Terrain Collapse] Player respawned", this);
+        }
+
+        /// <summary>서버 지형 스냅샷을 받기 전 플레이어 입력과 이동을 고정</summary>
+        public void SetWaitingForTerrainSnapshot(bool isWaiting)
+        {
+            isWaitingForTerrainSnapshot = isWaiting;
+            StopControlledMovement();
+            grounded = false;
+
+            if (isWaiting == false) return;
+
+            terrainInteractionLockedPosition = body.position;
+            SetPosition(terrainInteractionLockedPosition);
         }
 
         public void ToggleClimbState()

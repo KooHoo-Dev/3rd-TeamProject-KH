@@ -8,8 +8,6 @@ namespace TerrainCollapse
 
     internal static class TerrainTableSeedGenerator
     {
-        private const int RESPAWN_AREA_HEIGHT = 7;
-
         private readonly struct EllipseShape
         {
             private readonly TerrainSeedProfileDef profile;
@@ -144,16 +142,16 @@ namespace TerrainCollapse
             int areaMinX = (map.Width - profile.TopOpeningWidth) / 2;
             int areaMaxX = areaMinX + profile.TopOpeningWidth - 1;
             int areaMinY = terrainHeight;
-            int areaMaxY = areaMinY + RESPAWN_AREA_HEIGHT - 1;
+            int areaMaxY = areaMinY + profile.RespawnAreaHeight - 1;
 
-            for (int i = 0; i < map.Width * RESPAWN_AREA_HEIGHT; i++)
+            for (int i = 0; i < map.Width * profile.RespawnAreaHeight; i++)
                 map.Tiles.Add(TerrainTileType.Empty);
 
-            map.Height += RESPAWN_AREA_HEIGHT;
+            map.Height += profile.RespawnAreaHeight;
             map.RespawnAreaOrigin = new Vector2Int(areaMinX, areaMinY);
             map.RespawnAreaSize = new Vector2Int(
                 profile.TopOpeningWidth,
-                RESPAWN_AREA_HEIGHT);
+                profile.RespawnAreaHeight);
             map.RespawnPoints.Clear();
 
             for (int x = areaMinX; x <= areaMaxX; x++)

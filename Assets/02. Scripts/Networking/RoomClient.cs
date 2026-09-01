@@ -39,8 +39,6 @@ namespace TerrainCollapse
         private readonly HashSet<string> pendingWorldItemPickups = new();
         private ClientWebSocket socket;
         private CancellationTokenSource cancellation;
-        private Task receiveTask;
-        private Task sendTask;
         private long nextRequestId;
         private long pendingExcavationId;
         private bool hasTerrainSnapshot;
@@ -67,6 +65,8 @@ namespace TerrainCollapse
                 collapseManager = FindFirstObjectByType<CollapseManager>();
             if (itemDropSpawner == null)
                 itemDropSpawner = FindFirstObjectByType<ItemDropSpawner>();
+            if (localPlayer == null)
+                localPlayer = FindFirstObjectByType<TestPlayerController>();
             if (playerInventory == null && localPlayer != null)
                 playerInventory = localPlayer.GetComponent<PlayerInventory>();
         }
@@ -128,6 +128,7 @@ namespace TerrainCollapse
         public async Task ConnectAsync()
         {
             if (IsConnected) return;
+            localPlayer?.SetWaitingForTerrainSnapshot(true);
             await DisconnectAsync();
             // 이전 연결에서 전송하지 못한 패킷은 새 연결의 hello보다 먼저 보내면 안 된다.
             outgoingJson.Clear();
@@ -142,8 +143,8 @@ namespace TerrainCollapse
             {
                 Uri uri = BuildRoomUri();
                 await socket.ConnectAsync(uri, cancellation.Token);
-                sendTask = SendLoopAsync(socket, cancellation.Token);
-                receiveTask = ReceiveLoopAsync(socket, cancellation.Token);
+                _ = SendLoopAsync(socket, cancellation.Token);
+                _ = ReceiveLoopAsync(socket, cancellation.Token);
                 Send(new { Type = "hello", NickName = nickName });
                 Debug.Log($"[RoomClient] Connected: {uri}", this);
             }
@@ -391,6 +392,7 @@ namespace TerrainCollapse
             }
             terrainWorld.LoadSnapshot(snapshot);
             RespawnLocalPlayerOnSnapshot(snapshot);
+            localPlayer?.SetWaitingForTerrainSnapshot(false);
             CurrentTerrainSnapshot = snapshot;
             hasTerrainSnapshot = true;
             pendingExcavationId = 0;

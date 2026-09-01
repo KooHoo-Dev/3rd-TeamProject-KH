@@ -367,7 +367,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 190307181}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0eafd6b4a5e5541ac8e7d7668829bff1, type: 3}
   m_Name: 
@@ -1245,6 +1245,9 @@ MonoBehaviour:
   connectOnStart: 1
   terrainWorld: {fileID: 190307189}
   terrainManager: {fileID: 190307187}
+  collapseManager: {fileID: 0}
+  itemDropSpawner: {fileID: 0}
+  playerInventory: {fileID: 0}
   localPlayer: {fileID: 1971883697}
   positionSendRate: 10
 --- !u!4 &1934651728

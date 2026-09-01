@@ -51,6 +51,28 @@ namespace TerrainCollapse
         public event Action<TerrainChangeBatch> AuthoritativeBatchApplied;
         public event Action<TerrainCellDestroyedInfo> CellDestroyed;
 
+        /// <summary>현재 로드된 지형의 Grid 범위와 월드 변환 기준을 반환한다.</summary>
+        public bool TryGetMapBounds(
+            out int mapWidth,
+            out int mapHeight,
+            out float cellSize,
+            out Vector2 origin)
+        {
+            mapWidth = 0;
+            mapHeight = 0;
+            cellSize = 0f;
+            origin = default;
+
+            if (IsReady == false) return false;
+
+            TerrainGridData data = terrainWorld.Data;
+            mapWidth = data.MapWidth;
+            mapHeight = data.MapHeight;
+            cellSize = data.CellSize;
+            origin = data.Origin;
+            return mapWidth > 0 && mapHeight > 0 && cellSize > 0f;
+        }
+
         private void Awake()
         {
             if (TryGetComponent<TerrainDropSpawner>(out _) == false)

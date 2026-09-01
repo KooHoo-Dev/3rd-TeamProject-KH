@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -11,7 +10,8 @@ namespace TerrainCollapse
         private const int RENDER_CHUNK_SIZE = 32;
 
         [Header("Sources")]
-        [SerializeField] private TerrainMapLoader mapLoader;
+        [SerializeField] private RoomClient roomClient;
+        [SerializeField] private TerrainManager terrainManager;
         [SerializeField] private PlayerExplorationController explorationController;
 
         [Header("Visual Settings")]
@@ -19,22 +19,21 @@ namespace TerrainCollapse
             new Color(0f, 0f, 0f, 0.88f);
         [SerializeField] private int sortingOrder = 1;
 
-        [Header("Initialization")]
-        [SerializeField, Min(0.1f)] private float initializationTimeout = 5f;
-
         private readonly Dictionary<Vector2Int, MeshFilter> chunkViews = new();
         private readonly HashSet<Vector2Int> dirtyChunks = new();
 
         private Transform fogRoot;
         private Material fogMaterial;
         private float cellSize;
+        private Vector2 mapOrigin;
         private bool initialized;
         private int mapWidth;
         private int mapHeight;
 
         private void Awake()
         {
-            mapLoader ??= FindFirstObjectByType<TerrainMapLoader>();
+            roomClient ??= FindFirstObjectByType<RoomClient>();
+            terrainManager ??= FindFirstObjectByType<TerrainManager>();
             explorationController ??= FindFirstObjectByType<PlayerExplorationController>();
 
             CreateFogMaterial();
@@ -42,14 +41,27 @@ namespace TerrainCollapse
 
         private void OnEnable()
         {
-            explorationController.CellsExplored += HandleCellsExplored;
-            explorationController.ExplorationRestored += HandleExplorationRestored;
+            if (explorationController != null)
+            {
+                explorationController.CellsExplored += HandleCellsExplored;
+                explorationController.ExplorationInitialized += HandleExplorationInitialized;
+                explorationController.ExplorationRestored += HandleExplorationRestored;
+            }
+            if (roomClient != null)
+                roomClient.TerrainSnapshotLoaded += HandleTerrainSnapshotLoaded;
+            TryInitialize();
         }
 
         private void OnDisable()
         {
-            explorationController.CellsExplored -= HandleCellsExplored;
-            explorationController.ExplorationRestored -= HandleExplorationRestored;
+            if (explorationController != null)
+            {
+                explorationController.CellsExplored -= HandleCellsExplored;
+                explorationController.ExplorationInitialized -= HandleExplorationInitialized;
+                explorationController.ExplorationRestored -= HandleExplorationRestored;
+            }
+            if (roomClient != null)
+                roomClient.TerrainSnapshotLoaded -= HandleTerrainSnapshotLoaded;
         }
 
         private void CreateFogMaterial()
@@ -69,54 +81,47 @@ namespace TerrainCollapse
             if (fogMaterial != null) Destroy(fogMaterial);
         }
 
-        private IEnumerator Start()
-        {
-            float elapsed = 0f;
-
-            while (elapsed < initializationTimeout)
-            {
-                if (CanInitialize())
-                {
-                    InitializeFog();
-
-                    yield break;
-                }
-
-                elapsed += Time.unscaledDeltaTime;
-
-                yield return null;
-            }
-
-            Debug.LogError(
-                "[Exploration] 제한 시간 안에 월드 암흑 시야를 초기화하지 못했습니다.",
-                this);
-        }
-
         private bool CanInitialize()
         {
-            if (mapLoader == null) return false;
-            if (explorationController == null) return false;
-            if (mapLoader.LoadedMap == null) return false;
+            if (terrainManager == null || explorationController == null) return false;
             if (explorationController.ExplorationData == null) return false;
 
-            return true;
+            return terrainManager.TryGetMapBounds(out _, out _, out _, out _);
         }
 
         private void InitializeFog()
         {
-            TerrainMapFile map = mapLoader.LoadedMap;
-
-            cellSize = map.CellSize;
-            mapWidth = map.Width;
-            mapHeight = map.Height;
+            if (terrainManager.TryGetMapBounds(
+                    out mapWidth,
+                    out mapHeight,
+                    out cellSize,
+                    out mapOrigin) == false)
+                return;
 
             GameObject root = new("ExplorationFogRoot");
             fogRoot = root.transform;
             fogRoot.SetParent(transform, false);
-            fogRoot.position = map.Origin;
+            fogRoot.position = mapOrigin;
 
-            BuildAllChunks(map.Width, map.Height);
+            BuildAllChunks(mapWidth, mapHeight);
             initialized = true;
+        }
+
+        private void TryInitialize()
+        {
+            if (initialized == false && CanInitialize())
+                InitializeFog();
+        }
+
+        private void HandleTerrainSnapshotLoaded(TerrainSnapshot snapshot)
+        {
+            if (snapshot != null)
+                TryInitialize();
+        }
+
+        private void HandleExplorationInitialized()
+        {
+            TryInitialize();
         }
 
         private void BuildAllChunks(int mapWidth, int mapHeight)
@@ -140,6 +145,11 @@ namespace TerrainCollapse
 
         private void LateUpdate()
         {
+            if (initialized == false)
+            {
+                TryInitialize();
+                return;
+            }
             if (dirtyChunks.Count == 0) return;
 
             foreach (Vector2Int chunkCoord in dirtyChunks)
@@ -158,7 +168,6 @@ namespace TerrainCollapse
         private void RebuildChunk(Vector2Int chunkCoord)
         {
             ExplorationMapData data = explorationController.ExplorationData;
-            TerrainMapFile map = mapLoader.LoadedMap;
             Vector2Int chunkOrigin = chunkCoord * RENDER_CHUNK_SIZE;
             List<Vector2Int> unexploredCells = new();
 
@@ -168,7 +177,7 @@ namespace TerrainCollapse
                     Vector2Int cell = chunkOrigin + new Vector2Int(x, y);
 
                     if (data.IsInside(cell) == false) continue;
-                    if (map.GetCellCenterWorld(cell).y > 0f) continue;
+                    if (mapOrigin.y + (cell.y + 0.5f) * cellSize > 0f) continue;
                     if (data.IsExplored(cell)) continue;
 
                     unexploredCells.Add(cell);
