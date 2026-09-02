@@ -492,7 +492,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.TerrainGridWorld
   cellSize: 1
   terrainSprite: {fileID: 2891247693787962197, guid: b259a0243e064a54ca9fca74c76ef0ff, type: 3}
-  terrainColor: {r: 1, g: 1, b: 1, a: 1}
+  terrainColor: {r: 0.254717, g: 0.20785868, b: 0.20785868, a: 1}
   tileCatalog: {fileID: 0}
   isDebugTileColorEnabled: 1
   isDurabilityTextEnabled: 1
