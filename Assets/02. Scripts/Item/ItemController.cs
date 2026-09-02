@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -12,7 +11,7 @@ namespace TerrainCollapse
     //
     // [인벤토리 연동]
     // PlayerInventory는 건드리지 않고 IItemInventory 계약만 통해 접근합니다.
-    // - 곡괭이: 인벤토리에 실제로 보유 중인 Pickaxe 타입 아이템을 찾아 자동 장착/교체.
+    // - 곡괭이: 직접 검색하지 않고 PickaxeInventory(전용 창구)가 알려주는 대로 장착/교체.
     // - 액티브 아이템: 외부(휠 UI)에서는 itemID만 넘기면 되고, 여기서 보유량을 검증합니다.
     //   사용(우클릭 릴리즈) 시 1개 소모하며, 소진되면 자동 해제됩니다.
     [RequireComponent(typeof(PlayerInventory))]
@@ -21,6 +20,9 @@ namespace TerrainCollapse
         // 둘 다 인벤토리 상태에 따라 런타임에 채워지는 값이라 인스펙터에 노출하지 않습니다.
         private Item pickaxeItem;
         private Item activeItem;
+
+        [Header("곡괭이 보유 정보를 알려주는 전용 창구")]
+        [SerializeField] private PickaxeInventory pickaxeInventory;
 
         private TestPlayerController playerController;
         private IItemInventory inventory;
@@ -35,60 +37,45 @@ namespace TerrainCollapse
 
             if (inventory == null)
                 Debug.LogWarning("[ItemController] IItemInventory 구현체(PlayerInventory)를 찾지 못했습니다.");
+            
+            if (pickaxeInventory == null)
+                Debug.LogWarning("[ItemController] IItemInventory 구현체(pickaxeInventory)를 찾지 못했습니다.");
         }
 
         private void OnEnable()
         {
-            if (inventory != null)
-                inventory.ItemChanged += HandleInventoryChanged;
+            inventory.ItemChanged += HandleInventoryChanged;
+
+            pickaxeInventory.PickaxeChanged += HandlePickaxeChanged;
         }
 
         private void OnDisable()
         {
-            if (inventory != null)
-                inventory.ItemChanged -= HandleInventoryChanged;
+            inventory.ItemChanged -= HandleInventoryChanged;
+
+            pickaxeInventory.PickaxeChanged -= HandlePickaxeChanged;
         }
 
         private void Start()
         {
-            // 예전처럼 itemId=1을 강제 주입하지 않고, 실제 보유 상태를 기준으로 곡괭이를 채웁니다.
-            RefreshPickaxeFromInventory();
+            HandlePickaxeChanged(pickaxeInventory.CurrentDef);
         }
 
-        // 인벤토리 변동(습득/판매/드롭/소모)이 생길 때마다 곡괭이 재계산 + 액티브 아이템 소진 여부 체크
+        // 액티브 아이템이 다른 경로(판매, 드롭 등)로 다 떨어진 경우 자동 해제
         private void HandleInventoryChanged(InventoryItemChange change)
         {
-            RefreshPickaxeFromInventory();
-
             if (activeItem != null && activeItem.Def.ID == change.ItemID && change.CurrentQuantity <= 0)
             {
-                // 들고 있던 액티브 아이템이 다른 경로(판매, 드롭 등)로 다 떨어진 경우 자동 해제
                 ClearActiveItem();
             }
         }
 
-        /// <summary>
-        /// 인벤토리가 실제로 보유한 Pickaxe 타입 아이템을 찾아 장착합니다.
-        /// 보유한 곡괭이가 없으면 장착 해제, 다른 곡괭이로 바뀌었으면 교체합니다.
-        /// </summary>
-        private void RefreshPickaxeFromInventory()
+        // PickaxeInventory가 "현재 곡괭이가 이걸로 바뀌었다"고 알려줄 때만 장착/교체.
+        // 직접 인벤토리를 뒤지지 않고 통보받은 결과를 그대로 반영한다.
+        private void HandlePickaxeChanged(ItemDef newPickaxeDef)
         {
-            if (inventory == null) return;
-
-            ItemDef ownedPickaxeDef = null;
-
-            foreach (KeyValuePair<int, int> entry in inventory.Quantities)
-            {
-                if (entry.Value <= 0) continue;
-                if (DataManager.Instance.ItemTable.TryGet(entry.Key, out ItemDef def) == false) continue;
-                if (def.Type != ItemType.Pickaxe) continue;
-
-                ownedPickaxeDef = def;
-                break; // 곡괭이는 한 번에 하나만 보유/장착한다고 가정
-            }
-
-            // 이미 같은 곡괭이가 장착돼 있으면 그대로 둠
-            if (ownedPickaxeDef != null && pickaxeItem != null && pickaxeItem.Def.ID == ownedPickaxeDef.ID)
+            // 이미 같은 곡괭이가 장착돼 있으면 그대로 둠 (구독 시점 차이로 중복 통지될 수 있음)
+            if (pickaxeItem != null && newPickaxeDef != null && pickaxeItem.Def.ID == newPickaxeDef.ID)
                 return;
 
             if (pickaxeItem != null)
@@ -97,10 +84,10 @@ namespace TerrainCollapse
                 pickaxeItem = null;
             }
 
-            if (ownedPickaxeDef != null)
+            if (newPickaxeDef != null)
             {
-                pickaxeItem = Instantiate(ownedPickaxeDef.Prefab);
-                pickaxeItem.Init(ownedPickaxeDef);
+                pickaxeItem = Instantiate(newPickaxeDef.Prefab);
+                pickaxeItem.Init(newPickaxeDef);
             }
         }
 
