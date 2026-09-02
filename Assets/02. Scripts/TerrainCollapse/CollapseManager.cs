@@ -26,6 +26,15 @@ namespace TerrainCollapse
         public event Action<long> RebuildCompleted;
         public event Action<TerrainPlacementProposal> PlacementProposed;
 
+        public void ClearActiveChunks()
+        {
+            foreach (FallingChunk chunk in activeChunks)
+                if (chunk != null) Destroy(chunk.gameObject);
+
+            activeChunks.Clear();
+            rebuildingChunks.Clear();
+        }
+
         public void Configure(TerrainGridWorld world, TerrainSampler sampler)
         {
             terrainGridWorld = world;
@@ -34,10 +43,18 @@ namespace TerrainCollapse
 
         public void CreateChunk(IReadOnlyList<Vector2Int> cells)
         {
-            CreateChunk(cells, nextCollapseId++);
+            CreateChunk(cells, nextCollapseId++, true);
         }
 
-        public void CreateChunk(IReadOnlyList<Vector2Int> cells, long collapseId)
+        public void CreateChunk(IReadOnlyList<Vector2Int> cells, bool isPlacementOwner)
+        {
+            CreateChunk(cells, nextCollapseId++, isPlacementOwner);
+        }
+
+        public void CreateChunk(
+            IReadOnlyList<Vector2Int> cells,
+            long collapseId,
+            bool isPlacementOwner)
         {
             if (cells == null || cells.Count == 0) return;
             
@@ -88,10 +105,12 @@ namespace TerrainCollapse
                 cellResourceIDs,
                 source.CellSize,
                 collapseId,
-                minimumWorldY);
+                minimumWorldY,
+                isPlacementOwner);
             activeChunks.Add(chunk);
             
-            Debug.Log($"[Terrain Collapse] Chunk Created: id={collapseId}, cells={cells.Count}");
+            Debug.Log($"[Terrain Collapse] Chunk Created: id={collapseId}, cells={cells.Count}, " +
+                      $"placementOwner={isPlacementOwner}");
         }
 
         private void CreateChunkCell(

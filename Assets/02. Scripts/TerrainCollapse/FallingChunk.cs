@@ -54,6 +54,7 @@ namespace TerrainCollapse
         private bool isTrackingStablePosition;
         private bool settled;
         private bool expired;
+        private bool isPlacementOwner;
         private long collapseId;
         private Vector2 stablePositionOrigin;
         private Vector2 beforeVelocity;
@@ -70,6 +71,7 @@ namespace TerrainCollapse
         public Bounds WorldBounds => compositeCollider.bounds;
         public float CellSize => cellSize;
         public long CollapseId => collapseId;
+        public bool IsPlacementOwner => isPlacementOwner;
         public Vector2 BeforeVelocity => beforeVelocity;
 
         private void Awake()
@@ -92,7 +94,8 @@ namespace TerrainCollapse
             IReadOnlyList<int> resourceIDs,
             float size,
             long id,
-            float minimumY)
+            float minimumY,
+            bool placementOwner)
         {
             sourceCells.Clear();
             sourceCells.AddRange(originalCells);
@@ -107,6 +110,7 @@ namespace TerrainCollapse
             cellSize = size;
             collapseId = id;
             minimumWorldY = minimumY;
+            isPlacementOwner = placementOwner;
         }
 
         public Vector3 GetLocalCellCenterWorld(Vector2Int localCell)

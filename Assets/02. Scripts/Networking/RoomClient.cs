@@ -23,6 +23,7 @@ namespace TerrainCollapse
         [SerializeField] private TerrainGridWorld terrainWorld;
         [SerializeField] private TerrainManager terrainManager;
         [SerializeField] private CollapseManager collapseManager;
+        [SerializeField] private TerrainCollapseCoordinator collapseCoordinator;
         [SerializeField] private ItemDropSpawner itemDropSpawner;
         [SerializeField] private PlayerInventory playerInventory;
 
@@ -38,13 +39,17 @@ namespace TerrainCollapse
         private readonly SemaphoreSlim sendSignal = new(0);
         private readonly HashSet<string> pendingWorldItemPickups = new();
         private readonly SortedDictionary<uint, TerrainChangeBatchMessage> bufferedTerrainBatches = new();
+        private readonly string clientSessionId = Guid.NewGuid().ToString("N");
         private ClientWebSocket socket;
         private CancellationTokenSource cancellation;
         private long nextRequestId;
         private long pendingExcavationId;
+        private string pendingExcavationRequestId;
         private bool hasTerrainSnapshot;
         private bool handshakeComplete;
         private long pendingCollapsePlacementId;
+        private string pendingCollapsePlacementRequestId;
+        private string localPlayerId;
 
         public static RoomClient Instance { get; private set; }
         public bool IsConnected => socket?.State == WebSocketState.Open;
@@ -81,6 +86,8 @@ namespace TerrainCollapse
             Instance = this;
             if (collapseManager == null)
                 collapseManager = FindFirstObjectByType<CollapseManager>();
+            if (collapseCoordinator == null)
+                collapseCoordinator = FindFirstObjectByType<TerrainCollapseCoordinator>();
             if (itemDropSpawner == null)
                 itemDropSpawner = FindFirstObjectByType<ItemDropSpawner>();
             if (localPlayer == null)
@@ -92,13 +99,21 @@ namespace TerrainCollapse
         private void OnEnable()
         {
             if (collapseManager != null)
+            {
                 collapseManager.PlacementProposed += HandlePlacementProposed;
+            }
+            if (collapseCoordinator != null)
+                collapseCoordinator.CollapseStartRequested += HandleCollapseStartRequested;
         }
 
         private void OnDisable()
         {
             if (collapseManager != null)
+            {
                 collapseManager.PlacementProposed -= HandlePlacementProposed;
+            }
+            if (collapseCoordinator != null)
+                collapseCoordinator.CollapseStartRequested -= HandleCollapseStartRequested;
         }
 
         private async void Start()
@@ -200,8 +215,10 @@ namespace TerrainCollapse
             source?.Dispose();
             outgoingJson.Clear();
             pendingExcavationId = 0;
+            pendingExcavationRequestId = null;
             pendingWorldItemPickups.Clear();
             pendingCollapsePlacementId = 0;
+            pendingCollapsePlacementRequestId = null;
         }
 
         public bool RequestExcavation(Vector2Int targetCell, int itemId, int damageAmount)
@@ -223,11 +240,14 @@ namespace TerrainCollapse
                 Debug.Log("[RoomClient] 낙하 지형의 서버 병합 확정을 기다리는 중입니다.", this);
                 return false;
             }
-            long requestId = Interlocked.Increment(ref nextRequestId);
-            pendingExcavationId = requestId;
+            long clientRequestId = Interlocked.Increment(ref nextRequestId);
+            string requestId = CreateRequestId("excavate", clientRequestId);
+            pendingExcavationId = clientRequestId;
+            pendingExcavationRequestId = requestId;
             if (Send(new TerrainExcavationRequest
             {
-                ClientRequestID = requestId,
+                RequestId = requestId,
+                ClientRequestID = clientRequestId,
                 ExpectedTerrainRevision = terrainManager.Revision,
                 TargetCell = new GridCoord(targetCell.x, targetCell.y),
                 ItemID = itemId,
@@ -235,6 +255,7 @@ namespace TerrainCollapse
             }) == false)
             {
                 pendingExcavationId = 0;
+                pendingExcavationRequestId = null;
                 Debug.LogWarning("[RoomClient] 연결이 종료되어 채굴 요청을 보내지 못했습니다.", this);
                 return false;
             }
@@ -266,6 +287,9 @@ namespace TerrainCollapse
             string baseUrl = serverUrl.TrimEnd('/');
             return new Uri($"{baseUrl}/room?code={Uri.EscapeDataString(roomCode)}");
         }
+
+        private string CreateRequestId(string operation, long sequence)
+            => $"{operation}-{clientSessionId}-{sequence}";
 
         private bool Send(object message)
         {
@@ -342,6 +366,9 @@ namespace TerrainCollapse
                     case NetworkMessageTypes.TerrainChangeBatch:
                         EnqueueMessage<TerrainChangeBatchMessage>(json, HandleTerrainBatch);
                         break;
+                    case NetworkMessageTypes.TerrainCollapseStarted:
+                        EnqueueMessage<TerrainCollapseStartedMessage>(json, HandleCollapseStarted);
+                        break;
                     case NetworkMessageTypes.WorldItemSnapshot:
                         EnqueueMessage<WorldItemSnapshotMessage>(json, HandleWorldItemSnapshot);
                         break;
@@ -358,7 +385,7 @@ namespace TerrainCollapse
                         EnqueueMessage<ErrorMessage>(json, HandleError);
                         break;
                     case "welcome":
-                        EnqueueMainThread(HandleWelcome);
+                        EnqueueMessage<WelcomeMessage>(json, HandleWelcome);
                         break;
                     // 서버가 주기적으로 보내는 기존 위치 동기화 패킷이다.
                     // 원격 플레이어 동기화는 아직 범위 밖이므로 로그/메인 스레드 작업 없이 무시한다.
@@ -388,8 +415,9 @@ namespace TerrainCollapse
             Debug.Log($"[RoomClient] Map session received: {MapSession?.MapSessionID}", this);
         }
 
-        private void HandleWelcome()
+        private void HandleWelcome(WelcomeMessage message)
         {
+            localPlayerId = message?.User?.Id;
             handshakeComplete = true;
             // 서버가 hello를 수락한 뒤에만 위치/게임플레이 패킷을 보낸다.
             nextPositionSendTime = Time.unscaledTime;
@@ -411,6 +439,7 @@ namespace TerrainCollapse
                 return;
             }
             terrainWorld.LoadSnapshot(snapshot);
+            collapseManager?.ClearActiveChunks();
             RespawnLocalPlayerOnSnapshot(snapshot);
             localPlayer?.SetWaitingForTerrainSnapshot(false);
             CurrentTerrainSnapshot = snapshot;
@@ -419,6 +448,7 @@ namespace TerrainCollapse
             // 더 이상 이어 붙일 수 없으므로 버린다.
             bufferedTerrainBatches.Clear();
             pendingExcavationId = 0;
+            pendingExcavationRequestId = null;
             TerrainSnapshotLoaded?.Invoke(snapshot);
             Debug.Log(
                 $"[RoomClient] Terrain snapshot loaded: revision={snapshot.Revision}, " +
@@ -488,6 +518,17 @@ namespace TerrainCollapse
 
             if (batch == null) return false;
 
+            bool isLocalExcavationResult = string.Equals(
+                message.RequestId,
+                pendingExcavationRequestId,
+                StringComparison.Ordinal);
+            bool isLocalCollapsePlacementResult = string.Equals(
+                message.RequestId,
+                pendingCollapsePlacementRequestId,
+                StringComparison.Ordinal);
+            batch.IsPlacementOwner =
+                isLocalExcavationResult || isLocalCollapsePlacementResult;
+
             if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
             {
                 Debug.LogWarning(
@@ -496,10 +537,17 @@ namespace TerrainCollapse
                 return false;
             }
 
-            if (pendingExcavationId == batch.CollapseId)
+            if (isLocalExcavationResult)
+            {
                 pendingExcavationId = 0;
-            if (pendingCollapsePlacementId == batch.CollapseId)
+                pendingExcavationRequestId = null;
+            }
+
+            if (isLocalCollapsePlacementResult)
+            {
                 pendingCollapsePlacementId = 0;
+                pendingCollapsePlacementRequestId = null;
+            }
 
             return true;
         }
@@ -511,7 +559,9 @@ namespace TerrainCollapse
             if (message?.Code?.StartsWith("terrain.", StringComparison.Ordinal) == true)
             {
                 pendingExcavationId = 0;
+                pendingExcavationRequestId = null;
                 pendingCollapsePlacementId = 0;
+                pendingCollapsePlacementRequestId = null;
             }
 
             if (message?.Code?.StartsWith("item.", StringComparison.Ordinal) == true ||
@@ -523,6 +573,13 @@ namespace TerrainCollapse
                 // 이 Snapshot이 도착할 때까지 이전 Revision으로 새 요청을 보내지 않는다.
                 hasTerrainSnapshot = false;
                 Debug.LogWarning("[RoomClient] Revision mismatch; the server will send a terrain snapshot for resync.", this);
+                return;
+            }
+
+            if (message?.Code == "terrain.collapse_conflict")
+            {
+                pendingCollapsePlacementId = 0;
+                Debug.LogWarning("[RoomClient] 다른 클라이언트의 지형 확정을 기다립니다.", this);
                 return;
             }
 
@@ -575,6 +632,7 @@ namespace TerrainCollapse
         private void HandlePlacementProposed(TerrainPlacementProposal proposal)
         {
             if (proposal == null || IsAuthoritativeTerrainMode == false) return;
+            if (proposal.IsPlacementOwner == false) return;
             if (pendingCollapsePlacementId > 0)
             {
                 Debug.LogWarning("[RoomClient] 이미 지형 붕괴 배치 확정을 기다리고 있습니다.", this);
@@ -583,6 +641,9 @@ namespace TerrainCollapse
 
             TerrainCollapsePlacementRequest request = new()
             {
+                RequestId = CreateRequestId(
+                    "collapse",
+                    Interlocked.Increment(ref nextRequestId)),
                 CollapseID = proposal.CollapseId,
                 ExpectedTerrainRevision = proposal.BaseRevision,
             };
@@ -608,10 +669,50 @@ namespace TerrainCollapse
             }
 
             pendingCollapsePlacementId = proposal.CollapseId;
+            pendingCollapsePlacementRequestId = request.RequestId;
             if (Send(request)) return;
 
             pendingCollapsePlacementId = 0;
+            pendingCollapsePlacementRequestId = null;
             Debug.LogWarning("[RoomClient] 붕괴 지형 배치 요청을 보내지 못했습니다.", this);
+        }
+
+        private void HandleCollapseStartRequested(IReadOnlyList<Vector2Int> sourceCells)
+        {
+            if (IsAuthoritativeTerrainMode == false || sourceCells == null || sourceCells.Count == 0)
+                return;
+
+            TerrainCollapseStartRequest request = new()
+            {
+                RequestId = CreateRequestId(
+                    "collapse-start",
+                    Interlocked.Increment(ref nextRequestId)),
+            };
+            foreach (Vector2Int sourceCell in sourceCells)
+                request.SourceCells.Add(new GridCoord(sourceCell.x, sourceCell.y));
+
+            if (Send(request) == false)
+                Debug.LogWarning("[RoomClient] 낙하 지형 시작 요청을 보내지 못했습니다.", this);
+        }
+
+        private void HandleCollapseStarted(TerrainCollapseStartedMessage message)
+        {
+            if (collapseManager == null || message?.SourceCells == null ||
+                message.SourceCells.Count == 0 || message.CollapseID <= 0)
+                return;
+
+            List<Vector2Int> sourceCells = new(message.SourceCells.Count);
+            foreach (GridCoord cell in message.SourceCells)
+                sourceCells.Add(new Vector2Int(cell.X, cell.Y));
+
+            bool isPlacementOwner = string.Equals(
+                message.OwnerPlayerID,
+                localPlayerId,
+                StringComparison.Ordinal);
+            collapseManager.CreateChunk(
+                sourceCells,
+                message.CollapseID,
+                isPlacementOwner);
         }
 
         private void QueueConnectionError(string operation, Exception exception)

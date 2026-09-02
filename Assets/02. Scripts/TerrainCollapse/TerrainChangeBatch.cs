@@ -48,6 +48,9 @@ namespace TerrainCollapse
     public sealed class TerrainChangeBatch
     {
         public long CollapseId;                         // 이 변경이 어느 붕괴 요청의 결과인지 식별하는 ID
+        // 네트워크 메시지의 RequestId로 판단한 로컬 클라이언트의 낙하 배치 소유 여부.
+        // 런타임 전용 값이며 서버 계약으로 직렬화하지 않는다.
+        public bool IsPlacementOwner;
         public uint BaseRevision;                       // 서버가 이 변경을 계산할 때 기준으로 삼은 지형 Revision
         public uint ResultRevision;                     // 변경 전체를 성공적으로 적용한 뒤의 지형 Revision
         public List<TerrainCellChange> Changes = new(); // 원자적으로 함께 적용할 최종 타일 상태 목록

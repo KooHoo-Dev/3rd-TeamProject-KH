@@ -9,6 +9,8 @@ namespace TerrainCollapse.Networking
     {
         public const string MapSession = "map_session";
         public const string TerrainExcavationRequest = "terrain_excavate";
+        public const string TerrainCollapseStartRequest = "terrain_collapse_start";
+        public const string TerrainCollapseStarted = "terrain_collapse_started";
         public const string TerrainCollapsePlacementRequest = "terrain_collapse_place";
         public const string TerrainChangeBatch = "terrain_batch";
         public const string TerrainSnapshot = "terrain_snapshot";
@@ -28,12 +30,29 @@ namespace TerrainCollapse.Networking
         public string Type { get; set; }
     }
 
+    [Serializable]
+    public sealed class NetworkUser
+    {
+        public string Id { get; set; }
+        public string NickName { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WelcomeMessage
+    {
+        public string Type { get; set; }
+        public string RoomCode { get; set; }
+        public NetworkUser User { get; set; }
+    }
+
     // 지형 요청과 서버 확정 상태 전송에 사용하는 공용 데이터 계약
 
     [Serializable]
     public sealed class TerrainExcavationRequest
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainExcavationRequest;
+        // 서버 PacketHeader.RequestId와 이름을 맞춰 요청-응답을 연결한다.
+        public string RequestId { get; set; }
         public long ClientRequestID { get; set; }
         public uint ExpectedTerrainRevision { get; set; }
         public GridCoord TargetCell { get; set; }
@@ -44,9 +63,31 @@ namespace TerrainCollapse.Networking
     }
 
     [Serializable]
+    public sealed class TerrainCollapseStartRequest
+    {
+        public string Type { get; set; } = "terrain_collapse_start";
+        public string RequestId { get; set; }
+
+        // 부유 그룹의 원본 셀
+        public List<GridCoord> SourceCells { get; set; } = new();
+    }
+
+    [Serializable]
+    public sealed class TerrainCollapseStartedMessage
+    {
+        public string Type { get; set; } = NetworkMessageTypes.TerrainCollapseStarted;
+        public string RequestId { get; set; }
+        public long CollapseID { get; set; }
+        public string OwnerPlayerID { get; set; }
+        public uint StartedRevision { get; set; }
+        public List<GridCoord> SourceCells { get; set; } = new();
+    }
+
+    [Serializable]
     public sealed class TerrainCollapsePlacementRequest
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainCollapsePlacementRequest;
+        public string RequestId { get; set; }
         public long CollapseID { get; set; }
         public uint ExpectedTerrainRevision { get; set; }
         public List<GridCoord> SourceCells { get; set; } = new();
@@ -110,6 +151,8 @@ namespace TerrainCollapse.Networking
     public sealed class TerrainChangeBatchMessage
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainChangeBatch;
+        // 서버가 요청의 RequestId를 그대로 되돌려준다.
+        public string RequestId { get; set; }
         public TerrainChangeBatchDto Batch { get; set; }
     }
 
