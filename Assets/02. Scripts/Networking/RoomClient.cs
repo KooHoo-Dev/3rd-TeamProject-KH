@@ -37,6 +37,7 @@ namespace TerrainCollapse
         private readonly ConcurrentQueue<Action> mainThreadActions = new();
         private readonly SemaphoreSlim sendSignal = new(0);
         private readonly HashSet<string> pendingWorldItemPickups = new();
+        private readonly SortedDictionary<uint, TerrainChangeBatchMessage> bufferedTerrainBatches = new();
         private ClientWebSocket socket;
         private CancellationTokenSource cancellation;
         private long nextRequestId;
@@ -54,7 +55,7 @@ namespace TerrainCollapse
         public TerrainSnapshot CurrentTerrainSnapshot { get; private set; }
         public event Action<TerrainSnapshot> TerrainSnapshotLoaded;
 
-        /// <summary>서버 스냅샷이 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
+        /// <summary>서버 스냅샷 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
         public bool IsInSpawnArea(Vector2 worldPosition)
         {
             TerrainSnapshot snapshot = CurrentTerrainSnapshot;
@@ -151,6 +152,7 @@ namespace TerrainCollapse
             outgoingJson.Clear();
             hasTerrainSnapshot = false;
             CurrentTerrainSnapshot = null;
+            bufferedTerrainBatches.Clear();
             hasSentPosition = false;
             handshakeComplete = false;
             cancellation = new CancellationTokenSource();
@@ -180,6 +182,7 @@ namespace TerrainCollapse
             socket = null;
             hasTerrainSnapshot = false;
             CurrentTerrainSnapshot = null;
+            bufferedTerrainBatches.Clear();
             hasSentPosition = false;
             handshakeComplete = false;
             source?.Cancel();
@@ -412,12 +415,27 @@ namespace TerrainCollapse
             localPlayer?.SetWaitingForTerrainSnapshot(false);
             CurrentTerrainSnapshot = snapshot;
             hasTerrainSnapshot = true;
+            // Snapshot은 해당 Revision까지의 완전한 상태다. 이전에 쌓인 Batch는 이미 반영됐거나
+            // 더 이상 이어 붙일 수 없으므로 버린다.
+            bufferedTerrainBatches.Clear();
             pendingExcavationId = 0;
             TerrainSnapshotLoaded?.Invoke(snapshot);
             Debug.Log(
                 $"[RoomClient] Terrain snapshot loaded: revision={snapshot.Revision}, " +
                 $"size={snapshot.MapWidth}x{snapshot.MapHeight}, cells={snapshot.Cells.Count}",
                 this);
+        }
+
+        private void DrainBufferedTerrainBatches()
+        {
+            while (bufferedTerrainBatches.TryGetValue(
+                       terrainManager.Revision,
+                       out TerrainChangeBatchMessage next))
+            {
+                bufferedTerrainBatches.Remove(terrainManager.Revision);
+
+                if (ApplyTerrainBatch(next) == false) return;
+            }
         }
 
         private void HandleTerrainBatch(TerrainChangeBatchMessage message)
@@ -433,12 +451,57 @@ namespace TerrainCollapse
                 Debug.LogError("[RoomClient] Invalid terrain batch.", this);
                 return;
             }
+
+            uint localRevision = terrainManager.Revision;
+            // 재전송 또는 Snapshot 이전에 큐잉된 과거 Batch다.
+            if (batch.ResultRevision <= localRevision) return;
+
+            if (batch.BaseRevision > localRevision)
+            {
+                // 현재 Batch보다 앞선 Revision이 아직 도착하지 않았다. 다음 수신/적용 후
+                // DrainBufferedTerrainBatches에서 자연스럽게 적용된다.
+                bufferedTerrainBatches[batch.BaseRevision] = message;
+                Debug.LogWarning(
+                    $"[RoomClient] Terrain batch buffered: local={localRevision}, " +
+                    $"required={batch.BaseRevision}, result={batch.ResultRevision}",
+                    this);
+                return;
+            }
+
+            if (batch.BaseRevision < localRevision)
+            {
+                // ResultRevision이 현재보다 큰데 BaseRevision이 과거인 Batch는 단일 Revision
+                // 변경 계약을 위반한 메시지다. Apply 호출 대신 안전하게 무시한다.
+                Debug.LogWarning(
+                    $"[RoomClient] Ignored invalid terrain batch: local={localRevision}, " +
+                    $"base={batch.BaseRevision}, result={batch.ResultRevision}",
+                    this);
+                return;
+            }
+
+            if (ApplyTerrainBatch(message)) DrainBufferedTerrainBatches();
+        }
+
+        private bool ApplyTerrainBatch(TerrainChangeBatchMessage message)
+        {
+            TerrainChangeBatch batch = TerrainNetworkAdapter.ToRuntime(message?.Batch);
+
+            if (batch == null) return false;
+
+            if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
+            {
+                Debug.LogWarning(
+                    $"[RoomClient] Terrain batch rejected; awaiting snapshot resync. {error}",
+                    this);
+                return false;
+            }
+
             if (pendingExcavationId == batch.CollapseId)
                 pendingExcavationId = 0;
             if (pendingCollapsePlacementId == batch.CollapseId)
                 pendingCollapsePlacementId = 0;
-            if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
-                Debug.LogWarning($"[RoomClient] Terrain batch rejected; awaiting snapshot resync. {error}", this);
+
+            return true;
         }
 
         private void HandleError(ErrorMessage message)
