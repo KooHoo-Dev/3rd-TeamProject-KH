@@ -10,6 +10,7 @@ namespace Character
         Burial,
         Fall,
         FallingChunk,
+        Explosion,
     }
 
     public readonly struct DamageInfo

@@ -53,6 +53,7 @@ namespace TerrainCollapse
                     itemDto.DigPower  = int.Parse(cells[8]);
                     itemDto.ExplosionRadius = float.Parse(cells[9]);
                     itemDto.ExplosionPower = int.Parse(cells[10]);
+                    itemDto.FuseTime = float.Parse(cells[11]);
                     
                     rows.Add(itemDto);
                 }
