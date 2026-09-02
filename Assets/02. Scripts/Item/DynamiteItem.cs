@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Serialization;
 
 namespace TerrainCollapse
@@ -13,7 +12,8 @@ namespace TerrainCollapse
 
         [Header("Throw Settings")]
         [SerializeField] private DynamiteExplosive explosivePrefab; // 투척되는 실제 폭발물 프리팹
-
+        
+        private float throwSpeed = 6f;
         private GameObject highlightInstance;
 
         public override void Init(ItemDef def)
@@ -52,14 +52,9 @@ namespace TerrainCollapse
             SetupLineRenderer();
         }
 
+        // ItemController가 우클릭 홀드 중일 때만 매 프레임 호출합니다.
         public override void OnUpdatePreview(Vector3 ownerPos, Vector3 targetPos)
         {
-            if (Mouse.current == null || Mouse.current.rightButton.isPressed == false)
-            {
-                OnClearPreview();
-                return;
-            }
-
             // 1. 마우스 방향 벡터 계산
             Vector3 throwDirection = (targetPos - ownerPos).normalized;
 
@@ -82,8 +77,6 @@ namespace TerrainCollapse
             trajectoryLine.enabled = true;
             trajectoryLine.positionCount = trajectorySegments;
 
-            // DynamiteExplosive에 설정한 속도 및 퓨즈 타임과 동일한 값을 사용합니다.
-            float throwSpeed = 6f; // DynamteExplosive의 throwSpeed와 맞춤
             float timeStep = 0.05f; // 점 사이의 시간 간격 (시뮬레이션 정밀도)
     
             // Rigidbody2D 물리를 사용하는 경우 Physics2D.gravity.y를, 
@@ -129,7 +122,7 @@ namespace TerrainCollapse
 
             DynamiteExplosive thrown = Instantiate(explosivePrefab, ownerPos, Quaternion.identity);
             // targetPos 대신 throwDirection을 넘겨줍니다.
-            thrown.Launch(ownerPos, throwDirection, Def.DynamiteData.Value);
+            thrown.Launch(ownerPos, throwDirection, throwSpeed,Def.DynamiteData.Value);
 
             OnClearPreview();
         }

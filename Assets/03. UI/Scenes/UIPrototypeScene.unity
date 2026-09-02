@@ -819,6 +819,10 @@ PrefabInstance:
       value: -1183493901
       objectReference: {fileID: 0}
     - target: {fileID: 7803401892840059154, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: itemController
+      value: 
+      objectReference: {fileID: 1971883702}
+    - target: {fileID: 7803401892840059154, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: scrollFocusStepThreshold
       value: 4.2
       objectReference: {fileID: 0}
@@ -1234,7 +1238,7 @@ GameObject:
   - component: {fileID: 1971883711}
   - component: {fileID: 1971883713}
   - component: {fileID: 1971883714}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: TestPlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1262,6 +1266,10 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   terrainManager: {fileID: 190307187}
+  movementTolerance: 0.0001
+  blockingNormalDotThreshold: 0.01
+  depenetrationPadding: 0.001
+  depenetrationIterations: 4
   normalSortingOrder: 2
   buriedSortingOrder: -1
 --- !u!212 &1971883698
@@ -1423,7 +1431,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63bcc6d2efbb4acaa5368ff035aa4979, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ItemController
-  equippedItem: {fileID: 0}
 --- !u!114 &1971883704
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1482,7 +1489,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.RespawnController
   respawnDelay: 2
   spawnPoint: {fileID: 0}
-  terrainManager: {fileID: 190307187}
+  terrainManager: {fileID: 0}
 --- !u!114 &1971883708
 MonoBehaviour:
   m_ObjectHideFlags: 0

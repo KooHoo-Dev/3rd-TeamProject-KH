@@ -14,11 +14,17 @@ namespace TerrainCollapse
         [SerializeField] private InventorySlotView[] slotViews;
         [SerializeField] private TMP_Text goldText;
 
+        [Header("포커스된 슬롯 변경을 액티브 아이템에 반영")]
+        [SerializeField] private ItemController itemController;
+
         private const float SCROLL_THRESHOLD = 4.2f; // 휠 입력 한 단계로 판정할 델타 기준값
 
         private int focusedSlotIndex;
         private float scrollFocusAccumulator;
         private MinimapView minimapView;
+
+        // ItemController에 마지막으로 통지한 itemID (중복 호출 방지)
+        private int notifiedActiveItemID = int.MinValue;
 
         public int FocusedSlotIndex => focusedSlotIndex;
         public int FocusedItemID => GetFocusedSlot()?.ItemID ?? -1;
@@ -126,6 +132,23 @@ namespace TerrainCollapse
                 if (index != focusedSlotIndex)
                     slotView.SetHoldProgress(0f);
             }
+
+            NotifyActiveItemChanged();
+        }
+
+        // 포커스된 슬롯의 itemID가 이전과 달라졌을 때만 ItemController에 반영.
+        // 보유 여부/타입 적합성(곡괭이, 환전용 등) 검증은 ItemController.SetActiveItem 내부에서 처리한다.
+        private void NotifyActiveItemChanged()
+        {
+            if (itemController == null) return;
+
+            int itemID = GetFocusedSlot()?.ItemID ?? -1;
+            if (itemID == notifiedActiveItemID) return;
+
+            notifiedActiveItemID = itemID;
+
+            if (itemID < 0) itemController.ClearActiveItem();
+            else itemController.SetActiveItem(itemID);
         }
 
         private InventorySlotView GetFocusedSlot()

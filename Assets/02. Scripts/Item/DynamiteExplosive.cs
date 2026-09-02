@@ -13,8 +13,8 @@ namespace TerrainCollapse
         [Header("Explosion Detection")]
         [SerializeField] private LayerMask damageableLayerMask = ~0;
 
-        [Header("Flight Settings")]
-        [SerializeField] private float throwSpeed = 12f; // 투척 속도
+        [Header("Flight Settings")] [SerializeField]
+        private float throwSpeed; // 투척 속도
 
         private DynamiteInfo info;
         private Rigidbody2D rb;
@@ -24,10 +24,11 @@ namespace TerrainCollapse
             rb = GetComponent<Rigidbody2D>();
         }
 
-        public void Launch(Vector3 ownerPos, Vector3 direction, DynamiteInfo dynamiteInfo)
+        public void Launch(Vector3 ownerPos, Vector3 direction, float speed, DynamiteInfo dynamiteInfo)
         {
             transform.position = ownerPos;
             info = dynamiteInfo;
+            throwSpeed = speed;
 
             // 방향 벡터로 물리 속도 부여
             if (rb != null)
