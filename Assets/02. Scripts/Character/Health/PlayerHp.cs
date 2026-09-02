@@ -1,4 +1,5 @@
 using System;
+using TerrainCollapse;
 using UnityEngine;
 
 namespace Character
@@ -11,10 +12,12 @@ namespace Character
 
         private int currentHp;
         private bool isDead;
+        private RoomClient roomClient;
 
         public int MaxHp => maxHp;
         public int CurrentHp => currentHp;
         public bool IsDead => isDead;
+        public bool IsDamageImmune => IsServerSpawnSafeZone; // 서버가 지정한 스폰 안전 구역에서는 모든 피해를 무시
 
         public event Action<int, int> HpChanged;
         public event Action<DamageInfo> DamageTaken;
@@ -24,12 +27,14 @@ namespace Character
         {
             maxHp = Mathf.Max(1, maxHp);
             currentHp = maxHp;
+            roomClient = RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
         }
 
         public void TakeDamage(DamageInfo damageInfo)
         {
             if (isDead) return;
             if (damageInfo.Amount <= 0) return;
+            if (IsDamageImmune) return;
 
             int previousHp = currentHp;
             currentHp = Mathf.Clamp(currentHp - damageInfo.Amount, 0, maxHp);
@@ -49,6 +54,16 @@ namespace Character
 
             isDead = true;
             Died?.Invoke();
+        }
+
+        private bool IsServerSpawnSafeZone
+        {
+            get
+            {
+                roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
+
+                return roomClient != null && roomClient.IsLocalPlayerInSpawnArea;
+            }
         }
 
         public void RestoreHp(int amount)

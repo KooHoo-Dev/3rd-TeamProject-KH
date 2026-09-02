@@ -48,9 +48,26 @@ namespace TerrainCollapse
         public static RoomClient Instance { get; private set; }
         public bool IsConnected => socket?.State == WebSocketState.Open;
         public bool IsAuthoritativeTerrainMode => IsConnected && hasTerrainSnapshot;
+        public bool IsLocalPlayerInSpawnArea =>
+            localPlayer != null && IsInSpawnArea(localPlayer.Position);
         public MapSessionDescriptor MapSession { get; private set; }
         public TerrainSnapshot CurrentTerrainSnapshot { get; private set; }
         public event Action<TerrainSnapshot> TerrainSnapshotLoaded;
+
+        /// <summary>서버 스냅샷이 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
+        public bool IsInSpawnArea(Vector2 worldPosition)
+        {
+            TerrainSnapshot snapshot = CurrentTerrainSnapshot;
+            if (IsAuthoritativeTerrainMode == false || snapshot == null ||
+                snapshot.CellSize <= 0f || snapshot.SpawnArea.width <= 0 ||
+                snapshot.SpawnArea.height <= 0)
+                return false;
+
+            Vector2Int cell = new(
+                Mathf.FloorToInt((worldPosition.x - snapshot.Origin.x) / snapshot.CellSize),
+                Mathf.FloorToInt((worldPosition.y - snapshot.Origin.y) / snapshot.CellSize));
+            return snapshot.SpawnArea.Contains(cell);
+        }
 
         private void Awake()
         {

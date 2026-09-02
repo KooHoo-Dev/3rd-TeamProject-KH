@@ -18,6 +18,11 @@ namespace TerrainCollapse
                 MapHeight = source.MapHeight,
                 CellSize = source.CellSize,
                 Origin = new Vector2(source.OriginX, source.OriginY),
+                SpawnArea = new RectInt(
+                    source.SpawnAreaOriginX,
+                    source.SpawnAreaOriginY,
+                    source.SpawnAreaWidth,
+                    source.SpawnAreaHeight),
             };
 
             AddCells(source.Cells, result.Cells);

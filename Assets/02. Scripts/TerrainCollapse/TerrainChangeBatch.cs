@@ -1,4 +1,3 @@
-// 서버 확정 지형 변경 Batch, 중간 참여 Snapshot, 결정적 좌표 정렬 규칙 정의
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -85,6 +84,7 @@ namespace TerrainCollapse
         public int MapHeight;                         // 전체 Grid 높이
         public float CellSize;                        // Grid 한 칸의 월드 크기
         public Vector2 Origin;                        // Grid 좌표 (0, 0)에 대응하는 월드 원점
+        public RectInt SpawnArea;                     // 서버가 지정한 스폰/안전 구역의 Grid 범위
         public List<TerrainCellChange> Cells = new(); // 빈 칸을 제외한 전체 타일 목록, 생성 시 결정적으로 정렬
 
     }
