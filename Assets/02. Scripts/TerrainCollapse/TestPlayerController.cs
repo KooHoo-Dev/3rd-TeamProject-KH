@@ -1,4 +1,3 @@
-#if UNITY_EDITOR
 using System;
 using Character;
 using UnityEngine;
@@ -412,4 +411,3 @@ namespace TerrainCollapse
         }
     }
 }
-#endif

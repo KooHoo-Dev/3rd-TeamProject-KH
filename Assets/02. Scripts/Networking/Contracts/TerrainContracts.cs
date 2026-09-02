@@ -43,6 +43,7 @@ namespace TerrainCollapse.Networking
         public string Type { get; set; }
         public string RoomCode { get; set; }
         public NetworkUser User { get; set; }
+        public NetworkUser[] Users { get; set; }
     }
 
     // 지형 요청과 서버 확정 상태 전송에 사용하는 공용 데이터 계약

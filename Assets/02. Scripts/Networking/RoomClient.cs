@@ -30,6 +30,10 @@ namespace TerrainCollapse
         [SerializeField] private TestPlayerController localPlayer;
         [SerializeField, Min(1f)] private float positionSendRate = 10f;
 
+        [Header("Remote Player")]
+        [SerializeField] private RemotePlayerView remotePlayerPrefab;
+        [SerializeField] private Transform remotePlayerRoot;
+
         private Vector2 lastSentPosition;
         private float nextPositionSendTime;
         private bool hasSentPosition;
@@ -39,6 +43,7 @@ namespace TerrainCollapse
         private readonly SemaphoreSlim sendSignal = new(0);
         private readonly HashSet<string> pendingWorldItemPickups = new();
         private readonly SortedDictionary<uint, TerrainChangeBatchMessage> bufferedTerrainBatches = new();
+        private readonly Dictionary<string, RemotePlayerView> remotePlayers = new();
         private readonly string clientSessionId = Guid.NewGuid().ToString("N");
         private ClientWebSocket socket;
         private CancellationTokenSource cancellation;
@@ -94,6 +99,8 @@ namespace TerrainCollapse
                 localPlayer = FindFirstObjectByType<TestPlayerController>();
             if (playerInventory == null && localPlayer != null)
                 playerInventory = localPlayer.GetComponent<PlayerInventory>();
+            if (remotePlayerRoot == null)
+                remotePlayerRoot = transform;
         }
 
         private void OnEnable()
@@ -168,6 +175,7 @@ namespace TerrainCollapse
             hasTerrainSnapshot = false;
             CurrentTerrainSnapshot = null;
             bufferedTerrainBatches.Clear();
+            ClearRemotePlayers();
             hasSentPosition = false;
             handshakeComplete = false;
             cancellation = new CancellationTokenSource();
@@ -219,6 +227,7 @@ namespace TerrainCollapse
             pendingWorldItemPickups.Clear();
             pendingCollapsePlacementId = 0;
             pendingCollapsePlacementRequestId = null;
+            ClearRemotePlayers();
         }
 
         public bool RequestExcavation(Vector2Int targetCell, int itemId, int damageAmount)
@@ -387,11 +396,14 @@ namespace TerrainCollapse
                     case "welcome":
                         EnqueueMessage<WelcomeMessage>(json, HandleWelcome);
                         break;
-                    // 서버가 주기적으로 보내는 기존 위치 동기화 패킷이다.
-                    // 원격 플레이어 동기화는 아직 범위 밖이므로 로그/메인 스레드 작업 없이 무시한다.
                     case "join":
+                        EnqueueMessage<PlayerJoinedMessage>(json, HandlePlayerJoined);
+                        break;
                     case "leave":
+                        EnqueueMessage<PlayerLeftMessage>(json, HandlePlayerLeft);
+                        break;
                     case "state":
+                        EnqueueMessage<PlayerStateMessage>(json, HandlePlayerState);
                         break;
                     default:
                         EnqueueMainThread(() => Debug.LogWarning($"[RoomClient] Unsupported message type: {header?.Type}", this));
@@ -421,7 +433,83 @@ namespace TerrainCollapse
             handshakeComplete = true;
             // 서버가 hello를 수락한 뒤에만 위치/게임플레이 패킷을 보낸다.
             nextPositionSendTime = Time.unscaledTime;
+
+            if (message?.Users != null)
+                foreach (NetworkUser user in message.Users)
+                    SpawnRemotePlayer(user, Vector2.zero);
+
             Debug.Log("[RoomClient] Hello accepted.", this);
+        }
+
+        private void HandlePlayerJoined(PlayerJoinedMessage message)
+        {
+            SpawnRemotePlayer(message?.User, Vector2.zero);
+        }
+
+        private void HandlePlayerLeft(PlayerLeftMessage message)
+        {
+            if (string.IsNullOrWhiteSpace(message?.Id) ||
+                remotePlayers.TryGetValue(message.Id, out RemotePlayerView view) == false)
+                return;
+
+            remotePlayers.Remove(message.Id);
+            if (view != null) Destroy(view.gameObject);
+        }
+
+        private void HandlePlayerState(PlayerStateMessage message)
+        {
+            if (message?.States == null) return;
+
+            foreach (PlayerStateDto state in message.States)
+            {
+                if (state == null || state.Id == localPlayerId) continue;
+
+                Vector2 position = new(state.X, state.Y);
+                RemotePlayerView view = GetOrCreateRemotePlayer(state.Id, position);
+                view?.SetServerPosition(position);
+            }
+        }
+
+        private RemotePlayerView GetOrCreateRemotePlayer(string playerId, Vector2 position)
+        {
+            if (remotePlayers.TryGetValue(playerId, out RemotePlayerView existing))
+                return existing;
+
+            return SpawnRemotePlayer(new NetworkUser
+            {
+                Id = playerId,
+                NickName = playerId,
+            }, position);
+        }
+
+        private RemotePlayerView SpawnRemotePlayer(NetworkUser user, Vector2 position)
+        {
+            if (user == null || string.IsNullOrWhiteSpace(user.Id) || user.Id == localPlayerId)
+                return null;
+            if (remotePlayers.TryGetValue(user.Id, out RemotePlayerView existing))
+                return existing;
+            if (remotePlayerPrefab == null)
+            {
+                Debug.LogError("[RoomClient] Remote Player Prefab reference is not assigned.", this);
+                return null;
+            }
+
+            RemotePlayerView view = Instantiate(
+                remotePlayerPrefab,
+                position,
+                Quaternion.identity,
+                remotePlayerRoot);
+            view.Initialize(user.Id, position);
+            remotePlayers.Add(user.Id, view);
+            return view;
+        }
+
+        private void ClearRemotePlayers()
+        {
+            foreach (RemotePlayerView view in remotePlayers.Values)
+                if (view != null) Destroy(view.gameObject);
+
+            remotePlayers.Clear();
         }
 
         private void HandleTerrainSnapshot(TerrainSnapshotMessage message)
