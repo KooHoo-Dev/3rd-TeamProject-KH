@@ -63,7 +63,10 @@ namespace TerrainCollapse
             localPlayer != null && IsInSpawnArea(localPlayer.Position);
         public MapSessionDescriptor MapSession { get; private set; }
         public TerrainSnapshot CurrentTerrainSnapshot { get; private set; }
+        /// <summary>현재 씬에 표시 중인 원격 플레이어 View 목록이다.</summary>
+        public IEnumerable<RemotePlayerView> RemotePlayerViews => remotePlayers.Values;
         public event Action<TerrainSnapshot> TerrainSnapshotLoaded;
+        public event Action<string> RemotePlayerRemoved;
 
         /// <summary>서버 스냅샷 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
         public bool IsInSpawnArea(Vector2 worldPosition)
@@ -448,12 +451,7 @@ namespace TerrainCollapse
 
         private void HandlePlayerLeft(PlayerLeftMessage message)
         {
-            if (string.IsNullOrWhiteSpace(message?.Id) ||
-                remotePlayers.TryGetValue(message.Id, out RemotePlayerView view) == false)
-                return;
-
-            remotePlayers.Remove(message.Id);
-            if (view != null) Destroy(view.gameObject);
+            RemoveRemotePlayer(message?.Id);
         }
 
         private void HandlePlayerState(PlayerStateMessage message)
@@ -506,10 +504,23 @@ namespace TerrainCollapse
 
         private void ClearRemotePlayers()
         {
-            foreach (RemotePlayerView view in remotePlayers.Values)
-                if (view != null) Destroy(view.gameObject);
+            foreach (KeyValuePair<string, RemotePlayerView> pair in remotePlayers)
+            {
+                if (pair.Value != null) Destroy(pair.Value.gameObject);
+                RemotePlayerRemoved?.Invoke(pair.Key);
+            }
 
             remotePlayers.Clear();
+        }
+
+        private void RemoveRemotePlayer(string playerId)
+        {
+            if (string.IsNullOrWhiteSpace(playerId) ||
+                remotePlayers.Remove(playerId, out RemotePlayerView view) == false)
+                return;
+
+            if (view != null) Destroy(view.gameObject);
+            RemotePlayerRemoved?.Invoke(playerId);
         }
 
         private void HandleTerrainSnapshot(TerrainSnapshotMessage message)

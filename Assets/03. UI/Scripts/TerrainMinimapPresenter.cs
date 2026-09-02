@@ -62,7 +62,10 @@ namespace TerrainCollapse
                 explorationController.ExplorationRestored += RefreshMap;
             }
             if (roomClient != null)
+            {
                 roomClient.TerrainSnapshotLoaded += HandleTerrainSnapshotLoaded;
+                roomClient.RemotePlayerRemoved += HandleRemotePlayerRemoved;
+            }
             TryInitialize();
         }
 
@@ -75,7 +78,10 @@ namespace TerrainCollapse
                 explorationController.ExplorationRestored -= RefreshMap;
             }
             if (roomClient != null)
+            {
                 roomClient.TerrainSnapshotLoaded -= HandleTerrainSnapshotLoaded;
+                roomClient.RemotePlayerRemoved -= HandleRemotePlayerRemoved;
+            }
         }
 
         private void Update()
@@ -87,6 +93,7 @@ namespace TerrainCollapse
             }
 
             UpdateLocalPlayerMarker();
+            UpdateRemotePlayerMarkers();
         }
 
         private void TryInitialize()
@@ -121,6 +128,7 @@ namespace TerrainCollapse
             initialized = true;
             RefreshMap();
             UpdateLocalPlayerMarker();
+            UpdateRemotePlayerMarkers();
         }
 
         private void HandleTerrainSnapshotLoaded(TerrainSnapshot snapshot)
@@ -183,7 +191,10 @@ namespace TerrainCollapse
 
             int pixelIndex = cell.y * mapWidth + cell.x;
 
-            if (explorationController.ExplorationData.IsExplored(cell) == false)
+            // 월드 안개 View와 동일하게 지상/스폰 영역(y > 0)은 개인 탐험 여부와
+            // 관계없이 공개한다. 전체 맵도 이 텍스처를 공유하므로 같은 결과가 적용된다.
+            if (IsFogFreeCell(cell) == false &&
+                explorationController.ExplorationData.IsExplored(cell) == false)
             {
                 pixels[pixelIndex] = unexploredColor;
                 return;
@@ -197,6 +208,12 @@ namespace TerrainCollapse
 
             terrainManager.TryGetResourceID(cell, out int resourceID);
             pixels[pixelIndex] = GetTileColor(type, resourceID);
+        }
+
+        private bool IsFogFreeCell(Vector2Int cell)
+        {
+            float cellCenterY = mapOrigin.y + (cell.y + 0.5f) * cellSize;
+            return cellCenterY > 0f;
         }
 
         private Color32 GetTileColor(TerrainTileType type, int resourceID)
@@ -248,6 +265,38 @@ namespace TerrainCollapse
                 localPlayer.position.y);
 
             minimapView.SetPlayerNormalizedPosition(new Vector2(normalizedX, normalizedY));
+        }
+
+        private void UpdateRemotePlayerMarkers()
+        {
+            if (roomClient == null || minimapView == null ||
+                terrainManager.TryGetMapBounds(
+                    out int width,
+                    out int height,
+                    out float size,
+                    out Vector2 origin) == false)
+                return;
+
+            float mapWorldWidth = width * size;
+            float mapWorldHeight = height * size;
+            foreach (Networking.RemotePlayerView remotePlayer in roomClient.RemotePlayerViews)
+            {
+                if (remotePlayer == null || string.IsNullOrWhiteSpace(remotePlayer.PlayerId))
+                    continue;
+
+                Vector3 position = remotePlayer.transform.position;
+                Vector2 normalizedPosition = new(
+                    Mathf.InverseLerp(origin.x, origin.x + mapWorldWidth, position.x),
+                    Mathf.InverseLerp(origin.y, origin.y + mapWorldHeight, position.y));
+                minimapView.SetRemotePlayerNormalizedPosition(
+                    remotePlayer.PlayerId,
+                    normalizedPosition);
+            }
+        }
+
+        private void HandleRemotePlayerRemoved(string playerId)
+        {
+            minimapView?.RemoveRemotePlayerMarker(playerId);
         }
     }
 }
