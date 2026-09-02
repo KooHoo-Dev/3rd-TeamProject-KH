@@ -70,11 +70,11 @@ namespace TerrainCollapse
         private static Color GetDebugTileColor(TerrainTileType type)
             => type switch
             {
-                TerrainTileType.Ground => new Color(0.35f, 0.75f, 0.3f),
-                TerrainTileType.Dirt => new Color(0.55f, 0.3f, 0.12f),
-                TerrainTileType.Stone => new Color(0.55f, 0.58f, 0.62f),
+                TerrainTileType.Ground => new Color(0.95f, 0.85f, 0.8f),
+                TerrainTileType.Dirt => new Color(0.75f, 0.5f, 0.32f),
+                TerrainTileType.Stone => new Color(0.45f, 0.48f, 0.52f),
                 TerrainTileType.Bedrock => new Color(0.05f, 0.05f, 0.05f),
-                TerrainTileType.DeepStone => new Color(0.28f, 0.3f, 0.38f),
+                TerrainTileType.DeepStone => new Color(0.28f, 0.3f, 0.32f),
                 TerrainTileType.DeathLoot => Color.red,
                 _ => Color.magenta
             };
