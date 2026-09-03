@@ -48,3 +48,4 @@ MonoBehaviour:
   landingHighlight: {fileID: 0}
   trajectorySegments: 20
   explosivePrefab: {fileID: 5800443297313628158, guid: e13d0ad6707377b4eb949e8d55a4cfd6, type: 3}
+  data: {fileID: 11400000, guid: 945a3699b52c8f242ae2e06b0b0e2392, type: 2}

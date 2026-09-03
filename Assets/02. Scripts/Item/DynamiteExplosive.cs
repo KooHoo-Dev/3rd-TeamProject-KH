@@ -13,27 +13,24 @@ namespace TerrainCollapse
         [Header("Explosion Detection")]
         [SerializeField] private LayerMask damageableLayerMask = ~0;
 
-        [Header("Flight Settings")] [SerializeField]
-        private float throwSpeed; // 투척 속도
-
-        private DynamiteInfo info;
+        [Header("Explosive Setting Asset")]
+        [SerializeField] private ExplosiveData data; // SO 데이터 참조
+        
         private Rigidbody2D rb;
-
+        
         private void Awake()
         {
             rb = GetComponent<Rigidbody2D>();
         }
 
-        public void Launch(Vector3 ownerPos, Vector3 direction, float speed, DynamiteInfo dynamiteInfo)
+        public void Launch(Vector3 ownerPos, Vector3 direction)
         {
             transform.position = ownerPos;
-            info = dynamiteInfo;
-            throwSpeed = speed;
 
             // 방향 벡터로 물리 속도 부여
             if (rb != null)
             {
-                rb.linearVelocity = (Vector2)direction * throwSpeed;
+                rb.linearVelocity = (Vector2)direction * data.ThrowSpeed;
             }
 
             StartCoroutine(FuseRoutine());
@@ -42,7 +39,7 @@ namespace TerrainCollapse
         private IEnumerator FuseRoutine()
         {
             // 퓨즈 타임 동안 계속 날아가거나 굴러감
-            yield return new WaitForSeconds(info.FuseTime);
+            yield return new WaitForSeconds(data.FuseTime);
 
             Explode();
         }
@@ -54,10 +51,10 @@ namespace TerrainCollapse
             if (terrainManager != null &&
                 terrainManager.TryWorldToCell(transform.position, out Vector2Int centerCell))
             {
-                DigTilesInRadius(terrainManager, centerCell, info.Radius, info.Power);
+                DigTilesInRadius(terrainManager, centerCell, data.Radius, data.Power);
             }
 
-            DamagePlayersInRadius(transform.position, info.Radius, info.Power);
+            DamagePlayersInRadius(transform.position, data.Radius, data.Power);
 
             Destroy(gameObject);
         }
