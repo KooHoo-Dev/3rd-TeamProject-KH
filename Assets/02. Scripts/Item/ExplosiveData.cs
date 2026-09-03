@@ -5,7 +5,7 @@ namespace TerrainCollapse
     [CreateAssetMenu(fileName = "NewExplosiveData", menuName = "Data/Explosive", order = 0)]
     public class ExplosiveData : ScriptableObject
     {
-        [Header("Flight Settings")]
+        [Header("Explosive Settings")]
         [SerializeField] private float fuseTime = 5.0f;
         [SerializeField] private int power = 3;
         [SerializeField] private float radius = 2.5f;
