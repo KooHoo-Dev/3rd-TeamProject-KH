@@ -109,7 +109,7 @@ MonoBehaviour:
   damageableLayerMask:
     serializedVersion: 2
     m_Bits: 4294967295
-  throwSpeed: 6
+  data: {fileID: 11400000, guid: 945a3699b52c8f242ae2e06b0b0e2392, type: 2}
 --- !u!50 &7680795845784883999
 Rigidbody2D:
   serializedVersion: 5

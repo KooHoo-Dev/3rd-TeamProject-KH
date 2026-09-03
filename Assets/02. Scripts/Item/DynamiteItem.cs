@@ -8,12 +8,15 @@ namespace TerrainCollapse
         [Header("Preview Settings")]
         [SerializeField] private LineRenderer trajectoryLine; // 투척 예상 경로선
         [SerializeField] private GameObject landingHighlight; // 착탄 지점 하이라이트
+        [SerializeField] private float lineThickness = 0.15f;
         [SerializeField, Min(2)] private int trajectorySegments = 20; // 경로선 정밀도
+        [SerializeField] private Color highlightLineColor = Color.white;
 
         [Header("Throw Settings")]
         [SerializeField] private DynamiteExplosive explosivePrefab; // 투척되는 실제 폭발물 프리팹
+        [SerializeField] private ExplosiveData data; // SO 데이터 참조
         
-        private float throwSpeed = 6f;
+        
         private GameObject highlightInstance;
 
         public override void Init(ItemDef def)
@@ -36,15 +39,15 @@ namespace TerrainCollapse
                 trajectoryLine.useWorldSpace = true;
 
                 // 2. 두께 및 정렬 레이어 설정
-                trajectoryLine.startWidth = 0.05f;
-                trajectoryLine.endWidth = 0.05f;
+                trajectoryLine.startWidth = lineThickness;
+                trajectoryLine.endWidth = lineThickness;
                 trajectoryLine.sortingLayerName = "Foreground";
                 trajectoryLine.sortingOrder = 10;
 
                 // 3. 머티리얼 및 색상 설정 (다이너마이트 느낌의 주황색 계열)
                 trajectoryLine.material = new Material(Shader.Find("Sprites/Default"));
-                trajectoryLine.startColor = new Color(1f, 0.55f, 0f, 0.85f);
-                trajectoryLine.endColor = new Color(1f, 0.2f, 0f, 0.25f);
+                trajectoryLine.startColor = highlightLineColor;
+                trajectoryLine.endColor = highlightLineColor;
 
                 // 4. 기본 비활성화
                 trajectoryLine.enabled = false;
@@ -81,10 +84,10 @@ namespace TerrainCollapse
     
             // Rigidbody2D 물리를 사용하는 경우 Physics2D.gravity.y를, 
             // 아니면 직접 정의한 중력값(예: -9.81f)을 사용하세요.
-            Vector3 gravity = Physics2D.gravity; 
+            Vector3 gravity = Physics2D.gravity;
 
             Vector3 currentPos = startPos;
-            Vector3 velocity = direction * throwSpeed;
+            Vector3 velocity = direction * data.ThrowSpeed;
 
             for (int i = 0; i < trajectorySegments; i++)
             {
@@ -122,7 +125,7 @@ namespace TerrainCollapse
 
             DynamiteExplosive thrown = Instantiate(explosivePrefab, ownerPos, Quaternion.identity);
             // targetPos 대신 throwDirection을 넘겨줍니다.
-            thrown.Launch(ownerPos, throwDirection, throwSpeed,Def.DynamiteData.Value);
+            thrown.Launch(ownerPos, throwDirection);
 
             OnClearPreview();
         }

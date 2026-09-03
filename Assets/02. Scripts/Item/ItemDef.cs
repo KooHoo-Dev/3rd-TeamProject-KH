@@ -38,14 +38,6 @@ namespace TerrainCollapse
         public PickaxeInfo(float range, int digPower) => (Range, DigPower) = (range, digPower);
     }
 
-    public struct DynamiteInfo
-    {
-        public float Radius { get; }
-        public int Power { get; }
-        public float FuseTime { get; }
-        public DynamiteInfo(float radius, int power, float fuseTime) => (Radius, Power, FuseTime) = (radius, power, fuseTime);
-    }
-
     public class ItemDef
     {
         public int ID { get; private set; }
@@ -58,7 +50,6 @@ namespace TerrainCollapse
 
         // 타입에 따라 안전하게 제공되는 스탯 정보
         public PickaxeInfo? PickaxeData { get; private set; }
-        public DynamiteInfo? DynamiteData { get; private set; }
 
         public ItemDef(ItemDTO dto, Item prefab, Sprite sprite)
         {
@@ -74,10 +65,6 @@ namespace TerrainCollapse
             if (Type == ItemType.Pickaxe)
             {
                 PickaxeData = new PickaxeInfo(dto.PickaxeRange, dto.DigPower);
-            }
-            else if (Type == ItemType.Dynamite)
-            {
-                DynamiteData = new DynamiteInfo(dto.ExplosionRadius, dto.ExplosionPower, dto.FuseTime);
             }
         }
     }
