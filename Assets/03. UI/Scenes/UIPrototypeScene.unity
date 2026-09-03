@@ -769,6 +769,74 @@ PrefabInstance:
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
       objectReference: {fileID: 1971883716}
+    - target: {fileID: 816648606549949585, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 816648606549949585, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 816648606549949585, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 816648606549949585, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 816648606549949585, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 816648606549949585, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1365260291480049007, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1365260291480049007, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1365260291480049007, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1365260291480049007, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1365260291480049007, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260252339132285317, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260252339132285317, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260252339132285317, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260252339132285317, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260252339132285317, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2260252339132285317, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7707332060740510066, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
       propertyPath: m_Name
       value: Shop UI
@@ -1458,8 +1526,6 @@ MonoBehaviour:
   blockingNormalDotThreshold: 0.01
   depenetrationPadding: 0.001
   depenetrationIterations: 4
-  normalSortingOrder: 2
-  buriedSortingOrder: -1
 --- !u!212 &1971883698
 SpriteRenderer:
   serializedVersion: 2
@@ -1619,6 +1685,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 63bcc6d2efbb4acaa5368ff035aa4979, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ItemController
+  equippedItem: {fileID: 0}
   pickaxeInventory: {fileID: 1971883715}
 --- !u!114 &1971883704
 MonoBehaviour:
@@ -1709,7 +1776,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4b181f3cc8e04bb7a037d5c1d6ee5b6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerInventory
-  maxWeight: 520
+  maxWeight: 1000
 --- !u!114 &1971883710
 MonoBehaviour:
   m_ObjectHideFlags: 0

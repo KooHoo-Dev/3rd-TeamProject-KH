@@ -18,6 +18,7 @@ namespace TerrainCollapse
     [RequireComponent(typeof(PlayerInventory))]
     public class ItemController : MonoBehaviour
     {
+        [SerializeField] private Item equippedItem;
         // 둘 다 인벤토리 상태에 따라 런타임에 채워지는 값이라 인스펙터에 노출하지 않습니다.
         private Item pickaxeItem;
         private Item activeItem;
@@ -52,14 +53,12 @@ namespace TerrainCollapse
         private void OnEnable()
         {
             inventory.ItemChanged += HandleInventoryChanged;
-
             pickaxeInventory.PickaxeChanged += HandlePickaxeChanged;
         }
 
         private void OnDisable()
         {
             inventory.ItemChanged -= HandleInventoryChanged;
-
             pickaxeInventory.PickaxeChanged -= HandlePickaxeChanged;
         }
 
@@ -178,6 +177,8 @@ namespace TerrainCollapse
                 {
                     TryUseEquippedItem(ownerPos, mouseWorldPos);
                 }
+            }
+
             // 액티브 아이템이 있을 때만 우클릭으로 프리뷰 시작 가능
             if (rightPressedThisFrame && activeItem != null && isPreviewingActiveItem == false)
             {
