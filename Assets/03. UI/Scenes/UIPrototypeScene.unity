@@ -765,6 +765,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 106939255764490954, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1971883716}
     - target: {fileID: 7707332060740510066, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
       propertyPath: m_Name
       value: Shop UI
@@ -863,7 +867,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 524b90cc19fb72745b30e88b4528373a, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ShopView
 --- !u!1 &794077775 stripped
 GameObject:

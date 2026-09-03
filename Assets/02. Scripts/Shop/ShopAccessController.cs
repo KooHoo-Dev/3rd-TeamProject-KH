@@ -68,7 +68,7 @@ namespace TerrainCollapse
             shopView?.Show();
         }
 
-        private void CloseShop()
+        public void CloseShop()
         {
             if (IsShopOpen == false) return;
 
