@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System;
 
 namespace TerrainCollapse
 {
@@ -9,6 +10,12 @@ namespace TerrainCollapse
         
         private TestPlayerController playerController;
 
+        public event Action<float> MineStarted;
+
+        private bool isMining;
+        private PickaxeItem activePickaxe;
+        public bool IsMining => isMining;
+        
         private void Awake()
         {
             playerController = GetComponent<TestPlayerController>();
@@ -44,10 +51,11 @@ namespace TerrainCollapse
         {
             if (equippedItem == null) return;
 
-            // 플레이어가 사망했거나 조작 불가 상태일 경우 입력 및 프리뷰 전면 차단
-            if (playerController != null && playerController.IsDead)
+            if (playerController != null &&
+                playerController.IsDead)
             {
-                // 사망 즉시 잔여 프리뷰/조준선을 지우고 업데이트 중단
+                CancelMine();
+
                 equippedItem.OnClearPreview();
                 return;
             }
@@ -59,10 +67,75 @@ namespace TerrainCollapse
             equippedItem.OnUpdatePreview(ownerPos, mouseWorldPos);
 
             // 아이템 사용 입력 처리
-            if (Pointer.current != null && Pointer.current.press.wasPressedThisFrame)
+            if (Pointer.current != null &&
+                Pointer.current.press.wasPressedThisFrame)
             {
-                equippedItem.Use(ownerPos, mouseWorldPos);
+                TryUseEquippedItem(ownerPos, mouseWorldPos);
             }
+        }
+        
+        private void CancelMine()
+        {
+            activePickaxe?.CancelPreparedUse();
+
+            activePickaxe = null;
+            isMining = false;
+        }
+        
+        private void TryUseEquippedItem(
+            Vector3 ownerPos,
+            Vector3 targetPos)
+        {
+            if (isMining)
+                return;
+
+            if (equippedItem is PickaxeItem pickaxe)
+            {
+                activePickaxe = pickaxe;
+
+                if (!activePickaxe.PrepareUse(
+                        ownerPos,
+                        targetPos,
+                        out Vector3 mineTargetPos))
+                {
+                    activePickaxe = null;
+                    return;
+                }
+
+                isMining = true;
+
+                float mineDirectionX =
+                    mineTargetPos.x - ownerPos.x;
+
+                MineStarted?.Invoke(mineDirectionX);
+
+                return;
+            }
+
+            // 곡괭이가 아닌 기존 아이템은 지금 방식 유지
+            equippedItem.Use(ownerPos, targetPos);
+        }
+        
+        public void ExecuteMineImpact()
+        {
+            if (!isMining)
+                return;
+
+            if (activePickaxe == null)
+                return;
+
+            activePickaxe.ExecutePreparedUse(transform.position);
+        }
+        
+        public void FinishMine()
+        {
+            if (!isMining)
+                return;
+
+            activePickaxe?.CancelPreparedUse();
+
+            activePickaxe = null;
+            isMining = false;
         }
 
         private Vector3 GetMouseWorldPosition()

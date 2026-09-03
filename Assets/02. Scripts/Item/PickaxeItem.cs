@@ -9,6 +9,10 @@ namespace TerrainCollapse
         [SerializeField] private LineRenderer lineRenderer; // 캐릭터 ~ 타일 연결선
         [SerializeField] private GameObject tileHighlight; // 타일 하이라이트
         
+        private TerrainManager pendingTerrainManager;
+        private Vector2Int pendingTargetCell;
+        private bool hasPendingDig;
+        
         private GameObject highlightInstance;
 
         public override void Init(ItemDef def)
@@ -180,6 +184,105 @@ namespace TerrainCollapse
                 if (moveY) { err += dx; currY += sy; }
             }
             return false;
+        }
+        
+        public bool PrepareUse(
+            Vector3 ownerPos,
+            Vector3 targetPos,
+            out Vector3 preparedTargetWorldPos)
+        {
+            preparedTargetWorldPos = default;
+
+            hasPendingDig = false;
+            pendingTerrainManager = null;
+
+            TerrainManager terrainManager =
+                FindFirstObjectByType<TerrainManager>();
+
+            if (terrainManager == null)
+                return false;
+
+            if (!TryGetTargetCell(
+                    terrainManager,
+                    ownerPos,
+                    targetPos,
+                    out Vector2Int targetCell,
+                    out Vector3 targetWorldPos))
+            {
+                return false;
+            }
+
+            pendingTerrainManager = terrainManager;
+            pendingTargetCell = targetCell;
+            hasPendingDig = true;
+
+            preparedTargetWorldPos = targetWorldPos;
+
+            return true;
+        }
+
+        public void ExecutePreparedUse(Vector3 currentOwnerPos)
+        {
+            if (!hasPendingDig ||
+                pendingTerrainManager == null)
+            {
+                return;
+            }
+
+            // 이번 Swing의 타격 기회는 여기서 소비
+            hasPendingDig = false;
+
+            if (!IsPreparedTargetStillValid(currentOwnerPos))
+            {
+                pendingTerrainManager = null;
+                return;
+            }
+
+            ExecuteDigPower(
+                pendingTerrainManager,
+                pendingTargetCell,
+                Def.PickaxeData.Value.DigPower);
+
+            pendingTerrainManager = null;
+        }
+        
+        private bool IsPreparedTargetStillValid(Vector3 currentOwnerPos)
+        {
+            if (pendingTerrainManager == null)
+                return false;
+
+            if (!pendingTerrainManager.HasTerrain(pendingTargetCell))
+                return false;
+
+            if (!pendingTerrainManager.TryCellToWorldCenter(
+                    pendingTargetCell,
+                    out Vector3 targetWorldPos))
+            {
+                return false;
+            }
+
+            float cellSize = pendingTerrainManager.CellSize;
+
+            if (cellSize <= 0f)
+                return false;
+
+            Bounds targetBounds = new Bounds(
+                targetWorldPos,
+                new Vector3(cellSize, cellSize, 0f));
+
+            Vector3 closestPoint =
+                targetBounds.ClosestPoint(currentOwnerPos);
+
+            float distance =
+                Vector2.Distance(currentOwnerPos, closestPoint);
+
+            return distance <= Def.PickaxeData.Value.Range;
+        }
+
+        public void CancelPreparedUse()
+        {
+            hasPendingDig = false;
+            pendingTerrainManager = null;
         }
     }
 }
