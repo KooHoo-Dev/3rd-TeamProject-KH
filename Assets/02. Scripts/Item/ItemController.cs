@@ -67,10 +67,25 @@ namespace TerrainCollapse
             equippedItem.OnUpdatePreview(ownerPos, mouseWorldPos);
 
             // 아이템 사용 입력 처리
-            if (Pointer.current != null &&
-                Pointer.current.press.wasPressedThisFrame)
+            if (Pointer.current == null)
+                return;
+
+            if (equippedItem is PickaxeItem)
             {
-                TryUseEquippedItem(ownerPos, mouseWorldPos);
+                // 곡괭이는 누르고 있는 동안 반복 사용
+                // 단, 현재 Mine 한 사이클이 끝난 상태에서만 다음 사이클 시작
+                if (Pointer.current.press.isPressed && !isMining)
+                {
+                    TryUseEquippedItem(ownerPos, mouseWorldPos);
+                }
+            }
+            else
+            {
+                // 다른 아이템은 기존처럼 클릭 1회당 사용 1회
+                if (Pointer.current.press.wasPressedThisFrame)
+                {
+                    TryUseEquippedItem(ownerPos, mouseWorldPos);
+                }
             }
         }
         
@@ -93,10 +108,7 @@ namespace TerrainCollapse
             {
                 activePickaxe = pickaxe;
 
-                if (!activePickaxe.PrepareUse(
-                        ownerPos,
-                        targetPos,
-                        out Vector3 mineTargetPos))
+                if (!activePickaxe.PrepareUse(ownerPos, targetPos))
                 {
                     activePickaxe = null;
                     return;
@@ -104,15 +116,12 @@ namespace TerrainCollapse
 
                 isMining = true;
 
-                float mineDirectionX =
-                    mineTargetPos.x - ownerPos.x;
-
+                float mineDirectionX = targetPos.x - ownerPos.x;
                 MineStarted?.Invoke(mineDirectionX);
 
                 return;
             }
 
-            // 곡괭이가 아닌 기존 아이템은 지금 방식 유지
             equippedItem.Use(ownerPos, targetPos);
         }
         

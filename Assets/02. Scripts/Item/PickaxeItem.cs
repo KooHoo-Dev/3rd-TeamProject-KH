@@ -186,13 +186,8 @@ namespace TerrainCollapse
             return false;
         }
         
-        public bool PrepareUse(
-            Vector3 ownerPos,
-            Vector3 targetPos,
-            out Vector3 preparedTargetWorldPos)
+        public bool PrepareUse(Vector3 ownerPos, Vector3 targetPos)
         {
-            preparedTargetWorldPos = default;
-
             hasPendingDig = false;
             pendingTerrainManager = null;
 
@@ -207,7 +202,7 @@ namespace TerrainCollapse
                     ownerPos,
                     targetPos,
                     out Vector2Int targetCell,
-                    out Vector3 targetWorldPos))
+                    out _))
             {
                 return false;
             }
@@ -215,8 +210,6 @@ namespace TerrainCollapse
             pendingTerrainManager = terrainManager;
             pendingTargetCell = targetCell;
             hasPendingDig = true;
-
-            preparedTargetWorldPos = targetWorldPos;
 
             return true;
         }
