@@ -12,13 +12,17 @@ namespace TerrainCollapse
 
         public float CellSize { get; }
         public Vector2 Origin { get; }
+        public int MapWidth { get; }
+        public int MapHeight { get; }
         public int Count => cells.Count;
         public uint Revision { get; private set; }
 
-        public TerrainGridData(float cellSize, Vector2 origin)
+        public TerrainGridData(float cellSize, Vector2 origin, int mapWidth = 0, int mapHeight = 0)
         {
             CellSize = cellSize;
             Origin = origin;
+            MapWidth = Mathf.Max(0, mapWidth);
+            MapHeight = Mathf.Max(0, mapHeight);
         }
 
         public bool IsOccupied(Vector2Int coord) => cells.ContainsKey(coord);
@@ -160,6 +164,8 @@ namespace TerrainCollapse
             TerrainSnapshot snapshot = new TerrainSnapshot
             {
                 Revision = Revision,
+                MapWidth = MapWidth,
+                MapHeight = MapHeight,
                 CellSize = CellSize,
                 Origin = Origin
             };
@@ -182,7 +188,11 @@ namespace TerrainCollapse
             if (snapshot == null) throw new System.ArgumentNullException(nameof(snapshot));
             if (snapshot.CellSize <= 0f) throw new System.ArgumentOutOfRangeException(nameof(snapshot.CellSize));
             
-            TerrainGridData result = new TerrainGridData(snapshot.CellSize, snapshot.Origin);
+            TerrainGridData result = new TerrainGridData(
+                snapshot.CellSize,
+                snapshot.Origin,
+                snapshot.MapWidth,
+                snapshot.MapHeight);
             
             if (snapshot.Cells != null)
                 foreach (TerrainCellChange cell in snapshot.Cells)

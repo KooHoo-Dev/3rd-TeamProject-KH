@@ -46,6 +46,13 @@ namespace TerrainCollapse
 
         private void Explode()
         {
+            if (RoomClient.Instance != null)
+            {
+                Debug.LogWarning("[Dynamite] 서버에 폭발 명령이 없어 멀티플레이에서는 적용하지 않습니다.", this);
+                Destroy(gameObject);
+                return;
+            }
+
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
 
             if (terrainManager != null &&

@@ -104,5 +104,49 @@ namespace TerrainCollapse
 
             return true;
         }
+
+        /// <summary>
+        /// 서버가 확정한 인벤토리 전체 상태를 적용한다.
+        /// 로컬 무게 제한은 서버 스냅샷을 거절하는 조건으로 사용하지 않는다.
+        /// </summary>
+        public void ReplaceWithSnapshot(IEnumerable<KeyValuePair<int, int>> snapshot)
+        {
+            Dictionary<int, int> replacement = new();
+            if (snapshot != null)
+            {
+                foreach (KeyValuePair<int, int> item in snapshot)
+                    if (item.Key >= 0 && item.Value > 0)
+                        replacement[item.Key] = item.Value;
+            }
+
+            Dictionary<int, int> previousQuantities = new(quantities);
+            HashSet<int> changedItemIDs = new(quantities.Keys);
+            changedItemIDs.UnionWith(replacement.Keys);
+
+            quantities.Clear();
+            currentWeight = 0;
+
+            foreach (KeyValuePair<int, int> item in replacement)
+            {
+                quantities[item.Key] = item.Value;
+
+                if (TryGetItemWeight(item.Key, out int itemWeight) == false)
+                    continue;
+
+                long weight = (long)itemWeight * item.Value;
+                currentWeight = (int)Math.Min(int.MaxValue, currentWeight + weight);
+            }
+
+            foreach (int itemID in changedItemIDs)
+            {
+                int previous = previousQuantities.TryGetValue(itemID, out int oldValue)
+                    ? oldValue
+                    : 0;
+                int current = GetQuantity(itemID);
+                if (previous == current) continue;
+
+                ItemChanged?.Invoke(new InventoryItemChange(itemID, previous, current));
+            }
+        }
     }
 }

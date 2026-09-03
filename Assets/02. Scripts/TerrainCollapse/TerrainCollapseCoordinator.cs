@@ -13,6 +13,9 @@ namespace TerrainCollapse
 
         private bool isCheckingGroups;
         private int chainCount;
+        private bool placementOwnerForCurrentChain = true;
+
+        public event System.Action<IReadOnlyList<Vector2Int>> CollapseStartRequested;
 
         public void Configure(TerrainManager terrain, CollapseManager collapse)
         {
@@ -33,13 +36,20 @@ namespace TerrainCollapse
         private void Subscribe()
         {
             terrainManager.TerrainChanged += HandleTerrainChanged;
+            terrainManager.AuthoritativeBatchApplied += HandleAuthoritativeBatchApplied;
             collapseManager.RebuildCompleted += HandleRebuildCompleted;
         }
 
         private void UnSubscribe()
         {
             terrainManager.TerrainChanged -= HandleTerrainChanged;
+            terrainManager.AuthoritativeBatchApplied -= HandleAuthoritativeBatchApplied;
             collapseManager.RebuildCompleted -= HandleRebuildCompleted;
+        }
+
+        private void HandleAuthoritativeBatchApplied(TerrainChangeBatch batch)
+        {
+            placementOwnerForCurrentChain = batch.IsPlacementOwner;
         }
 
         private void HandleTerrainChanged(TerrainChangeReason reason)
@@ -47,6 +57,9 @@ namespace TerrainCollapse
             if (reason == TerrainChangeReason.CollapsePlacement) return;
 
             chainCount = 0;
+            if (reason != TerrainChangeReason.AuthoritativeBatch)
+                placementOwnerForCurrentChain = true;
+
             ReleaseFloatingGroups();
         }
 
@@ -74,7 +87,14 @@ namespace TerrainCollapse
                 List<List<Vector2Int>> groups = terrainManager.FindFloatingGroups();
                 
                 foreach (List<Vector2Int> group in groups)
-                    collapseManager.CreateChunk(group);
+                {
+                    if (RoomClient.Instance?.IsAuthoritativeTerrainMode == true)
+                    {
+                        if (placementOwnerForCurrentChain)
+                            CollapseStartRequested?.Invoke(group);
+                    }
+                    else collapseManager.CreateChunk(group, placementOwnerForCurrentChain);
+                }
 
                 return groups.Count > 0;
             }

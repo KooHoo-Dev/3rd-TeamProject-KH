@@ -7,11 +7,25 @@ namespace TerrainCollapse.Networking
 
     public static class NetworkMessageTypes
     {
+        public const string Hello = "hello";
+        public const string Welcome = "welcome";
+        public const string Join = "join";
+        public const string Leave = "leave";
+        public const string PlayerMove = "player.move";
+        public const string State = "state";
+        public const string Error = "error";
         public const string MapSession = "map_session";
         public const string TerrainExcavationRequest = "terrain_excavate";
+        public const string TerrainCollapseStartRequest = "terrain_collapse_start";
+        public const string TerrainCollapseStarted = "terrain_collapse_started";
+        public const string TerrainCollapseCancelled = "terrain_collapse_cancelled";
+        public const string TerrainCollapsePlacementRequest = "terrain_collapse_place";
         public const string TerrainChangeBatch = "terrain_batch";
-        public const string TerrainSnapshot = "terrain_snapshot";
-        public const string ExplorationSnapshot = "exploration_snapshot";
+        public const string WorldItemSnapshot = "world_item.snapshot";
+        public const string WorldItemSpawned = "world_item.spawned";
+        public const string WorldItemRemoved = "world_item.removed";
+        public const string WorldItemPickup = "world_item.pickup";
+        public const string InventorySnapshot = "inventory.snapshot";
     }
 
     // JSON 메시지의 Type 필드만 먼저 읽기 위한 헤더 데이터
@@ -22,18 +36,77 @@ namespace TerrainCollapse.Networking
         public string Type { get; set; }
     }
 
+    [Serializable]
+    public sealed class NetworkUser
+    {
+        public string Id { get; set; }
+        public string NickName { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WelcomeMessage
+    {
+        public string Type { get; set; }
+        public string RoomCode { get; set; }
+        public NetworkUser User { get; set; }
+        public NetworkUser[] Users { get; set; }
+    }
+
     // 지형 요청과 서버 확정 상태 전송에 사용하는 공용 데이터 계약
 
     [Serializable]
     public sealed class TerrainExcavationRequest
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainExcavationRequest;
-        public long ClientRequestID { get; set; }
-        public uint ExpectedTerrainRevision { get; set; }
+        // 서버 PacketHeader.RequestId와 이름을 맞춰 요청-응답을 연결한다.
+        public string RequestId { get; set; }
         public GridCoord TargetCell { get; set; }
-        public int DamageAmount { get; set; }
+        public int ItemID { get; set; }
 
-        public bool IsValid() => ClientRequestID > 0 && DamageAmount > 0;
+        public bool IsValid() => ItemID > 0;
+    }
+
+    [Serializable]
+    public sealed class TerrainCollapseStartRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.TerrainCollapseStartRequest;
+        public string RequestId { get; set; }
+
+        // 부유 그룹의 원본 셀
+        public List<GridCoord> SourceCells { get; set; } = new();
+    }
+
+    // 서버가 낙하 예약을 취소했을 때 원본 셀 복구 정보를 전달한다.
+    [Serializable]
+    public sealed class TerrainCollapseCancelledMessage
+    {
+        public string Type { get; set; } = NetworkMessageTypes.TerrainCollapseCancelled;
+        public List<long> CollapseIDs { get; set; } = new();
+        public List<TerrainCellChangeDto> RestoreCells { get; set; } = new();
+    }
+
+    [Serializable]
+    public sealed class TerrainCollapseStartedMessage
+    {
+        public string Type { get; set; } = NetworkMessageTypes.TerrainCollapseStarted;
+        public string RequestId { get; set; }
+        public long CollapseID { get; set; }
+        public string OwnerPlayerID { get; set; }
+        public uint StartedRevision { get; set; }
+        public List<GridCoord> SourceCells { get; set; } = new();
+    }
+
+    [Serializable]
+    public sealed class TerrainCollapsePlacementRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.TerrainCollapsePlacementRequest;
+        public string RequestId { get; set; }
+        public long CollapseID { get; set; }
+        public List<GridCoord> SourceCells { get; set; } = new();
+        public List<TerrainCellChangeDto> Changes { get; set; } = new();
+
+        public bool IsValid()
+            => CollapseID > 0 && SourceCells.Count > 0 && SourceCells.Count == Changes.Count;
     }
 
     [Serializable]
@@ -70,44 +143,12 @@ namespace TerrainCollapse.Networking
     }
 
     [Serializable]
-    public sealed class TerrainSnapshotDto
-    {
-        public string MapSessionID { get; set; }
-        public uint Revision { get; set; }
-        public float CellSize { get; set; }
-        public float OriginX { get; set; }
-        public float OriginY { get; set; }
-        public List<TerrainCellChangeDto> Cells { get; set; } = new();
-    }
-
-    [Serializable]
     public sealed class TerrainChangeBatchMessage
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainChangeBatch;
+        // 서버가 요청의 RequestId를 그대로 되돌려준다.
+        public string RequestId { get; set; }
         public TerrainChangeBatchDto Batch { get; set; }
     }
 
-    [Serializable]
-    public sealed class TerrainSnapshotMessage
-    {
-        public string Type { get; set; } = NetworkMessageTypes.TerrainSnapshot;
-        public TerrainSnapshotDto Snapshot { get; set; }
-    }
-
-    [Serializable]
-    public sealed class ExplorationSnapshotDto
-    {
-        public string MapSessionID { get; set; }
-        public string PlayerID { get; set; }
-        public int MapWidth { get; set; }
-        public int MapHeight { get; set; }
-        public List<int> ExploredCellIndices { get; set; } = new();
-    }
-
-    [Serializable]
-    public sealed class ExplorationSnapshotMessage
-    {
-        public string Type { get; set; } = NetworkMessageTypes.ExplorationSnapshot;
-        public ExplorationSnapshotDto Snapshot { get; set; }
-    }
 }

@@ -213,6 +213,14 @@ namespace TerrainCollapse
             // 우클릭을 뗀 시점에 실제 사용 실행
             if (rightReleasedThisFrame)
             {
+                if (RoomClient.Instance != null)
+                {
+                    Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
+                    activeItem.OnClearPreview();
+                    isPreviewingActiveItem = false;
+                    return;
+                }
+
                 int itemID = activeItem.Def.ID;
 
                 // 프리뷰 도중 다른 경로(판매/드롭 등)로 소진됐을 수 있으니 사용 직전 한 번 더 확인

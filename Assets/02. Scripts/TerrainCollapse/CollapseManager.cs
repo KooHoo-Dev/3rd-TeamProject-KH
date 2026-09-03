@@ -22,10 +22,73 @@ namespace TerrainCollapse
         private readonly HashSet<FallingChunk> rebuildingChunks = new();
         private long nextCollapseId = 1;
 
-        public bool IsRebuilding => rebuildingChunks.Count > 0;
         public bool HasActiveChunks => activeChunks.Count > 0;
         public event Action<long> RebuildCompleted;
         public event Action<TerrainPlacementProposal> PlacementProposed;
+
+        public void ClearActiveChunks()
+        {
+            foreach (FallingChunk chunk in activeChunks)
+                if (chunk != null) Destroy(chunk.gameObject);
+
+            activeChunks.Clear();
+            rebuildingChunks.Clear();
+        }
+
+        // 이거 왜 있는지 쌤도 모르겠음. 클로드가 맹글었음
+        /// <summary>서버가 무른 낙하를 되돌린다. 원래 칸을 되살리고 Chunk 를 지운다.</summary>
+        public void CancelChunk(long collapseId)
+        {
+            for (int i = activeChunks.Count - 1; i >= 0; i--)
+            {
+                FallingChunk chunk = activeChunks[i];
+
+                if (chunk == null)
+                {
+                    activeChunks.RemoveAt(i);
+
+                    continue;
+                }
+
+                if (chunk.CollapseId != collapseId) continue;
+
+                RestoreSourceCells(chunk);
+                activeChunks.RemoveAt(i);
+                rebuildingChunks.Remove(chunk);
+                Destroy(chunk.gameObject);
+                Debug.Log($"[Terrain Collapse] Chunk Cancelled: id={collapseId}");
+
+                return;
+            }
+        }
+
+        /// <summary>서버가 알려 준 칸을 Grid 에 그대로 되돌린다.</summary>
+        public void RestoreCells(IEnumerable<TerrainCellChange> cells)
+        {
+            if (terrainGridWorld == null || cells == null) return;
+
+            foreach (TerrainCellChange cell in cells)
+                terrainGridWorld.SetCell(
+                    cell.Coord,
+                    cell.Type,
+                    cell.Durability,
+                    cell.ResourceID);
+        }
+
+        // 떨어지기 시작할 때 Grid 에서 뺐던 칸을 그대로 되돌린다.
+        // 서버는 이 칸을 지운 적이 없다. 지운 것은 각자의 화면뿐이다.
+        private void RestoreSourceCells(FallingChunk chunk)
+        {
+            if (terrainGridWorld == null) return;
+
+            IReadOnlyList<Vector2Int> cells = chunk.SourceCells;
+            IReadOnlyList<TerrainTileType> types = chunk.CellTypes;
+            IReadOnlyList<int> durabilities = chunk.CellDurabilities;
+            IReadOnlyList<int> resourceIDs = chunk.CellResourceIDs;
+
+            for (int i = 0; i < cells.Count; i++)
+                terrainGridWorld.SetCell(cells[i], types[i], durabilities[i], resourceIDs[i]);
+        }
 
         public void Configure(TerrainGridWorld world, TerrainSampler sampler)
         {
@@ -35,10 +98,18 @@ namespace TerrainCollapse
 
         public void CreateChunk(IReadOnlyList<Vector2Int> cells)
         {
-            CreateChunk(cells, nextCollapseId++);
+            CreateChunk(cells, nextCollapseId++, true);
         }
 
-        public void CreateChunk(IReadOnlyList<Vector2Int> cells, long collapseId)
+        public void CreateChunk(IReadOnlyList<Vector2Int> cells, bool isPlacementOwner)
+        {
+            CreateChunk(cells, nextCollapseId++, isPlacementOwner);
+        }
+
+        public void CreateChunk(
+            IReadOnlyList<Vector2Int> cells,
+            long collapseId,
+            bool isPlacementOwner)
         {
             if (cells == null || cells.Count == 0) return;
             
@@ -82,16 +153,19 @@ namespace TerrainCollapse
             FallingChunk chunk = root.GetComponent<FallingChunk>();
             float minimumWorldY = source.transform.position.y - outOfBoundsDistance;
             chunk.Configure(
+                cells,
                 localCells,
                 cellTypes,
                 cellDurabilities,
                 cellResourceIDs,
                 source.CellSize,
                 collapseId,
-                minimumWorldY);
+                minimumWorldY,
+                isPlacementOwner);
             activeChunks.Add(chunk);
             
-            Debug.Log($"[Terrain Collapse] Chunk Created: id={collapseId}, cells={cells.Count}");
+            Debug.Log($"[Terrain Collapse] Chunk Created: id={collapseId}, cells={cells.Count}, " +
+                      $"placementOwner={isPlacementOwner}");
         }
 
         private void CreateChunkCell(

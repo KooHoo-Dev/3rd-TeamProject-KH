@@ -1,14 +1,19 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace TerrainCollapse
 {
-    /// <summary>미니맵 텍스처와 로컬 플레이어 마커를 표시한다.</summary>
+    /// <summary>미니맵 텍스처와 플레이어 마커를 표시한다.</summary>
     public sealed class MinimapView : MonoBehaviour
     {
         [SerializeField] private RawImage mapImage;
         [SerializeField] private RectTransform playerMarker;
+        [Tooltip("비워 두면 Local Player Marker를 복제해 원격 마커로 사용합니다.")]
+        [SerializeField] private RectTransform remotePlayerMarkerPrefab;
+        [Tooltip("비워 두면 Local Player Marker와 같은 부모에 생성합니다.")]
+        [SerializeField] private RectTransform remotePlayerMarkerRoot;
         [SerializeField, Min(1)] private int visibleRadius = 6;
         [SerializeField] private RectTransform mapFrame;
         [SerializeField] private GameObject fullMapDimmer;
@@ -20,6 +25,7 @@ namespace TerrainCollapse
 
         private const float SCROLL_THRESHOLD = 3.5f; // 지도 확대/축소 한 단계로 판정할 휠 누적 델타 기준값
 
+        private readonly Dictionary<string, RectTransform> remotePlayerMarkers = new();
         private Texture2D mapTexture;
         private int mapWidth;
         private int mapHeight;
@@ -113,6 +119,7 @@ namespace TerrainCollapse
             currentViewUvRect = new Rect(0f, 0f, 1f, 1f);
             mapImage.uvRect = currentViewUvRect;
             SetPlayerVisible(false);
+            ClearRemotePlayerMarkers();
             return true;
         }
 
@@ -171,6 +178,40 @@ namespace TerrainCollapse
             playerMarker.anchoredPosition = Vector2.zero;
 
             SetPlayerVisible(true);
+        }
+
+        /// <summary>
+        /// 원격 플레이어를 현재 미니맵 뷰에 맞춰 표시한다.
+        /// 전체 맵에서는 전체 UV가 사용되므로 모든 맵 내부 원격 플레이어가 보인다.
+        /// </summary>
+        public void SetRemotePlayerNormalizedPosition(string playerId, Vector2 normalizedPosition)
+        {
+            if (string.IsNullOrWhiteSpace(playerId)) return;
+
+            bool isInsideMap = normalizedPosition.x >= 0f && normalizedPosition.x <= 1f &&
+                               normalizedPosition.y >= 0f && normalizedPosition.y <= 1f;
+            RectTransform marker = GetOrCreateRemotePlayerMarker(playerId);
+            if (marker == null) return;
+
+            bool isInsideView = isInsideMap && currentViewUvRect.Contains(normalizedPosition);
+            marker.gameObject.SetActive(isInsideView);
+            if (isInsideView == false) return;
+
+            float markerX = (normalizedPosition.x - currentViewUvRect.x) / currentViewUvRect.width;
+            float markerY = (normalizedPosition.y - currentViewUvRect.y) / currentViewUvRect.height;
+            Vector2 markerAnchor = new(markerX, markerY);
+            marker.anchorMin = markerAnchor;
+            marker.anchorMax = markerAnchor;
+            marker.anchoredPosition = Vector2.zero;
+        }
+
+        public void RemoveRemotePlayerMarker(string playerId)
+        {
+            if (string.IsNullOrWhiteSpace(playerId) ||
+                remotePlayerMarkers.Remove(playerId, out RectTransform marker) == false)
+                return;
+
+            if (marker != null) Destroy(marker.gameObject);
         }
 
         public void ToggleFullMap()
@@ -346,6 +387,36 @@ namespace TerrainCollapse
             mapImage.uvRect = currentViewUvRect;
         }
 
+        private RectTransform GetOrCreateRemotePlayerMarker(string playerId)
+        {
+            if (remotePlayerMarkers.TryGetValue(playerId, out RectTransform existing) && existing != null)
+                return existing;
+
+            RectTransform prefab = remotePlayerMarkerPrefab != null
+                ? remotePlayerMarkerPrefab
+                : playerMarker;
+            RectTransform root = remotePlayerMarkerRoot != null
+                ? remotePlayerMarkerRoot
+                : playerMarker != null ? playerMarker.parent as RectTransform : null;
+            if (prefab == null || root == null) return null;
+
+            RectTransform marker = Instantiate(prefab, root);
+            marker.name = $"RemotePlayerMarker_{playerId}";
+            if (remotePlayerMarkerPrefab == null && marker.TryGetComponent(out Image image))
+                image.color = new Color(0.2f, 0.8f, 1f, 1f);
+            marker.gameObject.SetActive(true);
+            remotePlayerMarkers[playerId] = marker;
+            return marker;
+        }
+
+        private void ClearRemotePlayerMarkers()
+        {
+            foreach (RectTransform marker in remotePlayerMarkers.Values)
+                if (marker != null) Destroy(marker.gameObject);
+
+            remotePlayerMarkers.Clear();
+        }
+
         public void SetPlayerVisible(bool visible)
         {
             if (playerMarker == null) return;
@@ -355,6 +426,7 @@ namespace TerrainCollapse
 
         private void OnDestroy()
         {
+            ClearRemotePlayerMarkers();
             ReleaseTexture();
         }
 

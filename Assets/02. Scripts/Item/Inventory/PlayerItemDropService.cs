@@ -21,6 +21,8 @@ namespace TerrainCollapse
             Vector2 worldPosition,
             float pickupDelay)
         {
+            // 현재 서버에는 플레이어가 아이템을 버리는 명령이 없다.
+            if (RoomClient.Instance != null) return false;
             if (inventory == null || quantity <= 0) return false;
             if (inventory.TryRemove(itemID, quantity) == false) return false;
 
@@ -49,6 +51,8 @@ namespace TerrainCollapse
             TerrainManager terrainManager,
             Vector2Int deathCell)
         {
+            // 사망 드롭과 DeathLoot 지형은 아직 서버 권위 계약에 포함되지 않는다.
+            if (RoomClient.Instance != null) return false;
             if (inventory == null || terrainManager == null) return false;
             if (DataManager.Instance == null) return false;
 

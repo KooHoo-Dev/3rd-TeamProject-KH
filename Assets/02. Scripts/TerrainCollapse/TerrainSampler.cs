@@ -10,14 +10,20 @@ namespace TerrainCollapse
     public sealed class TerrainPlacementProposal
     {
         public long CollapseId;
+        public bool IsPlacementOwner;
         public uint BaseRevision;
+        public List<Vector2Int> SourceCells = new();
         public List<TerrainCellChange> Changes = new();
 
-        public TerrainPlacementProposal(long collapseId, uint baseRevision,
+        public TerrainPlacementProposal(long collapseId, bool isPlacementOwner, uint baseRevision,
+            IEnumerable<Vector2Int> sourceCells,
             IEnumerable<TerrainCellChange> changes)
         {
             CollapseId = collapseId;
+            IsPlacementOwner = isPlacementOwner;
             BaseRevision = baseRevision;
+            SourceCells.AddRange(sourceCells);
+            SourceCells.Sort(TerrainCoordinateComparer.Compare);
             Changes.AddRange(changes);
             Changes.Sort(TerrainCoordinateComparer.CompareChanges);
         }
@@ -54,7 +60,12 @@ namespace TerrainCollapse
             IReadOnlyList<Vector2Int> localCells = chunk.LocalCells;
             var changes = new List<TerrainCellChange>(localCells.Count);
             if (localCells.Count == 0)
-                return new TerrainPlacementProposal(chunk.CollapseId, targetWorld.Revision, changes);
+                return new TerrainPlacementProposal(
+                    chunk.CollapseId,
+                    chunk.IsPlacementOwner,
+                    targetWorld.Revision,
+                    chunk.SourceCells,
+                    changes);
 
             Vector2Int padding = Vector2Int.one;
             Vector2Int worldMin = targetWorld.WorldToCell(bounds.min) - padding;
@@ -134,7 +145,12 @@ namespace TerrainCollapse
                       $"connections={bestConnectionCount}, overlaps={bestCollisionCount}, " +
                       $"class={bestPlacementClass}, alignmentError={bestAlignmentError:F4}, offset={bestOffset}");
             
-            return new TerrainPlacementProposal(chunk.CollapseId, targetWorld.Revision, changes);
+            return new TerrainPlacementProposal(
+                chunk.CollapseId,
+                chunk.IsPlacementOwner,
+                targetWorld.Revision,
+                chunk.SourceCells,
+                changes);
         }
 
         private static bool IsBetterPlacement(

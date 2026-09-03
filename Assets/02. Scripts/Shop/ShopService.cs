@@ -25,7 +25,8 @@ namespace TerrainCollapse
         None,
         NotForSale,          // 상점에서 취급하지 않는 itemID
         InsufficientGold,    // 골드 부족
-        InventoryRejected    // 골드는 충분했지만 인벤토리가 지급을 거부(가득 참 등)
+        InventoryRejected,   // 골드는 충분했지만 인벤토리가 지급을 거부(가득 참 등)
+        ServerAuthorityUnsupported
     }
 
     public readonly struct ShopPurchaseResult
@@ -94,6 +95,10 @@ namespace TerrainCollapse
         /// </summary>
         public ShopPurchaseResult TryPurchase(IItemInventory inventory, int itemID, int quantity = 1)
         {
+            // 현재 서버에는 구매 명령이 없으므로 로컬 수량을 바꾸면 다음 Snapshot과 충돌한다.
+            if (RoomClient.Instance != null)
+                return ShopPurchaseResult.Fail(ShopPurchaseFailReason.ServerAuthorityUnsupported);
+
             if (quantity <= 0)
                 return ShopPurchaseResult.Fail(ShopPurchaseFailReason.NotForSale);
 

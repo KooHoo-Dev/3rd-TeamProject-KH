@@ -28,6 +28,8 @@ namespace TerrainCollapse
         private IFallingTerrainCharacter character;
         private Collider2D bodyCollider;
         private FallingChunk activeEscapeChunk;
+        private FallingChunk burialFollowChunk;
+        private Vector2 burialFollowOffset;
         private bool isBuried;
         private float burialDamageElapsed;
         private Vector2 buriedPosition;
@@ -50,12 +52,20 @@ namespace TerrainCollapse
 
         private void OnEnable()
         {
-            if (terrainManager != null) terrainManager.TerrainChanged += HandleTerrainChanged;
+            if (terrainManager == null) return;
+
+            terrainManager.TerrainChanged += HandleTerrainChanged;
+            terrainManager.AuthoritativeBatchApplied += HandleAuthoritativeBatchApplied;
+            terrainManager.CollapseCancelled += HandleCollapseCancelled;
         }
 
         private void OnDisable()
         {
-            if (terrainManager != null) terrainManager.TerrainChanged -= HandleTerrainChanged;
+            if (terrainManager == null) return;
+
+            terrainManager.TerrainChanged -= HandleTerrainChanged;
+            terrainManager.AuthoritativeBatchApplied -= HandleAuthoritativeBatchApplied;
+            terrainManager.CollapseCancelled -= HandleCollapseCancelled;
         }
 
         public void ResetState()
@@ -69,6 +79,8 @@ namespace TerrainCollapse
             resolvedCollapses.Clear();
             ReleaseEscapeGuard();
             pendingBurialImpacts.Clear();
+            burialFollowChunk = null;
+            burialFollowOffset = Vector2.zero;
             burialDamageElapsed = 0f;
             character.SetTerrainInteractionLocked(false, character.Position);
 
@@ -96,16 +108,71 @@ namespace TerrainCollapse
                 return;
             }
 
+            if (burialFollowChunk != null)
+            {
+                Vector2 followPosition =
+                    (Vector2)burialFollowChunk.transform.position + burialFollowOffset;
+                followPosition = ResolveFollowPositionAboveStaticTerrain(followPosition);
+                character.SetTerrainInteractionLocked(true, followPosition);
+            }
+
             if (IsGridSpaceEmpty(character.CollisionBounds) == false)
             {
                 EnterBuriedState();
                 return;
             }
 
-            if (HasUnresolvedBurialSource()) return;
+            // 낙하 Chunk가 사라졌더라도 동일 CollapseID의 서버 확정 Batch나
+            // 취소 통지가 올 때까지 매몰 후보와 플레이어 위치 잠금을 유지한다.
+            return;
+        }
 
-            pendingBurialImpacts.Clear();
-            character.SetTerrainInteractionLocked(false, character.Position);
+        private Vector2 ResolveFollowPositionAboveStaticTerrain(Vector2 desiredPosition)
+        {
+            Bounds candidate = character.CollisionBounds;
+            candidate.center += (Vector3)(desiredPosition - character.Position);
+
+            // 낙하 Chunk 자체는 아직 Grid에서 제거된 상태이므로 여기서는 하단 static 지형만
+            // 검사된다. 겹친 셀의 윗면까지 플레이어를 올려 지형 내부 진입을 막는다.
+            for (int iteration = 0; iteration < 8; iteration++)
+            {
+                Vector3 inset = Vector3.one * character.CollisionSkin;
+                if (terrainManager.TryWorldToCell(candidate.min + inset, out Vector2Int min) == false ||
+                    terrainManager.TryWorldToCell(candidate.max - inset, out Vector2Int max) == false)
+                    return desiredPosition;
+
+                float requiredLift = 0f;
+                for (int y = min.y; y <= max.y; y++)
+                {
+                    for (int x = min.x; x <= max.x; x++)
+                    {
+                        Vector2Int cell = new(x, y);
+                        if (terrainManager.HasTerrain(cell) == false ||
+                            terrainManager.TryCellToWorldCenter(cell, out Vector3 center) == false)
+                            continue;
+
+                        float cellMinX = center.x - terrainManager.CellSize * 0.5f;
+                        float cellMaxX = center.x + terrainManager.CellSize * 0.5f;
+                        if (candidate.max.x <= cellMinX || candidate.min.x >= cellMaxX) continue;
+
+                        float cellBottom = center.y - terrainManager.CellSize * 0.5f;
+                        float cellTop = center.y + terrainManager.CellSize * 0.5f;
+                        if (candidate.max.y <= cellBottom) continue;
+                        if (candidate.min.y >= cellTop - character.CollisionSkin) continue;
+
+                        requiredLift = Mathf.Max(
+                            requiredLift,
+                            cellTop - candidate.min.y + character.CollisionSkin);
+                    }
+                }
+
+                if (requiredLift <= Mathf.Epsilon) return desiredPosition;
+
+                desiredPosition.y += requiredLift;
+                candidate.center += Vector3.up * requiredLift;
+            }
+
+            return desiredPosition;
         }
 
         public FallingTerrainContactResult ResolveFallingTerrainContact(
@@ -161,6 +228,9 @@ namespace TerrainCollapse
                 fallingChunk.LocalCells.Count,
                 fallingChunk.gameObject);
 
+            burialFollowChunk = fallingChunk;
+            burialFollowOffset = character.Position - (Vector2)fallingChunk.transform.position;
+
             // 청크가 지형으로 변환될 때까지 충돌 무시 상태를 유지하고 플레이어 위치를 고정
             activeEscapeChunk = null;
             character.StopTerrainEscape();
@@ -204,14 +274,6 @@ namespace TerrainCollapse
 
             activeEscapeChunk = null;
             character.StopTerrainEscape();
-        }
-
-        private bool HasUnresolvedBurialSource()
-        {
-            foreach (FallingTerrainImpactInfo impact in pendingBurialImpacts.Values)
-                if (impact.Source != null) return true;
-
-            return false;
         }
 
         private FallingTerrainContactResult RememberResult(
@@ -361,7 +423,13 @@ namespace TerrainCollapse
             Bounds candidate = character.CollisionBounds;
             candidate.center += Vector3.right * offsetX;
 
-            if (IntersectsFallingTerrain(candidate, fallingChunk)) return false;
+            // 현재 Chunk 모양과 겹치지 않더라도 동일 열의 아래쪽은 곧 낙하 지형에
+            // 덮일 위치이므로 탈출 공간으로 인정하면 안 된다.
+            if (IntersectsFallingTerrain(
+                    candidate,
+                    fallingChunk,
+                    includeVerticalPath: true))
+                return false;
 
             targetX = candidateBodyX;
             return true;
@@ -402,6 +470,8 @@ namespace TerrainCollapse
             if (isBuried) return;
 
             isBuried = true;
+            burialFollowChunk = null;
+            burialFollowOffset = Vector2.zero;
             ReleaseEscapeGuard();
             buriedPosition = character.Position;
             burialDamageElapsed = 0f;
@@ -456,6 +526,86 @@ namespace TerrainCollapse
             burialRecheckRoutine = StartCoroutine(RecheckBurialAfterTerrainRefresh());
         }
 
+        private void HandleAuthoritativeBatchApplied(TerrainChangeBatch batch)
+        {
+            if (batch == null || pendingBurialImpacts.ContainsKey(batch.CollapseId) == false)
+                return;
+
+            StartBurialResolution(new[] { batch.CollapseId });
+        }
+
+        private void HandleCollapseCancelled(IReadOnlyList<long> collapseIds)
+        {
+            if (collapseIds == null) return;
+
+            if (HasPendingBurial(collapseIds))
+            {
+                StartBurialResolution(collapseIds);
+
+                return;
+            }
+
+            if (isBuried == false) return;
+
+            if (burialRecheckRoutine != null) StopCoroutine(burialRecheckRoutine);
+            burialRecheckRoutine = StartCoroutine(RecheckBurialAfterTerrainRefresh());
+        }
+
+        private bool HasPendingBurial(IReadOnlyList<long> collapseIds)
+        {
+            for (int i = 0; i < collapseIds.Count; i++)
+                if (pendingBurialImpacts.ContainsKey(collapseIds[i])) return true;
+
+            return false;
+        }
+
+        // 코루틴 자리는 하나뿐이므로 번호마다 새로 돌리면 앞의 것이 잘린다.
+        // 묶음을 통째로 넘겨 한 번에 처리한다.
+        private void StartBurialResolution(IReadOnlyList<long> collapseIds)
+        {
+            if (burialRecheckRoutine != null) StopCoroutine(burialRecheckRoutine);
+            burialRecheckRoutine = StartCoroutine(
+                ResolvePendingBurialsAfterTerrainSettled(collapseIds));
+        }
+
+        private IEnumerator ResolvePendingBurialsAfterTerrainSettled(
+            IReadOnlyList<long> collapseIds)
+        {
+            // TerrainGridWorld가 LateUpdate에서 Mesh와 EdgeCollider를 재생성한 뒤 검사한다.
+            yield return new WaitForEndOfFrame();
+
+            Physics2D.SyncTransforms();
+
+            if (HasPendingBurial(collapseIds) == false)
+            {
+                burialRecheckRoutine = null;
+                yield break;
+            }
+
+            if (IsCurrentSpaceEmpty())
+            {
+                ReleasePendingBurials(collapseIds);
+            }
+            else if (TryFindDownwardReleasePosition(out Vector2 releasePosition))
+            {
+                character.SetPosition(releasePosition);
+                Physics2D.SyncTransforms();
+                ReleasePendingBurials(collapseIds);
+            }
+            else
+            {
+                EnterBuriedState();
+            }
+
+            burialRecheckRoutine = null;
+        }
+
+        private void ReleasePendingBurials(IReadOnlyList<long> collapseIds)
+        {
+            for (int i = 0; i < collapseIds.Count; i++)
+                ReleasePendingBurial(collapseIds[i]);
+        }
+
         private IEnumerator RecheckBurialAfterTerrainRefresh()
         {
             yield return new WaitForEndOfFrame();
@@ -469,7 +619,40 @@ namespace TerrainCollapse
         }
 
         private bool IsCurrentSpaceEmpty()
-            => IsGridSpaceEmpty(character.CollisionBounds) && IsPhysicalSpaceEmpty(0f);
+            => IsGridSpaceEmpty(character.CollisionBounds) && IsPhysicalSpaceEmpty(Vector2.zero);
+
+        private void ReleasePendingBurial(long collapseId)
+        {
+            pendingBurialImpacts.Remove(collapseId);
+            burialFollowChunk = null;
+            burialFollowOffset = Vector2.zero;
+            character.SetTerrainInteractionLocked(false, character.Position);
+        }
+
+        private bool TryFindDownwardReleasePosition(out Vector2 releasePosition)
+        {
+            releasePosition = character.Position;
+            float maximumDistance = Mathf.Max(
+                terrainManager.CellSize * 2f,
+                character.CollisionBounds.size.y + terrainManager.CellSize);
+            int probeCount = Mathf.Max(1, Mathf.CeilToInt(maximumDistance / escapeProbeStep));
+
+            for (int probe = 1; probe <= probeCount; probe++)
+            {
+                float distance = Mathf.Min(probe * escapeProbeStep, maximumDistance);
+                Vector2 offset = Vector2.down * distance;
+                Bounds candidate = character.CollisionBounds;
+                candidate.center += (Vector3)offset;
+
+                if (IsGridSpaceEmpty(candidate) == false || IsPhysicalSpaceEmpty(offset) == false)
+                    continue;
+
+                releasePosition += offset;
+                return true;
+            }
+
+            return false;
+        }
 
         private bool TryFindNearbyBurialExit()
         {
@@ -491,7 +674,8 @@ namespace TerrainCollapse
             Bounds candidate = character.CollisionBounds;
             candidate.center += Vector3.right * offsetX;
 
-            if (IsGridSpaceEmpty(candidate) == false || IsPhysicalSpaceEmpty(offsetX) == false)
+            if (IsGridSpaceEmpty(candidate) == false ||
+                IsPhysicalSpaceEmpty(Vector2.right * offsetX) == false)
                 return false;
 
             character.SetPosition(character.Position + Vector2.right * offsetX);
@@ -500,10 +684,10 @@ namespace TerrainCollapse
             return true;
         }
 
-        private bool IsPhysicalSpaceEmpty(float offsetX)
+        private bool IsPhysicalSpaceEmpty(Vector2 offset)
         {
             Vector2 candidateCenter =
-                (Vector2)character.CollisionBounds.center + Vector2.right * offsetX;
+                (Vector2)character.CollisionBounds.center + offset;
             Vector2 probeSize =
                 (Vector2)character.CollisionBounds.size -
                 Vector2.one * character.CollisionSkin * 2f;

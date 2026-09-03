@@ -1,4 +1,3 @@
-// 서버 확정 지형 변경 Batch, 중간 참여 Snapshot, 결정적 좌표 정렬 규칙 정의
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -49,6 +48,9 @@ namespace TerrainCollapse
     public sealed class TerrainChangeBatch
     {
         public long CollapseId;                         // 이 변경이 어느 붕괴 요청의 결과인지 식별하는 ID
+        // 네트워크 메시지의 RequestId로 판단한 로컬 클라이언트의 낙하 배치 소유 여부.
+        // 런타임 전용 값이며 서버 계약으로 직렬화하지 않는다.
+        public bool IsPlacementOwner;
         public uint BaseRevision;                       // 서버가 이 변경을 계산할 때 기준으로 삼은 지형 Revision
         public uint ResultRevision;                     // 변경 전체를 성공적으로 적용한 뒤의 지형 Revision
         public List<TerrainCellChange> Changes = new(); // 원자적으로 함께 적용할 최종 타일 상태 목록
@@ -81,8 +83,11 @@ namespace TerrainCollapse
     public sealed class TerrainSnapshot
     {
         public uint Revision;                         // 스냅샷이 표현하는 지형 Revision
+        public int MapWidth;                          // 전체 Grid 너비
+        public int MapHeight;                         // 전체 Grid 높이
         public float CellSize;                        // Grid 한 칸의 월드 크기
         public Vector2 Origin;                        // Grid 좌표 (0, 0)에 대응하는 월드 원점
+        public RectInt SpawnArea;                     // 서버가 지정한 스폰/안전 구역의 Grid 범위
         public List<TerrainCellChange> Cells = new(); // 빈 칸을 제외한 전체 타일 목록, 생성 시 결정적으로 정렬
 
     }
