@@ -272,7 +272,6 @@ namespace TerrainCollapse
             {
                 if (TryGetTileType(start, out TerrainTileType startType) == false ||
                     startType == TerrainTileType.Bedrock ||
-                    startType == TerrainTileType.DeathLoot ||
                     visited.Add(start) == false)
                     continue;
 
@@ -299,9 +298,6 @@ namespace TerrainCollapse
                             supported = true;
                             continue;
                         }
-
-                        if (nextType == TerrainTileType.DeathLoot)
-                            continue;
 
                         if (visited.Add(next))
                             queue.Enqueue(next);
