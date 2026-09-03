@@ -62,6 +62,19 @@ namespace TerrainCollapse
             }
         }
 
+        /// <summary>서버가 알려 준 칸을 Grid 에 그대로 되돌린다.</summary>
+        public void RestoreCells(IEnumerable<TerrainCellChange> cells)
+        {
+            if (terrainGridWorld == null || cells == null) return;
+
+            foreach (TerrainCellChange cell in cells)
+                terrainGridWorld.SetCell(
+                    cell.Coord,
+                    cell.Type,
+                    cell.Durability,
+                    cell.ResourceID);
+        }
+
         // 떨어지기 시작할 때 Grid 에서 뺐던 칸을 그대로 되돌린다.
         // 서버는 이 칸을 지운 적이 없다. 지운 것은 각자의 화면뿐이다.
         private void RestoreSourceCells(FallingChunk chunk)

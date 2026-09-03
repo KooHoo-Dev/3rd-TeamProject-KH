@@ -78,6 +78,7 @@ namespace TerrainCollapse.Networking
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainCollapseCancelled;
         public List<long> CollapseIDs { get; set; } = new();
+        public List<TerrainCellChangeDto> RestoreCells { get; set; } = new();
     }
 
     [Serializable]

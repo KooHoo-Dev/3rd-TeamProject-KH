@@ -85,7 +85,7 @@ namespace TerrainCollapse
             return result;
         }
 
-        private static IEnumerable<TerrainCellChange> ToRuntimeCells(IEnumerable<TerrainCellChangeDto> source)
+        public static IEnumerable<TerrainCellChange> ToRuntimeCells(IEnumerable<TerrainCellChangeDto> source)
         {
             if (source == null) yield break;
             foreach (TerrainCellChangeDto cell in source)

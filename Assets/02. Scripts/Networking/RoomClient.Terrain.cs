@@ -54,6 +54,12 @@ namespace TerrainCollapse
 
             foreach (long collapseID in message.CollapseIDs)
                 collapseManager.CancelChunk(collapseID);
+
+            collapseManager.RestoreCells(
+                TerrainNetworkAdapter.ToRuntimeCells(message.RestoreCells));
+
+            if (terrainManager != null)
+                terrainManager.NotifyCollapseCancelled(message.CollapseIDs);
         }
 
         #endregion

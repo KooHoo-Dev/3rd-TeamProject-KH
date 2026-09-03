@@ -56,6 +56,7 @@ namespace TerrainCollapse
 
             terrainManager.TerrainChanged += HandleTerrainChanged;
             terrainManager.AuthoritativeBatchApplied += HandleAuthoritativeBatchApplied;
+            terrainManager.CollapseCancelled += HandleCollapseCancelled;
         }
 
         private void OnDisable()
@@ -64,6 +65,7 @@ namespace TerrainCollapse
 
             terrainManager.TerrainChanged -= HandleTerrainChanged;
             terrainManager.AuthoritativeBatchApplied -= HandleAuthoritativeBatchApplied;
+            terrainManager.CollapseCancelled -= HandleCollapseCancelled;
         }
 
         public void ResetState()
@@ -120,8 +122,8 @@ namespace TerrainCollapse
                 return;
             }
 
-            // 낙하 Chunk가 사라졌더라도 동일 CollapseID의 서버 확정 Batch가 올 때까지
-            // 매몰 후보와 플레이어 위치 잠금을 유지한다.
+            // 낙하 Chunk가 사라졌더라도 동일 CollapseID의 서버 확정 Batch나
+            // 취소 통지가 올 때까지 매몰 후보와 플레이어 위치 잠금을 유지한다.
             return;
         }
 
@@ -529,19 +531,52 @@ namespace TerrainCollapse
             if (batch == null || pendingBurialImpacts.ContainsKey(batch.CollapseId) == false)
                 return;
 
-            if (burialRecheckRoutine != null) StopCoroutine(burialRecheckRoutine);
-            burialRecheckRoutine = StartCoroutine(
-                ResolvePendingBurialAfterAuthoritativeBatch(batch.CollapseId));
+            StartBurialResolution(new[] { batch.CollapseId });
         }
 
-        private IEnumerator ResolvePendingBurialAfterAuthoritativeBatch(long collapseId)
+        private void HandleCollapseCancelled(IReadOnlyList<long> collapseIds)
+        {
+            if (collapseIds == null) return;
+
+            if (HasPendingBurial(collapseIds))
+            {
+                StartBurialResolution(collapseIds);
+
+                return;
+            }
+
+            if (isBuried == false) return;
+
+            if (burialRecheckRoutine != null) StopCoroutine(burialRecheckRoutine);
+            burialRecheckRoutine = StartCoroutine(RecheckBurialAfterTerrainRefresh());
+        }
+
+        private bool HasPendingBurial(IReadOnlyList<long> collapseIds)
+        {
+            for (int i = 0; i < collapseIds.Count; i++)
+                if (pendingBurialImpacts.ContainsKey(collapseIds[i])) return true;
+
+            return false;
+        }
+
+        // 코루틴 자리는 하나뿐이므로 번호마다 새로 돌리면 앞의 것이 잘린다.
+        // 묶음을 통째로 넘겨 한 번에 처리한다.
+        private void StartBurialResolution(IReadOnlyList<long> collapseIds)
+        {
+            if (burialRecheckRoutine != null) StopCoroutine(burialRecheckRoutine);
+            burialRecheckRoutine = StartCoroutine(
+                ResolvePendingBurialsAfterTerrainSettled(collapseIds));
+        }
+
+        private IEnumerator ResolvePendingBurialsAfterTerrainSettled(
+            IReadOnlyList<long> collapseIds)
         {
             // TerrainGridWorld가 LateUpdate에서 Mesh와 EdgeCollider를 재생성한 뒤 검사한다.
             yield return new WaitForEndOfFrame();
 
             Physics2D.SyncTransforms();
 
-            if (pendingBurialImpacts.ContainsKey(collapseId) == false)
+            if (HasPendingBurial(collapseIds) == false)
             {
                 burialRecheckRoutine = null;
                 yield break;
@@ -549,13 +584,13 @@ namespace TerrainCollapse
 
             if (IsCurrentSpaceEmpty())
             {
-                ReleasePendingBurial(collapseId);
+                ReleasePendingBurials(collapseIds);
             }
             else if (TryFindDownwardReleasePosition(out Vector2 releasePosition))
             {
                 character.SetPosition(releasePosition);
                 Physics2D.SyncTransforms();
-                ReleasePendingBurial(collapseId);
+                ReleasePendingBurials(collapseIds);
             }
             else
             {
@@ -563,6 +598,12 @@ namespace TerrainCollapse
             }
 
             burialRecheckRoutine = null;
+        }
+
+        private void ReleasePendingBurials(IReadOnlyList<long> collapseIds)
+        {
+            for (int i = 0; i < collapseIds.Count; i++)
+                ReleasePendingBurial(collapseIds[i]);
         }
 
         private IEnumerator RecheckBurialAfterTerrainRefresh()
