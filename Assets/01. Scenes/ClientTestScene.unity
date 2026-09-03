@@ -1368,7 +1368,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c0f4bb7f712e7474e87b899faeaaf0c1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.RoomClient
-  serverUrl: ws://localhost:5000
+  serverUrl: ws://34.50.63.204:5002
   roomCode: ABCE
   nickName: Player
   connectOnStart: 1
@@ -1412,6 +1412,7 @@ GameObject:
   - component: {fileID: 1971883697}
   - component: {fileID: 1971883706}
   - component: {fileID: 1971883702}
+  - component: {fileID: 1971883715}
   - component: {fileID: 1971883704}
   - component: {fileID: 1971883705}
   - component: {fileID: 1971883707}
@@ -1614,6 +1615,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ItemController
   equippedItem: {fileID: 0}
+  pickaxeInventory: {fileID: 1971883715}
+--- !u!114 &1971883715
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4215f371a3354ac993bd229350cd2f36, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PickaxeInventory
 --- !u!114 &1971883704
 MonoBehaviour:
   m_ObjectHideFlags: 0
