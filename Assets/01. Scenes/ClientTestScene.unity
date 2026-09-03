@@ -723,6 +723,37 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!1 &912427808
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 912427809}
+  m_Layer: 0
+  m_Name: RemotePlayerRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &912427809
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 912427808}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 32.09804, y: -21.84282, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1100222295
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -907,10 +938,18 @@ PrefabInstance:
       propertyPath: m_ConstrainProportionsScale
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 3796128737482950036, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 4451695175285318738, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_Name
       value: TPHud
       objectReference: {fileID: 0}
+    - target: {fileID: 4468001093540700949, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 7482667652216324306, guid: 2010a9a02fc774578bd86901acf5b4c4, type: 3}
     - target: {fileID: 5328662240680662615, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_Sprite
       value: 
@@ -1302,11 +1341,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94df4db72b41479195f6446ef6fa7511, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerExplorationController
-  mapLoader: {fileID: 0}
   terrainManager: {fileID: 0}
+  roomClient: {fileID: 0}
   localPlayer: {fileID: 1971883701}
   visionRadius: 4
-  initializationTimeout: 5
 --- !u!4 &1873007158
 Transform:
   m_ObjectHideFlags: 0
@@ -1334,11 +1372,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7258531f7cf942a3bd8d998be737dd19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ExplorationForWorldView
-  mapLoader: {fileID: 0}
+  roomClient: {fileID: 0}
+  terrainManager: {fileID: 0}
   explorationController: {fileID: 0}
   fogColor: {r: 0, g: 0, b: 0, a: 0.88235295}
   sortingOrder: 10
-  initializationTimeout: 5
 --- !u!1 &1934651726
 GameObject:
   m_ObjectHideFlags: 0
@@ -1374,14 +1412,14 @@ MonoBehaviour:
   connectOnStart: 1
   terrainWorld: {fileID: 190307189}
   terrainManager: {fileID: 190307187}
-  collapseManager: {fileID: 0}
-  collapseCoordinator: {fileID: 0}
+  collapseManager: {fileID: 190307185}
+  collapseCoordinator: {fileID: 190307184}
   itemDropSpawner: {fileID: 0}
-  playerInventory: {fileID: 0}
+  playerInventory: {fileID: 1971883709}
   localPlayer: {fileID: 1971883697}
   positionSendRate: 10
   remotePlayerPrefab: {fileID: -4830478704693014780, guid: eaa7f1ac455d74c7a9b3a84a54bd0bb5, type: 3}
-  remotePlayerRoot: {fileID: 0}
+  remotePlayerRoot: {fileID: 912427809}
 --- !u!4 &1934651728
 Transform:
   m_ObjectHideFlags: 0
@@ -1423,7 +1461,7 @@ GameObject:
   - component: {fileID: 1971883714}
   - component: {fileID: 1971883713}
   m_Layer: 0
-  m_Name: TestPlayer
+  m_Name: LocalPlayer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1616,18 +1654,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ItemController
   equippedItem: {fileID: 0}
   pickaxeInventory: {fileID: 1971883715}
---- !u!114 &1971883715
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1971883696}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4215f371a3354ac993bd229350cd2f36, type: 3}
-  m_Name:
-  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PickaxeInventory
 --- !u!114 &1971883704
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1717,6 +1743,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4b181f3cc8e04bb7a037d5c1d6ee5b6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerInventory
+  maxWeight: 1000
 --- !u!114 &1971883710
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1775,7 +1802,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2c2d4c3c3a404448aac6477910fca0b2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerSellController
-  sellAreaMinimumY: 0
+--- !u!114 &1971883715
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1971883696}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4215f371a3354ac993bd229350cd2f36, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PickaxeInventory
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1784,6 +1822,7 @@ SceneRoots:
   - {fileID: 13110311}
   - {fileID: 190307191}
   - {fileID: 1971883701}
+  - {fileID: 912427809}
   - {fileID: 1104309846}
   - {fileID: 203460948}
   - {fileID: 1873007158}
