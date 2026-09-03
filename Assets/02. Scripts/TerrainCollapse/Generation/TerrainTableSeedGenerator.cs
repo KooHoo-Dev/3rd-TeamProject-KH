@@ -215,12 +215,17 @@ namespace TerrainCollapse
                 }
         }
 
+        // 서버 쪽 과 대칭을 이룸. ServerTerrainGenerator.cs 의 GetSectionBoundaryOffset.
+        // 한쪽을 수정한다면 다른쪽도 똑같이 수정해줘야함.
         internal static float GetSectionBoundaryOffset(TerrainMapFile map, int x)
         {
-            const float NOISE_SCALE = 0.2f;
             const float MAX_OFFSET_IN_CELLS = 4f;
 
-            float noise = Mathf.PerlinNoise(x * NOISE_SCALE, map.Seed * 0.01f);
+            //PerlinNoise 부분 수정한거임. 하드코딩 되어있음. 내도 모르니 왠만하면 그냥 쓰셈.
+            uint hash = unchecked((uint)(map.Seed * 374761393 + x * 668265263));
+            hash = (hash ^ (hash >> 13)) * 1274126177u;
+            float noise = (hash & 0x00FFFFFF) / 16777215f;
+            
             float centeredNoise = noise * Mathf.Lerp(-1f, 1f, noise);
 
             return centeredNoise * MAX_OFFSET_IN_CELLS / Mathf.Max(1, map.Height - 1);

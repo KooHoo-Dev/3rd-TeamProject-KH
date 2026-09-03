@@ -35,6 +35,48 @@ namespace TerrainCollapse
             rebuildingChunks.Clear();
         }
 
+        // 이거 왜 있는지 쌤도 모르겠음. 클로드가 맹글었음
+        /// <summary>서버가 무른 낙하를 되돌린다. 원래 칸을 되살리고 Chunk 를 지운다.</summary>
+        public void CancelChunk(long collapseId)
+        {
+            for (int i = activeChunks.Count - 1; i >= 0; i--)
+            {
+                FallingChunk chunk = activeChunks[i];
+
+                if (chunk == null)
+                {
+                    activeChunks.RemoveAt(i);
+
+                    continue;
+                }
+
+                if (chunk.CollapseId != collapseId) continue;
+
+                RestoreSourceCells(chunk);
+                activeChunks.RemoveAt(i);
+                rebuildingChunks.Remove(chunk);
+                Destroy(chunk.gameObject);
+                Debug.Log($"[Terrain Collapse] Chunk Cancelled: id={collapseId}");
+
+                return;
+            }
+        }
+
+        // 떨어지기 시작할 때 Grid 에서 뺐던 칸을 그대로 되돌린다.
+        // 서버는 이 칸을 지운 적이 없다. 지운 것은 각자의 화면뿐이다.
+        private void RestoreSourceCells(FallingChunk chunk)
+        {
+            if (terrainGridWorld == null) return;
+
+            IReadOnlyList<Vector2Int> cells = chunk.SourceCells;
+            IReadOnlyList<TerrainTileType> types = chunk.CellTypes;
+            IReadOnlyList<int> durabilities = chunk.CellDurabilities;
+            IReadOnlyList<int> resourceIDs = chunk.CellResourceIDs;
+
+            for (int i = 0; i < cells.Count; i++)
+                terrainGridWorld.SetCell(cells[i], types[i], durabilities[i], resourceIDs[i]);
+        }
+
         public void Configure(TerrainGridWorld world, TerrainSampler sampler)
         {
             terrainGridWorld = world;

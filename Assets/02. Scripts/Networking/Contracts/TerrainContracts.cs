@@ -11,9 +11,9 @@ namespace TerrainCollapse.Networking
         public const string TerrainExcavationRequest = "terrain_excavate";
         public const string TerrainCollapseStartRequest = "terrain_collapse_start";
         public const string TerrainCollapseStarted = "terrain_collapse_started";
+        public const string TerrainCollapseCancelled = "terrain_collapse_cancelled";
         public const string TerrainCollapsePlacementRequest = "terrain_collapse_place";
         public const string TerrainChangeBatch = "terrain_batch";
-        public const string TerrainSnapshot = "terrain_snapshot";
         public const string ExplorationSnapshot = "exploration_snapshot";
         public const string WorldItemSnapshot = "world_item.snapshot";
         public const string WorldItemSpawned = "world_item.spawned";
@@ -55,7 +55,6 @@ namespace TerrainCollapse.Networking
         // 서버 PacketHeader.RequestId와 이름을 맞춰 요청-응답을 연결한다.
         public string RequestId { get; set; }
         public long ClientRequestID { get; set; }
-        public uint ExpectedTerrainRevision { get; set; }
         public GridCoord TargetCell { get; set; }
         public int ItemID { get; set; }
         public int DamageAmount { get; set; }
@@ -71,6 +70,14 @@ namespace TerrainCollapse.Networking
 
         // 부유 그룹의 원본 셀
         public List<GridCoord> SourceCells { get; set; } = new();
+    }
+
+    // 낙하를 취소하는 메시지임. 테스트 안해봤음. 님들이 해보셈
+    [Serializable]
+    public sealed class TerrainCollapseCancelledMessage
+    {
+        public string Type { get; set; } = NetworkMessageTypes.TerrainCollapseCancelled;
+        public List<long> CollapseIDs { get; set; } = new();
     }
 
     [Serializable]
@@ -90,7 +97,6 @@ namespace TerrainCollapse.Networking
         public string Type { get; set; } = NetworkMessageTypes.TerrainCollapsePlacementRequest;
         public string RequestId { get; set; }
         public long CollapseID { get; set; }
-        public uint ExpectedTerrainRevision { get; set; }
         public List<GridCoord> SourceCells { get; set; } = new();
         public List<TerrainCellChangeDto> Changes { get; set; } = new();
 
@@ -132,36 +138,12 @@ namespace TerrainCollapse.Networking
     }
 
     [Serializable]
-    public sealed class TerrainSnapshotDto
-    {
-        public string MapSessionID { get; set; }
-        public uint Revision { get; set; }
-        public int MapWidth { get; set; }
-        public int MapHeight { get; set; }
-        public float CellSize { get; set; }
-        public float OriginX { get; set; }
-        public float OriginY { get; set; }
-        public int SpawnAreaOriginX { get; set; }
-        public int SpawnAreaOriginY { get; set; }
-        public int SpawnAreaWidth { get; set; }
-        public int SpawnAreaHeight { get; set; }
-        public List<TerrainCellChangeDto> Cells { get; set; } = new();
-    }
-
-    [Serializable]
     public sealed class TerrainChangeBatchMessage
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainChangeBatch;
         // 서버가 요청의 RequestId를 그대로 되돌려준다.
         public string RequestId { get; set; }
         public TerrainChangeBatchDto Batch { get; set; }
-    }
-
-    [Serializable]
-    public sealed class TerrainSnapshotMessage
-    {
-        public string Type { get; set; } = NetworkMessageTypes.TerrainSnapshot;
-        public TerrainSnapshotDto Snapshot { get; set; }
     }
 
     [Serializable]

@@ -12,7 +12,10 @@ using UnityEngine;
 namespace TerrainCollapse
 {
     /// <summary>방 WebSocket 연결과 서버 권위 지형 메시지 수신을 담당한다.</summary>
-    public sealed class RoomClient : MonoBehaviour
+    /// <remarks>
+    /// Terrain관련 내용들(쌤이 변경한거)은 RoomClient.Terrain 참고
+    /// </remarks>
+    public sealed partial class RoomClient : MonoBehaviour
     {
         [Header("Connection")]
         [SerializeField] private string serverUrl = "ws://localhost:5000";
@@ -42,14 +45,13 @@ namespace TerrainCollapse
         private readonly ConcurrentQueue<Action> mainThreadActions = new();
         private readonly SemaphoreSlim sendSignal = new(0);
         private readonly HashSet<string> pendingWorldItemPickups = new();
+
         private readonly SortedDictionary<uint, TerrainChangeBatchMessage> bufferedTerrainBatches = new();
         private readonly Dictionary<string, RemotePlayerView> remotePlayers = new();
         private readonly string clientSessionId = Guid.NewGuid().ToString("N");
         private ClientWebSocket socket;
         private CancellationTokenSource cancellation;
         private long nextRequestId;
-        private long pendingExcavationId;
-        private string pendingExcavationRequestId;
         private bool hasTerrainSnapshot;
         private bool handshakeComplete;
         private long pendingCollapsePlacementId;
@@ -135,6 +137,8 @@ namespace TerrainCollapse
         {
             while (mainThreadActions.TryDequeue(out Action action))
                 action.Invoke();
+
+            SweepPendingTimeouts();
 
             if (IsConnected && handshakeComplete &&
                 localPlayer != null &&
@@ -225,11 +229,9 @@ namespace TerrainCollapse
             }
             source?.Dispose();
             outgoingJson.Clear();
-            pendingExcavationId = 0;
-            pendingExcavationRequestId = null;
+            ClearAllPendingExcavations();
             pendingWorldItemPickups.Clear();
-            pendingCollapsePlacementId = 0;
-            pendingCollapsePlacementRequestId = null;
+            ClearPendingCollapsePlacement();
             ClearRemotePlayers();
         }
 
@@ -240,34 +242,34 @@ namespace TerrainCollapse
                 Debug.LogWarning("[RoomClient] 지형 Snapshot을 받기 전이거나 서버에 연결되어 있지 않아 채굴 요청을 보내지 않았습니다.", this);
                 return false;
             }
-            if (pendingExcavationId > 0)
+            // 같은 칸을 서버가 확정하기 전에 또 보내지 않는다. 다른 칸은 막지 않는다.
+            //
+            // 서버는 더 이상 Revision 을 대조하지 않으므로 굴착 여러 건이 동시에 떠 있어도 된다.
+            // 순서는 서버가 매기는 Batch 의 BaseRevision/ResultRevision 이 지킨다.
+            if (pendingExcavationCells.ContainsValue(targetCell))
             {
-                Debug.Log("[RoomClient] 이전 채굴 요청의 서버 확정을 기다리는 중입니다.", this);
+                Debug.Log("[RoomClient] 이 칸의 서버 확정을 기다리는 중입니다.", this);
                 return false;
             }
-            // 낙하 중인 Chunk는 로컬 물리 표현일 뿐이며 서버 지형 Revision을 점유하지 않는다.
-            // 실제 배치 요청을 서버가 처리 중인 짧은 구간에만 다음 채굴 요청을 직렬화한다.
-            if (pendingCollapsePlacementId > 0)
+            if (pendingExcavations.Count >= MaxInFlightExcavations)
             {
-                Debug.Log("[RoomClient] 낙하 지형의 서버 병합 확정을 기다리는 중입니다.", this);
+                Debug.Log("[RoomClient] 확정을 기다리는 채굴이 너무 많습니다.", this);
                 return false;
             }
             long clientRequestId = Interlocked.Increment(ref nextRequestId);
             string requestId = CreateRequestId("excavate", clientRequestId);
-            pendingExcavationId = clientRequestId;
-            pendingExcavationRequestId = requestId;
+            pendingExcavations[requestId] = Time.unscaledTime;
+            pendingExcavationCells[requestId] = targetCell;
             if (Send(new TerrainExcavationRequest
             {
                 RequestId = requestId,
                 ClientRequestID = clientRequestId,
-                ExpectedTerrainRevision = terrainManager.Revision,
                 TargetCell = new GridCoord(targetCell.x, targetCell.y),
                 ItemID = itemId,
                 DamageAmount = Mathf.Max(1, damageAmount),
             }) == false)
             {
-                pendingExcavationId = 0;
-                pendingExcavationRequestId = null;
+                ClearPendingExcavation(requestId);
                 Debug.LogWarning("[RoomClient] 연결이 종료되어 채굴 요청을 보내지 못했습니다.", this);
                 return false;
             }
@@ -372,14 +374,15 @@ namespace TerrainCollapse
                     case NetworkMessageTypes.MapSession:
                         EnqueueMessage<MapSessionMessage>(json, HandleMapSession);
                         break;
-                    case NetworkMessageTypes.TerrainSnapshot:
-                        EnqueueMessage<TerrainSnapshotMessage>(json, HandleTerrainSnapshot);
-                        break;
+
                     case NetworkMessageTypes.TerrainChangeBatch:
                         EnqueueMessage<TerrainChangeBatchMessage>(json, HandleTerrainBatch);
                         break;
                     case NetworkMessageTypes.TerrainCollapseStarted:
                         EnqueueMessage<TerrainCollapseStartedMessage>(json, HandleCollapseStarted);
+                        break;
+                    case NetworkMessageTypes.TerrainCollapseCancelled:
+                        EnqueueMessage<TerrainCollapseCancelledMessage>(json, HandleCollapseCancelled);
                         break;
                     case NetworkMessageTypes.WorldItemSnapshot:
                         EnqueueMessage<WorldItemSnapshotMessage>(json, HandleWorldItemSnapshot);
@@ -422,12 +425,6 @@ namespace TerrainCollapse
         {
             T message = JsonConvert.DeserializeObject<T>(json);
             EnqueueMainThread(() => handler(message));
-        }
-
-        private void HandleMapSession(MapSessionMessage message)
-        {
-            MapSession = message?.Session;
-            Debug.Log($"[RoomClient] Map session received: {MapSession?.MapSessionID}", this);
         }
 
         private void HandleWelcome(WelcomeMessage message)
@@ -523,18 +520,17 @@ namespace TerrainCollapse
             RemotePlayerRemoved?.Invoke(playerId);
         }
 
-        private void HandleTerrainSnapshot(TerrainSnapshotMessage message)
+        private void ApplyTerrainSnapshot(TerrainSnapshot snapshot)
         {
             if (terrainWorld == null)
             {
                 Debug.LogError("[RoomClient] TerrainGridWorld reference is not assigned.", this);
                 return;
             }
-            TerrainSnapshot snapshot = TerrainNetworkAdapter.ToRuntime(message?.Snapshot);
             if (snapshot == null || snapshot.CellSize <= 0f ||
                 snapshot.MapWidth <= 0 || snapshot.MapHeight <= 0)
             {
-                Debug.LogError("[RoomClient] Invalid terrain snapshot.", this);
+                Debug.LogError("[RoomClient] 만들어진 지형이 올바르지 않습니다.", this);
                 return;
             }
             terrainWorld.LoadSnapshot(snapshot);
@@ -546,11 +542,10 @@ namespace TerrainCollapse
             // Snapshot은 해당 Revision까지의 완전한 상태다. 이전에 쌓인 Batch는 이미 반영됐거나
             // 더 이상 이어 붙일 수 없으므로 버린다.
             bufferedTerrainBatches.Clear();
-            pendingExcavationId = 0;
-            pendingExcavationRequestId = null;
+            ClearAllPendingExcavations();
             TerrainSnapshotLoaded?.Invoke(snapshot);
             Debug.Log(
-                $"[RoomClient] Terrain snapshot loaded: revision={snapshot.Revision}, " +
+                $"[RoomClient] Terrain built locally: revision={snapshot.Revision}, " +
                 $"size={snapshot.MapWidth}x{snapshot.MapHeight}, cells={snapshot.Cells.Count}",
                 this);
         }
@@ -583,7 +578,15 @@ namespace TerrainCollapse
 
             uint localRevision = terrainManager.Revision;
             // 재전송 또는 Snapshot 이전에 큐잉된 과거 Batch다.
-            if (batch.ResultRevision <= localRevision) return;
+            //
+            // 아래 갈래들은 Apply 를 거치지 않고 빠져나간다.
+            // 그래도 서버는 이 요청에 답을 한 것이므로 대기는 여기서 풀어야 한다.
+            // 안 풀면 그 RequestId 가 영영 남아 그 칸을 다시 못 판다.
+            if (batch.ResultRevision <= localRevision)
+            {
+                ReleasePendingFor(message.RequestId);
+                return;
+            }
 
             if (batch.BaseRevision > localRevision)
             {
@@ -601,6 +604,7 @@ namespace TerrainCollapse
             {
                 // ResultRevision이 현재보다 큰데 BaseRevision이 과거인 Batch는 단일 Revision
                 // 변경 계약을 위반한 메시지다. Apply 호출 대신 안전하게 무시한다.
+                ReleasePendingFor(message.RequestId);
                 Debug.LogWarning(
                     $"[RoomClient] Ignored invalid terrain batch: local={localRevision}, " +
                     $"base={batch.BaseRevision}, result={batch.ResultRevision}",
@@ -617,10 +621,9 @@ namespace TerrainCollapse
 
             if (batch == null) return false;
 
-            bool isLocalExcavationResult = string.Equals(
-                message.RequestId,
-                pendingExcavationRequestId,
-                StringComparison.Ordinal);
+            bool isLocalExcavationResult =
+                string.IsNullOrEmpty(message.RequestId) == false &&
+                pendingExcavations.ContainsKey(message.RequestId);
             bool isLocalCollapsePlacementResult = string.Equals(
                 message.RequestId,
                 pendingCollapsePlacementRequestId,
@@ -628,24 +631,15 @@ namespace TerrainCollapse
             batch.IsPlacementOwner =
                 isLocalExcavationResult || isLocalCollapsePlacementResult;
 
+            // 서버가 이 요청에 답을 했다. 로컬 적용의 성패와 상관없이 기다림은 끝난다.
+            // 적용 뒤에 풀면 적용이 한 번 실패하는 순간 그 칸이 영영 잠긴다.
+            if (isLocalExcavationResult) ClearPendingExcavation(message.RequestId);
+            if (isLocalCollapsePlacementResult) ClearPendingCollapsePlacement();
+
             if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
             {
-                Debug.LogWarning(
-                    $"[RoomClient] Terrain batch rejected; awaiting snapshot resync. {error}",
-                    this);
+                Debug.LogWarning($"[RoomClient] Terrain batch rejected. {error}", this);
                 return false;
-            }
-
-            if (isLocalExcavationResult)
-            {
-                pendingExcavationId = 0;
-                pendingExcavationRequestId = null;
-            }
-
-            if (isLocalCollapsePlacementResult)
-            {
-                pendingCollapsePlacementId = 0;
-                pendingCollapsePlacementRequestId = null;
             }
 
             return true;
@@ -653,31 +647,19 @@ namespace TerrainCollapse
 
         private void HandleError(ErrorMessage message)
         {
-            // 현재는 채굴 요청을 하나만 허용하므로 terrain 오류는 해당 요청의 종료 응답이다.
-            // 성공 Batch뿐 아니라 실패 응답에서도 반드시 pending을 해제해야 다음 요청이 가능하다.
-            if (message?.Code?.StartsWith("terrain.", StringComparison.Ordinal) == true)
-            {
-                pendingExcavationId = 0;
-                pendingExcavationRequestId = null;
-                pendingCollapsePlacementId = 0;
-                pendingCollapsePlacementRequestId = null;
-            }
+            // 어느 요청의 답인지로만 푼다.
+            //
+            // 예전에는 코드가 "terrain." 으로 시작하기만 하면 굴착과 낙하를 한꺼번에 풀었다.
+            // 그래서 낙하 시작 실패가 남의 굴착 대기를 잘못 풀어 주었다.
+            // 반대로 굴착이 player.not_found 로 거절되면 아무것도 안 풀렸다.
+            ReleasePendingFor(message?.RequestId);
 
             if (message?.Code?.StartsWith("item.", StringComparison.Ordinal) == true ||
                 message?.Code?.StartsWith("inventory.", StringComparison.Ordinal) == true)
                 pendingWorldItemPickups.Clear();
 
-            if (message?.Code == "terrain.revision_mismatch")
-            {
-                // 이 Snapshot이 도착할 때까지 이전 Revision으로 새 요청을 보내지 않는다.
-                hasTerrainSnapshot = false;
-                Debug.LogWarning("[RoomClient] Revision mismatch; the server will send a terrain snapshot for resync.", this);
-                return;
-            }
-
             if (message?.Code == "terrain.collapse_conflict")
             {
-                pendingCollapsePlacementId = 0;
                 Debug.LogWarning("[RoomClient] 다른 클라이언트의 지형 확정을 기다립니다.", this);
                 return;
             }
@@ -744,7 +726,6 @@ namespace TerrainCollapse
                     "collapse",
                     Interlocked.Increment(ref nextRequestId)),
                 CollapseID = proposal.CollapseId,
-                ExpectedTerrainRevision = proposal.BaseRevision,
             };
 
             foreach (Vector2Int sourceCell in proposal.SourceCells)
@@ -769,10 +750,10 @@ namespace TerrainCollapse
 
             pendingCollapsePlacementId = proposal.CollapseId;
             pendingCollapsePlacementRequestId = request.RequestId;
+            pendingCollapsePlacementSentAt = Time.unscaledTime;
             if (Send(request)) return;
 
-            pendingCollapsePlacementId = 0;
-            pendingCollapsePlacementRequestId = null;
+            ClearPendingCollapsePlacement();
             Debug.LogWarning("[RoomClient] 붕괴 지형 배치 요청을 보내지 못했습니다.", this);
         }
 
