@@ -2,8 +2,6 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 낙하 지형과 캐릭터의 접촉 판정, 이동 제어, 충돌 피해 전달을 위한 공용 계약
-
     /// <summary>낙하 지형과 캐릭터 접촉 처리 결과</summary>
     public enum FallingTerrainContactResult
     {
@@ -21,7 +19,7 @@ namespace TerrainCollapse
             float impactSpeed);
     }
 
-    /// <summary>낙하 지형 상호작용에서 플레이어 이동 상태를 제어하기 위한 대상</summary>
+    /// <summary>FallingTerrainInteraction이 PlayerController 이동 상태를 제어하기 위한 대상</summary>
     public interface IFallingTerrainCharacter
     {
         Bounds CollisionBounds { get; }
@@ -36,6 +34,21 @@ namespace TerrainCollapse
         void SetTerrainInteractionLocked(bool isLocked, Vector2 lockedPosition);
         void SetTerrainBuried(bool isBuried, Vector2 lockedPosition);
         void SetPosition(Vector2 position);
+    }
+
+    /// <summary>기존 TestPlayerController와 새 PlayerController가 공통으로 제공하는 게임플레이 상태/수명 계약.</summary>
+    public interface IPlayerController : IFallingTerrainCharacter
+    {
+        bool IsBuried { get; }
+        bool IsClimbing { get; }
+        bool IsDead { get; }
+        bool IsGrounded { get; }
+        Vector2 Velocity { get; }
+        Vector2 CurrentPosition { get; }
+        TerrainManager TerrainManager { get; }
+        IItemInventory Inventory { get; }
+        void EnterDeadState(bool isPositionLocked = false);
+        void Respawn(Vector2 spawnPosition);
     }
 
     /// <summary>낙하 지형 최초 충돌 피해 계산에 필요한 붕괴 식별자와 타일 정보</summary>

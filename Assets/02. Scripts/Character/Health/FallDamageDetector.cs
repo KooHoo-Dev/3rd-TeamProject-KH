@@ -31,7 +31,7 @@ namespace Character
         private Collider2D bodyCollider;
         private IDamageable damageable;
         private TerrainManager terrainManager;
-        private TestPlayerController testPlayerController;
+        private IPlayerController testPlayerController;
         private float lastStaticSupportY;
         private float? fallStartY;
         private bool wasGrounded;
@@ -42,7 +42,7 @@ namespace Character
         {
             bodyCollider = GetComponent<Collider2D>();
             damageable = GetComponent<IDamageable>();
-            testPlayerController = GetComponent<TestPlayerController>();
+            testPlayerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
             terrainManager = testPlayerController.TerrainManager;
             wasClimbing = testPlayerController.IsClimbing;
 

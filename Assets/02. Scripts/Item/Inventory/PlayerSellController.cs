@@ -5,20 +5,20 @@ namespace TerrainCollapse
 {
     // 플레이어의 지상 진입을 감지해 보유 자원을 자동 판매
 
-    [RequireComponent(typeof(PlayerInventory), typeof(TestPlayerController))]
+    [RequireComponent(typeof(PlayerInventory))]
     public sealed class PlayerSellController : MonoBehaviour
     {
         [SerializeField] private float sellAreaMinimumY = 0f;
 
         private PlayerInventory inventory;
-        private TestPlayerController playerController;
+        private IPlayerController playerController;
         private ItemSaleService itemSaleService;
         private bool wasBelowSellArea;
 
         private void Awake()
         {
             inventory = GetComponent<PlayerInventory>();
-            playerController = GetComponent<TestPlayerController>();
+            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
         }
 
         private void Start()

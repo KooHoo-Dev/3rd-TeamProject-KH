@@ -5,14 +5,14 @@ namespace TerrainCollapse
 {
     // 플레이어가 지상(y >= shopAreaMinimumY)에 있을 때만 상점 인터페이스에 접근할 수 있도록 판정하고,
     // 접근 가능한 상태에서 지정 키를 누르면 ShopView(플레이스홀더 UI)를 열고 닫습니다.
-    [RequireComponent(typeof(PlayerInventory), typeof(TestPlayerController))]
+    [RequireComponent(typeof(PlayerInventory))]
     public sealed class ShopAccessController : MonoBehaviour
     {
         [SerializeField] private float shopAreaMinimumY = 0f; // 지상 기준선
         [SerializeField] private ShopView shopView; // 플레이스홀더 UI (없어도 접근 판정 자체는 동작)
         [SerializeField] private Key toggleKey = Key.B; // 상점 열기/닫기 키 (임시 배치, 추후 상호작용 UI로 교체 가능)
 
-        private TestPlayerController playerController;
+        private IPlayerController playerController;
         private PlayerInventory inventory;
         private ShopService shopService;
 
@@ -21,7 +21,7 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            playerController = GetComponent<TestPlayerController>();
+            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
             inventory = GetComponent<PlayerInventory>();
         }
 

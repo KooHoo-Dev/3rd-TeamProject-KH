@@ -46,9 +46,14 @@ namespace TerrainCollapse
 
             if (localPlayer == null)
             {
-                TestPlayerController player = FindFirstObjectByType<TestPlayerController>();
+                PlayerController player = FindFirstObjectByType<PlayerController>();
                 if (player != null)
                     localPlayer = player.transform;
+                else
+                {
+                    TestPlayerController testPlayer = FindFirstObjectByType<TestPlayerController>();
+                    if (testPlayer != null) localPlayer = testPlayer.transform;
+                }
             }
         }
 

@@ -26,7 +26,7 @@ namespace TerrainCollapse
         [Header("곡괭이 보유 정보를 알려주는 전용 창구")]
         [SerializeField] private PickaxeInventory pickaxeInventory;
 
-        private TestPlayerController playerController;
+        private IPlayerController playerController;
         private IItemInventory inventory;
 
         // 우클릭을 눌러 액티브 아이템을 프리뷰하고 있는 중인지 여부
@@ -40,7 +40,7 @@ namespace TerrainCollapse
         
         private void Awake()
         {
-            playerController = GetComponent<TestPlayerController>();
+            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
             inventory = GetComponent<IItemInventory>();
 
             if (inventory == null)

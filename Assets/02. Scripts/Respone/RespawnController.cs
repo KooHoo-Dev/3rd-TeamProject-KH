@@ -6,9 +6,9 @@ using UnityEngine;
 namespace TerrainCollapse
 {
     /// <summary>PlayerHp의 사망 이벤트를 감지해 대기 시간 이후 시작 지점에서 재시작시키는 리스폰 컨트롤러.
-    /// 이동/매몰 등 플레이어 자체 상태는 TestPlayerController가, 체력은 PlayerHp가 소유하며
+    /// 이동/매몰 등 플레이어 자체 상태는 IPlayerController가, 체력은 PlayerHp가 소유하며
     /// 이 컨트롤러는 둘을 연결해 "사망 → 대기 → 리스폰" 흐름만 제어</summary>
-    [RequireComponent(typeof(TestPlayerController), typeof(PlayerHp), typeof(PlayerInventory))]
+    [RequireComponent(typeof(PlayerHp), typeof(PlayerInventory))]
     public sealed class RespawnController : MonoBehaviour
     {
         [Header("Respawn Settings")]
@@ -17,7 +17,7 @@ namespace TerrainCollapse
 
         [SerializeField] private TerrainManager terrainManager;
 
-        private TestPlayerController playerController;
+        private IPlayerController playerController;
         private PlayerHp playerHp;
         private PlayerInventory inventory;
         private PlayerDeathDropService deathDropService;
@@ -29,7 +29,7 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            playerController = GetComponent<TestPlayerController>();
+            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
             playerHp = GetComponent<PlayerHp>();
             inventory = GetComponent<PlayerInventory>();
 

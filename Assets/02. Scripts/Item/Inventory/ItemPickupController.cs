@@ -13,13 +13,13 @@ namespace TerrainCollapse
 
         private readonly Collider2D[] overlapHits = new Collider2D[16];
 
-        private TestPlayerController playerController;
+        private IPlayerController playerController;
         private Collider2D playerCollider;
         private PlayerInventory inventory;
 
         private void Awake()
         {
-            playerController = GetComponent<TestPlayerController>();
+            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
             playerCollider = GetComponent<Collider2D>();
             inventory = GetComponent<PlayerInventory>();
 

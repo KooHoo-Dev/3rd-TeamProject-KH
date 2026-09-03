@@ -33,7 +33,7 @@ namespace TerrainCollapse
         private Animator animator;
         private SpriteRenderer spriteRenderer;
 
-        private TestPlayerController playerController;
+        private IPlayerController playerController;
 
 
         private void Awake()
@@ -43,7 +43,7 @@ namespace TerrainCollapse
             itemController = GetComponentInParent<ItemController>();
             // CharacterAnimationController는 Visual 자식에 있으므로
             // 부모 TestPlayer에서 컨트롤러를 찾는다.
-            playerController = GetComponentInParent<TestPlayerController>();
+            playerController = GetComponentInParent(typeof(IPlayerController)) as IPlayerController;
         }
 
 

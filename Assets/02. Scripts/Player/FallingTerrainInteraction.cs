@@ -5,8 +5,6 @@ using UnityEngine;
 
 namespace TerrainCollapse
 {
-    // 낙하 지형 접촉 시 탈출 공간 탐색, 매몰 상태와 지속 피해 요청 관리
-
     [DefaultExecutionOrder(-100)]
     [RequireComponent(typeof(Collider2D))]
     public sealed class FallingTerrainInteraction : MonoBehaviour, IFallingTerrainEscapeTarget

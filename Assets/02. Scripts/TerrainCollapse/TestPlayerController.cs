@@ -14,7 +14,7 @@ namespace TerrainCollapse
     [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D))]
     [RequireComponent(typeof(FallingTerrainInteraction))]
     [RequireComponent(typeof(PlayerInventory))]
-    public sealed class TestPlayerController : MonoBehaviour, IFallingTerrainCharacter
+    public sealed class TestPlayerController : MonoBehaviour, IPlayerController
     {
         [Header("Movement Settings")]
         [SerializeField] private float moveSpeed = 6f;
