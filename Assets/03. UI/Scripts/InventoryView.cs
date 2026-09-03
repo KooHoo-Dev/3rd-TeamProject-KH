@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace TerrainCollapse
 {
@@ -13,6 +14,8 @@ namespace TerrainCollapse
     {
         [SerializeField] private InventorySlotView[] slotViews;
         [SerializeField] private TMP_Text goldText;
+        [SerializeField] private Image weightFillImage;
+        [SerializeField] private TMP_Text weightText;
 
         [Header("포커스된 슬롯 변경을 액티브 아이템에 반영")]
         [SerializeField] private ItemController itemController;
@@ -80,6 +83,17 @@ namespace TerrainCollapse
             RenderItems(items);
         }
 
+        public void Render(
+            IReadOnlyList<InventorySlotDisplayData> items,
+            int gold,
+            int currentWeight,
+            int maxWeight)
+        {
+            SetGold(gold);
+            SetWeight(currentWeight, maxWeight);
+            RenderItems(items);
+        }
+
         public void RenderItems(IReadOnlyList<InventorySlotDisplayData> items)
         {
             if (slotViews == null || slotViews.Length == 0) return;
@@ -108,7 +122,19 @@ namespace TerrainCollapse
         {
             if (goldText == null) return;
 
-            goldText.text = $"GOLD  {Mathf.Max(0, gold):N0}";
+            goldText.text = $"GOLD {Mathf.Max(0, gold):N0}";
+        }
+
+        public void SetWeight(int currentWeight, int maxWeight)
+        {
+            int safeMaxWeight = Mathf.Max(1, maxWeight);
+            int safeCurrentWeight = Mathf.Clamp(currentWeight, 0, safeMaxWeight);
+
+            if (weightFillImage != null)
+                weightFillImage.fillAmount = (float)safeCurrentWeight / safeMaxWeight;
+
+            if (weightText != null)
+                weightText.text = $"{safeCurrentWeight} / {safeMaxWeight}";
         }
 
         private void MoveFocus(int direction)

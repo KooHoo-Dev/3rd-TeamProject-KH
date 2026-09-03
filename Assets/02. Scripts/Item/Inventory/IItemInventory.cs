@@ -10,6 +10,8 @@ namespace TerrainCollapse
         event Action<InventoryItemChange> ItemChanged;
 
         IReadOnlyDictionary<int, int> Quantities { get; }
+        int CurrentWeight { get; }
+        int MaxWeight { get; }
 
         int GetQuantity(int itemID);
         bool Has(int itemID, int quantity);

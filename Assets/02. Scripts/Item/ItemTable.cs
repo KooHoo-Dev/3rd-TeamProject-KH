@@ -54,6 +54,7 @@ namespace TerrainCollapse
                     itemDto.ExplosionRadius = float.Parse(cells[9]);
                     itemDto.ExplosionPower = int.Parse(cells[10]);
                     itemDto.FuseTime = float.Parse(cells[11]);
+                    itemDto.Weight = int.Parse(cells[12]);
                     
                     rows.Add(itemDto);
                 }

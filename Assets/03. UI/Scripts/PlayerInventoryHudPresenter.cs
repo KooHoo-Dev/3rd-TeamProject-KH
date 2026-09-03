@@ -61,7 +61,11 @@ namespace TerrainCollapse
                 items.Add(new InventorySlotDisplayData(itemID, itemDef.Sprite, quantity));
             }
 
-            inventoryView.Render(items, gold);
+            inventoryView.Render(
+                items,
+                gold,
+                inventory.CurrentWeight,
+                inventory.MaxWeight);
         }
     }
 }
