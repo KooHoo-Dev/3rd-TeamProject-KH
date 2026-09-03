@@ -6,7 +6,7 @@ namespace TerrainCollapse
     {
         Exchange,
         Pickaxe,
-        Dynamite,
+        Usable,
         Gold
     }
 
@@ -24,11 +24,6 @@ namespace TerrainCollapse
         // 곡괭이 전용 데이터
         public float PickaxeRange;
         public int DigPower;
-
-        // 다이너마이트 전용 데이터
-        public float ExplosionRadius;
-        public int ExplosionPower;
-        public float FuseTime;
     }
 
     // 가독성과 성능을 위해 값 타입 구조체(struct)로 기능 데이터 정의
