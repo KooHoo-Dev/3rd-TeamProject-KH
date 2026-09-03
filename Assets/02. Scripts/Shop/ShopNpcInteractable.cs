@@ -24,13 +24,12 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (shopAccess == null || shopAccess.IsShopAccessible == false) return;
+            if (shopAccess.IsShopAccessible == false) return;
 
             Mouse mouse = Mouse.current;
-            if (mouse == null || mouse.leftButton.wasPressedThisFrame == false) return;
+            if (mouse.leftButton.wasPressedThisFrame == false) return;
 
             Camera mainCam = Camera.main;
-            if (mainCam == null) return;
 
             Vector3 worldPos = mainCam.ScreenToWorldPoint(mouse.position.ReadValue());
             worldPos.z = 0f;

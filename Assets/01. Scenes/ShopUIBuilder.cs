@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -15,9 +16,10 @@ namespace TerrainCollapse
     /// 시안 기준 인벤토리 바는 화면 하단에서 위로 약 140px 지점까지 차지하므로,
     /// 상점 패널 하단을 그보다 위인 170px 지점에서 시작시켜 절대 겹치지 않게 했다.
     ///
-    /// 게임 로직 스크립트는 부착/참조하지 않는다 - 화면 구조만 만든다.
+    /// 카드가 실제 구매 목록으로 동작하도록 ShopItemRowView(순수 UI 전달용, 인벤토리/골드 등은 모름)만
+    /// 템플릿 카드에 부착한다. 인벤토리 접근이나 가격 계산 같은 진짜 게임 로직은 여전히 여기 없다.
     /// </summary>
-    public class ShopUIBuilder : MonoBehaviour
+    public sealed class ShopUIBuilder : MonoBehaviour
     {
         private const string RootName = "Shop UI";
         private static readonly Vector2 ReferenceResolution = new(1920f, 1080f);
@@ -223,8 +225,8 @@ namespace TerrainCollapse
 
         #region 아이템 목록 영역
 
-        // 지금은 다이너마이트 한 종류만 취급. VerticalLayoutGroup으로 세로 목록을 구성해
-        // 나중에 판매 아이템이 늘어나도 행(Row)만 추가하면 되도록 했다.
+        // 실제 아이템 개수만큼 카드가 늘어나는 건 런타임의 ShopView가 담당한다.
+        // 여기서는 ShopView가 복제해서 쓸 "템플릿 카드" 하나만 만들어 비활성 상태로 남겨둔다.
         private void CreateItemList(Transform shopPanelBackground)
         {
             GameObject listPanel = NewUI("ItemListPanel", shopPanelBackground);
@@ -245,13 +247,15 @@ namespace TerrainCollapse
             layout.childForceExpandHeight = false;
             layout.childAlignment = TextAnchor.UpperCenter;
 
-            CreateItemRow(listPanel.transform, "ItemRow_Dynamite", "다이너마이트", "30 Gold");
+            CreateItemRowTemplate(listPanel.transform);
         }
 
-        // 아이템 한 줄: 아이콘 자리 + 이름/가격 + 구매 버튼
-        private void CreateItemRow(Transform parent, string rowName, string itemName, string priceLabel)
+        // 아이템 카드 템플릿: 아이콘 자리 + 이름/가격 + 구매 버튼.
+        // ShopItemRowView를 부착해 ShopView가 목록 개수만큼 Instantiate해서 쓸 수 있게 한다.
+        // 템플릿 자체는 화면에 안 보이도록 마지막에 비활성화한다.
+        private void CreateItemRowTemplate(Transform parent)
         {
-            GameObject row = NewPanel(rowName, parent, new Vector2(0f, 90f));
+            GameObject row = NewPanel("ItemRowTemplate", parent, new Vector2(0f, 90f));
             row.GetComponent<Image>().color = COLOR_ROW_BG;
 
             RectTransform rowRect = (RectTransform)row.transform;
@@ -261,7 +265,8 @@ namespace TerrainCollapse
             // sizeDelta.y = 90f는 위 NewPanel 호출에서 이미 지정됨 (VerticalLayoutGroup이 폭은 자동 조정)
 
             GameObject icon = NewPanel("IconImage", row.transform, new Vector2(64f, 64f));
-            icon.GetComponent<Image>().color = COLOR_ICON_PLACEHOLDER; // 다이너마이트 스프라이트 자리
+            Image iconImage = icon.GetComponent<Image>();
+            iconImage.color = COLOR_ICON_PLACEHOLDER; // 스프라이트 없을 때 대비한 색 블록. 실제 아이콘은 런타임에 채워짐
             RectTransform iconRect = (RectTransform)icon.transform;
             iconRect.anchorMin = new Vector2(0f, 0.5f);
             iconRect.anchorMax = new Vector2(0f, 0.5f);
@@ -284,11 +289,11 @@ namespace TerrainCollapse
             infoLayout.childForceExpandHeight = false;
             infoLayout.childAlignment = TextAnchor.MiddleLeft;
 
-            TMP_Text nameText = NewText("NameText", info.transform, itemName, 26f, TextAlignmentOptions.Left);
+            TMP_Text nameText = NewText("NameText", info.transform, "아이템 이름", 26f, TextAlignmentOptions.Left);
             RectTransform nameRect = (RectTransform)nameText.transform;
             nameRect.sizeDelta = new Vector2(0f, 34f);
 
-            TMP_Text priceText = NewText("PriceText", info.transform, priceLabel, 20f, TextAlignmentOptions.Left);
+            TMP_Text priceText = NewText("PriceText", info.transform, "0 Gold", 20f, TextAlignmentOptions.Left);
             priceText.color = COLOR_GOLD_TEXT;
             RectTransform priceRect = (RectTransform)priceText.transform;
             priceRect.sizeDelta = new Vector2(0f, 28f);
@@ -300,6 +305,11 @@ namespace TerrainCollapse
             buyRect.pivot = new Vector2(1f, 0.5f);
             buyRect.sizeDelta = new Vector2(120f, 56f);
             buyRect.anchoredPosition = new Vector2(-16f, 0f);
+
+            ShopItemRowView rowView = row.AddComponent<ShopItemRowView>();
+            rowView.Configure(iconImage, nameText, priceText, buyButton);
+
+            row.SetActive(false); // 템플릿은 항상 비활성 - ShopView가 복제한 사본만 화면에 보인다
         }
 
         #endregion
@@ -372,3 +382,4 @@ namespace TerrainCollapse
         #endregion
     }
 }
+#endif

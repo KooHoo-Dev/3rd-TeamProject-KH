@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace TerrainCollapse
 {
@@ -8,12 +9,14 @@ namespace TerrainCollapse
         public int ItemID { get; }
         public string Name { get; }
         public int Price { get; }
+        public Sprite Icon { get; }
 
-        public ShopListing(int itemID, string name, int price)
+        public ShopListing(int itemID, string name, int price, Sprite icon)
         {
             ItemID = itemID;
             Name = name;
             Price = price;
+            Icon = icon;
         }
     }
 
@@ -62,7 +65,7 @@ namespace TerrainCollapse
         // 지금은 다이너마이트만 여기 해당하지만, 새 소모품 타입이 추가돼도 자동으로 포함됩니다.
         public static bool IsShopPurchasable(ItemDef def)
         {
-            if (def == null || def.Price <= 0) return false;
+            if (def.Price <= 0) return false;
 
             return def.Type != ItemType.Exchange
                    && def.Type != ItemType.Gold
@@ -79,7 +82,7 @@ namespace TerrainCollapse
             {
                 if (IsShopPurchasable(def) == false) continue;
 
-                listings.Add(new ShopListing(def.ID, def.Name, def.Price));
+                listings.Add(new ShopListing(def.ID, def.Name, def.Price, def.Sprite));
             }
 
             return listings;
@@ -91,7 +94,7 @@ namespace TerrainCollapse
         /// </summary>
         public ShopPurchaseResult TryPurchase(IItemInventory inventory, int itemID, int quantity = 1)
         {
-            if (inventory == null || itemTable == null || quantity <= 0)
+            if (quantity <= 0)
                 return ShopPurchaseResult.Fail(ShopPurchaseFailReason.NotForSale);
 
             if (itemTable.TryGet(itemID, out ItemDef def) == false || IsShopPurchasable(def) == false)

@@ -39,8 +39,6 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (playerController == null || shopService == null) return;
-
             bool wasAccessible = IsShopAccessible;
             IsShopAccessible = playerController.IsDead == false
                                 && playerController.CurrentPosition.y >= shopAreaMinimumY;

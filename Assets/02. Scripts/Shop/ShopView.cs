@@ -1,27 +1,26 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.Controls;
 
 namespace TerrainCollapse
 {
-    // 디자인은 고려하지 않은 상점 UI 플레이스홀더.
-    // - listingText: "[1] 다이너마이트 - 30 Gold" 같은 목록을 텍스트로만 표시
-    // - notificationText: 구매 불가 시 잠깐 떴다가 사라지는 알림 플레이스홀더 (코루틴 기반)
+    // 상점 UI. 목록(ShopListing) 개수만큼 rowTemplate을 복제해서 카드로 보여준다.
+    // - itemListContent/rowTemplate: 카드형 구매 목록
+    // - notificationText: 구매 불가 시 잠깐 떴다가 사라지는 알림 (코루틴 기반)
     public sealed class ShopView : MonoBehaviour
     {
         [SerializeField] private GameObject panelRoot; // 비워두면 이 GameObject 자체를 켜고 끔
-        [SerializeField] private TMP_Text listingText;
+        [SerializeField] private RectTransform itemListContent; // 카드가 배치될 부모 (ShopUIBuilder의 ItemListPanel)
+        [SerializeField] private ShopItemRowView rowTemplate; // 씬에서는 비활성 상태로 존재하는 카드 템플릿
         [SerializeField] private TMP_Text notificationText;
         [SerializeField, Min(0.1f)] private float notificationDuration = 2f;
 
         private ShopService shopService;
         private IItemInventory inventory;
         private IReadOnlyList<ShopListing> listings = Array.Empty<ShopListing>();
+        private readonly List<ShopItemRowView> spawnedRows = new();
         private Coroutine notificationRoutine;
 
         private GameObject Root => panelRoot != null ? panelRoot : gameObject;
@@ -37,6 +36,10 @@ namespace TerrainCollapse
             if (notificationText != null)
                 notificationText.gameObject.SetActive(false);
 
+            // 템플릿 자체는 화면에 안 보여야 함 (복제본만 활성화해서 사용)
+            if (rowTemplate != null)
+                rowTemplate.gameObject.SetActive(false);
+
             Hide();
         }
 
@@ -51,29 +54,35 @@ namespace TerrainCollapse
             Root.SetActive(false);
         }
 
-        private void Update()
+        // 목록을 다시 조회해서 카드들을 새로 찍어낸다. 개수는 shopService.GetListings() 결과에 그대로 따라간다.
+        private void RefreshListing()
         {
-            if (Root.activeSelf == false) return;
-            if (shopService == null || inventory == null) return;
+            listings = shopService.GetListings();
 
-            Keyboard keyboard = Keyboard.current;
-            if (keyboard == null) return;
+            ClearSpawnedRows();
 
-            // 목록의 1~5번째 항목을 숫자키 1~5에 대응 (플레이스홀더 수준의 임시 입력)
-            TryPurchaseByKey(keyboard.digit1Key, 0);
-            TryPurchaseByKey(keyboard.digit2Key, 1);
-            TryPurchaseByKey(keyboard.digit3Key, 2);
-            TryPurchaseByKey(keyboard.digit4Key, 3);
-            TryPurchaseByKey(keyboard.digit5Key, 4);
+            foreach (ShopListing listing in listings)
+            {
+                ShopItemRowView row = Instantiate(rowTemplate, itemListContent);
+                row.gameObject.SetActive(true);
+                row.Bind(listing, HandlePurchaseRequested);
+                spawnedRows.Add(row);
+            }
         }
 
-        // wasPressedThisFrame(엣지 트리거)만 사용하므로 키를 누르고 있어도 한 번만 구매가 실행됩니다.
-        private void TryPurchaseByKey(ButtonControl key, int listingIndex)
+        private void ClearSpawnedRows()
         {
-            if (key.wasPressedThisFrame == false) return;
-            if (listingIndex >= listings.Count) return;
+            foreach (ShopItemRowView row in spawnedRows)
+            {
+                if (row != null) Destroy(row.gameObject);
+            }
 
-            ShopListing listing = listings[listingIndex];
+            spawnedRows.Clear();
+        }
+
+        // 카드의 구매 버튼이 눌렸을 때 ShopItemRowView가 호출하는 콜백
+        private void HandlePurchaseRequested(ShopListing listing)
+        {
             ShopPurchaseResult result = shopService.TryPurchase(inventory, listing.ItemID, 1);
 
             if (result.Success)
@@ -86,32 +95,14 @@ namespace TerrainCollapse
             ShowPurchaseFailedNotification(result.FailReason);
         }
 
-        private void RefreshListing()
-        {
-            listings = shopService.GetListings();
-
-            if (listingText == null) return;
-
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < listings.Count; i++)
-            {
-                ShopListing listing = listings[i];
-                sb.AppendLine($"[{i + 1}] {listing.Name} - {listing.Price} Gold");
-            }
-
-            listingText.text = sb.Length > 0 ? sb.ToString() : "판매 중인 상품이 없습니다.";
-        }
-
         private void ShowPurchaseFailedNotification(ShopPurchaseFailReason reason)
         {
-            if (notificationText == null) return;
-
             string message = reason switch
             {
-                ShopPurchaseFailReason.InsufficientGold => "골드가 부족합니다.",
-                ShopPurchaseFailReason.InventoryRejected => "인벤토리 공간이 부족해 구매할 수 없습니다.",
-                ShopPurchaseFailReason.NotForSale => "판매하지 않는 상품입니다.",
-                _ => "구매할 수 없습니다."
+                ShopPurchaseFailReason.InsufficientGold => "Not Enough Money",
+                ShopPurchaseFailReason.InventoryRejected => "Not Enough Inventory",
+                ShopPurchaseFailReason.NotForSale => "Not For Sale",
+                _ => "Can Not Buy."
             };
 
             // 알림이 표시되는 도중 새 실패가 또 들어오면 이전 타이머를 멈추고 새로 띄웁니다.
