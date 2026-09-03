@@ -11,7 +11,7 @@ namespace TerrainCollapse
     /// Kinematic Rigidbody를 직접 이동시키는 붕괴 테스트용 플레이어.
     /// 축 분리 이동 + 실제 Collider Cast + Static Terrain 침투 보정을 사용한다.
     /// </summary>
-    [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D), typeof(SpriteRenderer))]
+    [RequireComponent(typeof(Rigidbody2D), typeof(BoxCollider2D))]
     [RequireComponent(typeof(FallingTerrainInteraction))]
     [RequireComponent(typeof(PlayerInventory))]
     public sealed class TestPlayerController : MonoBehaviour, IFallingTerrainCharacter
@@ -50,10 +50,6 @@ namespace TerrainCollapse
         [Range(1, 8)]
         private int depenetrationIterations = 4;
 
-        [Header("Terrain Interaction Visual Settings")]
-        [SerializeField] private int normalSortingOrder = 2;
-        [SerializeField] private int buriedSortingOrder = -1;
-
         private readonly List<RaycastHit2D> castHits =
             new List<RaycastHit2D>(16);
 
@@ -62,7 +58,6 @@ namespace TerrainCollapse
 
         private Rigidbody2D body;
         private BoxCollider2D box;
-        private SpriteRenderer spriteRenderer;
         private FallingTerrainInteraction fallingTerrainInteraction;
         private PlayerHp playerHp;
         private PlayerInventory inventory;
@@ -85,6 +80,8 @@ namespace TerrainCollapse
         public bool IsBuried => buried;
         public bool IsClimbing => isClimbing;
         public bool IsDead => isDead;
+        public bool IsGrounded => grounded;
+        public Vector2 Velocity => velocity;
 
         public Vector2 CurrentPosition => body.position;
         public Bounds CollisionBounds => box.bounds;
@@ -104,7 +101,6 @@ namespace TerrainCollapse
 
             body = GetComponent<Rigidbody2D>();
             box = GetComponent<BoxCollider2D>();
-            spriteRenderer = GetComponent<SpriteRenderer>();
             fallingTerrainInteraction = GetComponent<FallingTerrainInteraction>();
             playerHp = GetComponent<PlayerHp>();
             inventory = GetComponent<PlayerInventory>();
@@ -118,8 +114,6 @@ namespace TerrainCollapse
             body.useFullKinematicContacts = true;
             body.gravityScale = 0f;
             body.freezeRotation = true;
-
-            spriteRenderer.sortingOrder = normalSortingOrder;
         }
 
         private void Update()
@@ -353,9 +347,6 @@ namespace TerrainCollapse
             terrainInteractionLocked = false;
             buried = false;
 
-            spriteRenderer.sortingOrder =
-                normalSortingOrder;
-
             fallingTerrainInteraction.ResetState();
             fallingTerrainInteraction.enabled = true;
 
@@ -448,14 +439,8 @@ namespace TerrainCollapse
 
                 SetPosition(lockedPosition);
 
-                spriteRenderer.sortingOrder =
-                    buriedSortingOrder;
-
                 return;
             }
-
-            spriteRenderer.sortingOrder =
-                normalSortingOrder;
         }
 
         public void SetPosition(Vector2 position)

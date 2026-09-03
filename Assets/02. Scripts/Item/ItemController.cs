@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System;
 
 namespace TerrainCollapse
 {
@@ -30,6 +31,12 @@ namespace TerrainCollapse
         // 우클릭을 눌러 액티브 아이템을 프리뷰하고 있는 중인지 여부
         private bool isPreviewingActiveItem;
 
+        public event Action<float> MineStarted;
+
+        private bool isMining;
+        private PickaxeItem activePickaxe;
+        public bool IsMining => isMining;
+        
         private void Awake()
         {
             playerController = GetComponent<TestPlayerController>();
@@ -135,9 +142,13 @@ namespace TerrainCollapse
         {
             if (pickaxeItem == null && activeItem == null) return;
 
-            // 플레이어가 사망했거나 조작 불가 상태일 경우 입력 및 프리뷰 전면 차단
-            if (playerController != null && playerController.IsDead)
+            if (playerController != null &&
+                playerController.IsDead)
             {
+                CancelMine();
+
+                equippedItem.OnClearPreview();
+                
                 pickaxeItem?.OnClearPreview();
                 activeItem?.OnClearPreview();
                 isPreviewingActiveItem = false;
@@ -154,6 +165,19 @@ namespace TerrainCollapse
             bool rightReleasedThisFrame = mouse.rightButton.wasReleasedThisFrame;
             bool leftPressedThisFrame = mouse.leftButton.wasPressedThisFrame;
 
+
+            // 아이템 사용 입력 처리
+            if (Pointer.current == null)
+                return;
+
+            if (equippedItem is PickaxeItem)
+            {
+                // 곡괭이는 누르고 있는 동안 반복 사용
+                // 단, 현재 Mine 한 사이클이 끝난 상태에서만 다음 사이클 시작
+                if (Pointer.current.press.isPressed && !isMining)
+                {
+                    TryUseEquippedItem(ownerPos, mouseWorldPos);
+                }
             // 액티브 아이템이 있을 때만 우클릭으로 프리뷰 시작 가능
             if (rightPressedThisFrame && activeItem != null && isPreviewingActiveItem == false)
             {
@@ -217,6 +241,72 @@ namespace TerrainCollapse
             {
                 pickaxeItem.Use(ownerPos, mouseWorldPos);
             }
+            else
+            {
+                // 다른 아이템은 기존처럼 클릭 1회당 사용 1회
+                if (Pointer.current.press.wasPressedThisFrame)
+                {
+                    TryUseEquippedItem(ownerPos, mouseWorldPos);
+                }
+            }
+        }
+        
+        private void CancelMine()
+        {
+            activePickaxe?.CancelPreparedUse();
+
+            activePickaxe = null;
+            isMining = false;
+        }
+        
+        private void TryUseEquippedItem(
+            Vector3 ownerPos,
+            Vector3 targetPos)
+        {
+            if (isMining)
+                return;
+
+            if (equippedItem is PickaxeItem pickaxe)
+            {
+                activePickaxe = pickaxe;
+
+                if (!activePickaxe.PrepareUse(ownerPos, targetPos))
+                {
+                    activePickaxe = null;
+                    return;
+                }
+
+                isMining = true;
+
+                float mineDirectionX = targetPos.x - ownerPos.x;
+                MineStarted?.Invoke(mineDirectionX);
+
+                return;
+            }
+
+            equippedItem.Use(ownerPos, targetPos);
+        }
+        
+        public void ExecuteMineImpact()
+        {
+            if (!isMining)
+                return;
+
+            if (activePickaxe == null)
+                return;
+
+            activePickaxe.ExecutePreparedUse(transform.position);
+        }
+        
+        public void FinishMine()
+        {
+            if (!isMining)
+                return;
+
+            activePickaxe?.CancelPreparedUse();
+
+            activePickaxe = null;
+            isMining = false;
         }
 
         private Vector3 GetMouseWorldPosition()
