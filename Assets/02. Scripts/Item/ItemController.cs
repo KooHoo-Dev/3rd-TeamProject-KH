@@ -146,8 +146,7 @@ namespace TerrainCollapse
             {
                 CancelMine();
 
-                equippedItem.OnClearPreview();
-                
+                equippedItem?.OnClearPreview();
                 pickaxeItem?.OnClearPreview();
                 activeItem?.OnClearPreview();
                 isPreviewingActiveItem = false;
