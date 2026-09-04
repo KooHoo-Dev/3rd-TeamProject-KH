@@ -37,6 +37,9 @@ namespace TerrainCollapse
         private TerrainPenetrationResolver penetrationResolver;
         private PlayerTerrainState terrainState;
         private PlayerLifeCycle lifeCycle;
+        private bool isWaitingForTerrainSnapshot;
+        private Vector2 terrainSnapshotWaitingPosition;
+
 
         public bool IsBuried => terrainState.IsBuried;
         public bool IsClimbing => terrainState.IsClimbing;
@@ -84,6 +87,11 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
+            if (isWaitingForTerrainSnapshot)
+            {
+                SetPosition(terrainSnapshotWaitingPosition);
+                return;
+            }
             if (lifeCycle.IsDead) { if (lifeCycle.IsDeadFalling) TickDeathFall(); return; }
             if (terrainState.IsBuried) return;
             if (terrainState.IsInteractionLocked) { SetPosition(terrainState.LockedPosition); return; }
@@ -116,6 +124,19 @@ namespace TerrainCollapse
             else movement.StopHorizontal();
             if (wasClimbing) ClimbStateChanged?.Invoke(false);
             Debug.Log("[Terrain Collapse] Player died", this);
+        }
+
+        /// <summary>서버 지형 스냅샷을 받기 전 플레이어 입력과 이동을 고정</summary>
+        public void SetWaitingForTerrainSnapshot(bool isWaiting)
+        {
+            isWaitingForTerrainSnapshot = isWaiting;
+            movement.Stop();
+            collisionMove.ClearGrounded();
+
+            if (isWaiting == false) return;
+
+            terrainSnapshotWaitingPosition = body.position;
+            SetPosition(terrainSnapshotWaitingPosition);
         }
 
         public void Respawn(Vector2 spawnPosition)

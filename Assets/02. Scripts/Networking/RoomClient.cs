@@ -31,7 +31,7 @@ namespace TerrainCollapse
         [SerializeField] private ItemDropSpawner itemDropSpawner;
         [SerializeField] private PlayerInventory playerInventory;
 
-        [SerializeField] private TestPlayerController localPlayer;
+        [SerializeField] private PlayerController localPlayer;
         [SerializeField, Min(1f)] private float positionSendRate = 10f;
 
         [Header("Remote Player")]
@@ -108,7 +108,7 @@ namespace TerrainCollapse
             if (itemDropSpawner == null)
                 itemDropSpawner = FindFirstObjectByType<ItemDropSpawner>();
             if (localPlayer == null)
-                localPlayer = FindFirstObjectByType<TestPlayerController>();
+                localPlayer = FindFirstObjectByType<PlayerController>();
             if (playerInventory == null && localPlayer != null)
                 playerInventory = localPlayer.GetComponent<PlayerInventory>();
             if (remotePlayerRoot == null)
