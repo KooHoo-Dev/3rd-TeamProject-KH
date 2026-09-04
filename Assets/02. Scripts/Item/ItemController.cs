@@ -20,8 +20,8 @@ namespace TerrainCollapse
     {
         [SerializeField] private Item equippedItem;
         // 둘 다 인벤토리 상태에 따라 런타임에 채워지는 값이라 인스펙터에 노출하지 않습니다.
-        private Item pickaxeItem;
-        private Item activeItem;
+        [SerializeField]private Item pickaxeItem;
+        [SerializeField]private Item activeItem;
 
         [Header("곡괭이 보유 정보를 알려주는 전용 창구")]
         [SerializeField] private PickaxeInventory pickaxeInventory;

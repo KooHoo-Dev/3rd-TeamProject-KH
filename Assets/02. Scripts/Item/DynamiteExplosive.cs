@@ -8,6 +8,7 @@ namespace TerrainCollapse
     /// DynamiteItem.Use()에 의해 투척되어 생성되는 실제 폭발물.
     /// 착탄 지점까지 이동 후 퓨즈 시간만큼 대기하다가 폭발한다.
     /// </summary>
+    [RequireComponent(typeof(SpriteRenderer))]
     public class DynamiteExplosive : MonoBehaviour
     {
         [Header("Explosion Detection")]
@@ -15,12 +16,24 @@ namespace TerrainCollapse
 
         [Header("Explosive Setting Asset")]
         [SerializeField] private ExplosiveData data; // SO 데이터 참조
-        
+
+        [Header("Visual Feedback - Blink")]
+        [SerializeField] private float maxBlinkInterval = 0.4f; // 퓨즈 시작 시점 깜빡임 간격
+        [SerializeField] private float minBlinkInterval = 0.05f; // 폭발 직전 깜빡임 간격
+        [SerializeField] private Color blinkColor = Color.red;   // 깜빡일 때 색상
+
+        [Header("Visual Feedback - Explosion")]
+        [SerializeField] private ExplosionEffect explosionEffectPrefab; // 폭발 이펙트 프리팹
+
         private Rigidbody2D rb;
-        
+        private SpriteRenderer spriteRenderer;
+        private Color originalColor;
+
         private void Awake()
         {
             rb = GetComponent<Rigidbody2D>();
+            spriteRenderer = GetComponent<SpriteRenderer>();
+            originalColor = spriteRenderer.color;
         }
 
         public void Launch(Vector3 ownerPos, Vector3 direction)
@@ -34,6 +47,7 @@ namespace TerrainCollapse
             }
 
             StartCoroutine(FuseRoutine());
+            StartCoroutine(BlinkRoutine());
         }
 
         private IEnumerator FuseRoutine()
@@ -44,8 +58,32 @@ namespace TerrainCollapse
             Explode();
         }
 
+        // 퓨즈 시간에 비례해 깜빡이는 간격이 점점 짧아지는 코루틴
+        private IEnumerator BlinkRoutine()
+        {
+            float elapsed = 0f;
+            bool isBlinkOn = false;
+
+            while (elapsed < data.FuseTime)
+            {
+                float progress = elapsed / data.FuseTime; // 0(시작) ~ 1(폭발 직전)
+
+                // 제곱을 줘서 후반부로 갈수록 더 급격하게 빨라지도록 처리
+                float easedProgress = progress * progress;
+                float currentInterval = Mathf.Lerp(maxBlinkInterval, minBlinkInterval, easedProgress);
+
+                isBlinkOn = !isBlinkOn;
+                spriteRenderer.color = isBlinkOn ? blinkColor : originalColor;
+
+                yield return new WaitForSeconds(currentInterval);
+                elapsed += currentInterval;
+            }
+        }
+
         private void Explode()
         {
+            SpawnExplosionEffect();
+
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
 
             if (terrainManager != null &&
@@ -57,6 +95,13 @@ namespace TerrainCollapse
             DamagePlayersInRadius(transform.position, data.Radius, data.Power);
 
             Destroy(gameObject);
+        }
+
+        // 폭발 이펙트 프리팹을 착탄 지점에 생성
+        private void SpawnExplosionEffect()
+        {
+            Instantiate(explosionEffectPrefab, transform.position, Quaternion.identity);
+            explosionEffectPrefab.SetExplosionRadius(data.Radius);
         }
 
         // 자신이 있던 타일을 중심으로 폭발 반경 내 모든 타일에 채굴 명령 호출
