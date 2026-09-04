@@ -28,6 +28,14 @@ namespace TerrainCollapse
         private void Awake()
         {
             if (targetWorld == null) targetWorld = GetComponent<TerrainGridWorld>();
+
+            // RoomClient가 있는 씬에서는 서버 Snapshot이 유일한 초기 지형이다.
+            // 로컬 맵을 잠깐이라도 생성하면 서버 지형으로 교체될 때 Collider/플레이어 위치가 흔들린다.
+            if (FindFirstObjectByType<RoomClient>() != null)
+            {
+                Debug.Log("[Terrain Map Loader] RoomClient 감지: 로컬 초기 맵 생성을 건너뜁니다.", this);
+                return;
+            }
             
             if (useDataTableGeneration)
             {

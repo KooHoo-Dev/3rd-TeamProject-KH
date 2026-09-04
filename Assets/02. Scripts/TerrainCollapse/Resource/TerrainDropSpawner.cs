@@ -30,6 +30,9 @@ namespace TerrainCollapse
         private void HandleCellDestroyed(
             TerrainCellDestroyedInfo destroyedInfo)
         {
+            // 서버 모드의 드롭은 world_item.spawned로만 생성한다.
+            if (RoomClient.Instance != null) return;
+
             if (destroyedInfo.TileType == TerrainTileType.DeathLoot)
             {
                 SpawnDeathLoot(destroyedInfo);

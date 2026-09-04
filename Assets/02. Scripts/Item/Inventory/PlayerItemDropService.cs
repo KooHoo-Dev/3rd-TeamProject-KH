@@ -21,6 +21,9 @@ namespace TerrainCollapse
             Vector2 worldPosition,
             float pickupDelay)
         {
+            RoomClient roomClient = RoomClient.Instance;
+            if (roomClient != null)
+                return roomClient.RequestWorldItemDrop(itemID, quantity, worldPosition);
             if (inventory == null || quantity <= 0) return false;
             if (inventory.TryRemove(itemID, quantity) == false) return false;
 
@@ -49,6 +52,9 @@ namespace TerrainCollapse
             TerrainManager terrainManager,
             Vector2Int deathCell)
         {
+            RoomClient roomClient = RoomClient.Instance;
+            if (roomClient != null)
+                return roomClient.RequestDeathLoot(deathCell);
             if (inventory == null || terrainManager == null) return false;
             if (DataManager.Instance == null) return false;
 

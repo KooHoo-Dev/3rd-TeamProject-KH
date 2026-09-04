@@ -33,6 +33,7 @@ namespace TerrainCollapse
 
         public int ItemID { get; private set; }
         public int Quantity { get; private set; }
+        public string DropID { get; private set; }
 
         private void Awake()
         {
@@ -113,7 +114,11 @@ namespace TerrainCollapse
         }
 
         public void Initialize(ItemDef itemDef, int quantity, float pickupDelay)
+            => Initialize(null, itemDef, quantity, pickupDelay);
+
+        public void Initialize(string dropID, ItemDef itemDef, int quantity, float pickupDelay)
         {
+            DropID = dropID;
             ItemID = itemDef.ID;
             Quantity = Mathf.Max(1, quantity);
             if (itemDef.Sprite != null)
@@ -131,14 +136,17 @@ namespace TerrainCollapse
                 };
             }
 
-            gameObject.name = $"WorldItem_{itemDef.Name}_{Quantity}";
+            gameObject.name = string.IsNullOrEmpty(DropID)
+                ? $"WorldItem_{itemDef.Name}_{Quantity}"
+                : $"WorldItem_{DropID}_{itemDef.Name}_{Quantity}";
             pickupAvailableTime = Time.time + pickupDelay;
             isTerrainOverlapCheckPending = true;
         }
 
         private void HandleTerrainChanged(TerrainChangeReason reason)
         {
-            if (reason == TerrainChangeReason.CollapsePlacement)
+            if (reason == TerrainChangeReason.CollapsePlacement ||
+                reason == TerrainChangeReason.AuthoritativeBatch)
                 isTerrainOverlapCheckPending = true;
         }
 
@@ -390,5 +398,7 @@ namespace TerrainCollapse
 
             return true;
         }
+
+        public bool IsPickupAvailable => Time.time >= pickupAvailableTime && isCollected == false;
     }
 }

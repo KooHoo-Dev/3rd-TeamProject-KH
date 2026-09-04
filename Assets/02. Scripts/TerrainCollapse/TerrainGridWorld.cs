@@ -90,6 +90,9 @@ namespace TerrainCollapse
         private void Start()
         {
             if (data != null) return;
+
+            // 서버 권위 씬에서는 RoomClient가 비동기로 Snapshot을 수신하기 전까지 비어 있는 것이 정상이다.
+            if (FindFirstObjectByType<RoomClient>() != null) return;
             
             Debug.LogError("[Terrain Collapse] 초기 JSON 또는 Snapshot이 로드되지 않았습니다.", this);
         }
@@ -131,7 +134,7 @@ namespace TerrainCollapse
             ClearGeneratedObjects();
             cellSize = map.CellSize;
             transform.position = map.Origin;
-            data = new TerrainGridData(cellSize, map.Origin);
+            data = new TerrainGridData(cellSize, map.Origin, map.Width, map.Height);
 
             for (int y = 0; y < map.Height; y++)
             {

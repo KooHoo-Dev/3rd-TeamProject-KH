@@ -14,6 +14,7 @@ namespace TerrainCollapse
         public float CellSize;
         public int TopOpeningWidth;
         public int BoundaryThickness;
+        public int RespawnAreaHeight;
     }
 
     public sealed class TerrainSeedProfileDef
@@ -26,6 +27,7 @@ namespace TerrainCollapse
         public int TopOpeningWidth { get; }
         public int BottomFlatWidth => Math.Max(1, (int)Math.Round(Width * 0.25f, MidpointRounding.AwayFromZero));
         public int BoundaryThickness { get; }
+        public int RespawnAreaHeight { get; }
         public float OriginX => -Width * CellSize * 0.5f;
         public float OriginY => -Height * CellSize;
 
@@ -38,6 +40,7 @@ namespace TerrainCollapse
             CellSize = dto.CellSize;
             TopOpeningWidth = dto.TopOpeningWidth;
             BoundaryThickness = dto.BoundaryThickness;
+            RespawnAreaHeight = dto.RespawnAreaHeight;
         }
     }
 }

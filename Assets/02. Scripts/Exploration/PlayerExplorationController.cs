@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,15 +9,12 @@ namespace TerrainCollapse
     public sealed class PlayerExplorationController : MonoBehaviour
     {
         [Header("Sources")]
-        [SerializeField] private TerrainMapLoader mapLoader;
         [SerializeField] private TerrainManager terrainManager;
+        [SerializeField] private RoomClient roomClient;
         [SerializeField] private Transform localPlayer;
 
         [Header("Visual Settings")]
         [SerializeField, Min(0)] private int visionRadius;
-
-        [Header("Initialization")]
-        [SerializeField, Min(0.1f)] private float initializationTimeout = 5f;
 
         private ExplorationMapData explorationData;
         private bool initialized;
@@ -30,6 +26,7 @@ namespace TerrainCollapse
 
         public event Action<IReadOnlyList<Vector2Int>> CellsExplored;
         public event Action<IReadOnlyList<Vector2Int>> CellsObserved;
+        public event Action ExplorationInitialized;
         public event Action ExplorationRestored;
 
         public void SetLocalPlayer(Transform playerTransform)
@@ -41,8 +38,8 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            mapLoader ??= FindFirstObjectByType<TerrainMapLoader>();
             terrainManager ??= FindFirstObjectByType<TerrainManager>();
+            roomClient ??= FindFirstObjectByType<RoomClient>();
 
             if (localPlayer == null)
             {
@@ -57,63 +54,83 @@ namespace TerrainCollapse
             }
         }
 
-        private IEnumerator Start()
-        {
-            float elapsed = 0f;
-
-            while (elapsed < initializationTimeout)
-            {
-                if (CanInitialize())
-                {
-                    InitializeExploration();
-                    yield break;
-                }
-
-                elapsed += Time.unscaledDeltaTime;
-                yield return null;
-            }
-        }
-
         private void OnEnable()
         {
             if (terrainManager != null)
                 terrainManager.TerrainChanged += HandleTerrainChanged;
+            if (roomClient != null)
+                roomClient.TerrainSnapshotLoaded += HandleTerrainSnapshotLoaded;
 
             needsVisionRefresh = true;
+            TryInitialize();
         }
 
         private void OnDisable()
         {
             if (terrainManager != null)
                 terrainManager.TerrainChanged -= HandleTerrainChanged;
+            if (roomClient != null)
+                roomClient.TerrainSnapshotLoaded -= HandleTerrainSnapshotLoaded;
         }
 
         private bool CanInitialize()
         {
-            if (mapLoader == null) return false;
             if (terrainManager == null) return false;
             if (localPlayer == null) return false;
-            if (mapLoader.LoadedMap == null) return false;
             if (terrainManager.IsReady == false) return false;
 
-            return true;
+            return terrainManager.TryGetMapBounds(out _, out _, out _, out _);
         }
 
         private void InitializeExploration()
         {
-            TerrainMapFile map = mapLoader.LoadedMap;
+            if (terrainManager.TryGetMapBounds(
+                    out int mapWidth,
+                    out int mapHeight,
+                    out _,
+                    out _) == false)
+                return;
 
-            explorationData = new ExplorationMapData(map.Width, map.Height);
+            explorationData = new ExplorationMapData(mapWidth, mapHeight);
             initialized = true;
             hasLastExplorationCell = false;
             needsVisionRefresh = true;
 
+            ExplorationInitialized?.Invoke();
             RefreshPlayerVision();
+        }
+
+        private void TryInitialize()
+        {
+            if (initialized == false && CanInitialize())
+                InitializeExploration();
+        }
+
+        private void HandleTerrainSnapshotLoaded(TerrainSnapshot snapshot)
+        {
+            if (snapshot == null || snapshot.MapWidth <= 0 || snapshot.MapHeight <= 0)
+                return;
+
+            // 같은 방의 재동기화는 이미 탐험한 영역을 보존한다.
+            if (initialized && explorationData.Width == snapshot.MapWidth &&
+                explorationData.Height == snapshot.MapHeight)
+            {
+                needsVisionRefresh = true;
+                return;
+            }
+
+            initialized = false;
+            TryInitialize();
         }
 
         private void Update()
         {
-            if (initialized == false || localPlayer == null) return;
+            if (initialized == false)
+            {
+                TryInitialize();
+                return;
+            }
+            if (localPlayer == null) return;
 
             RefreshPlayerVision();
         }

@@ -8,39 +8,47 @@ namespace TerrainCollapse
     [RequireComponent(typeof(PlayerInventory))]
     public sealed class PlayerSellController : MonoBehaviour
     {
-        [SerializeField] private float sellAreaMinimumY = 0f;
-
         private PlayerInventory inventory;
-        private IPlayerController playerController;
+        private TestPlayerController playerController;
+        private RoomClient roomClient;
         private ItemSaleService itemSaleService;
-        private bool wasBelowSellArea;
+        private bool wasInSellArea;
 
         private void Awake()
         {
             inventory = GetComponent<PlayerInventory>();
-            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
+            playerController = GetComponent<TestPlayerController>();
+            roomClient = RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
         }
 
         private void Start()
         {
             itemSaleService = new ItemSaleService(DataManager.Instance.ItemTable);
-            wasBelowSellArea = playerController.CurrentPosition.y < sellAreaMinimumY;
+            wasInSellArea = IsInSellArea();
         }
 
         private void Update()
         {
             if (playerController.IsDead || itemSaleService == null) return;
 
-            bool isInSellArea = playerController.CurrentPosition.y >= sellAreaMinimumY;
+            bool isInSellArea = IsInSellArea();
 
-            if (wasBelowSellArea && isInSellArea)
+            if (wasInSellArea == false && isInSellArea)
             {
                 ItemSaleResult result = itemSaleService.SellAllExchangeItems(inventory);
 
                 if (result.EarnedGold > 0) LogSaleResult(result);
             }
 
-            wasBelowSellArea = isInSellArea == false;
+            wasInSellArea = isInSellArea;
+        }
+
+        private bool IsInSellArea()
+        {
+            roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
+
+            // 로컬 테스트 맵은 기존 지상 진입 규칙을 유지
+            return playerController.CurrentPosition.y >= 0f;
         }
 
         private void LogSaleResult(ItemSaleResult result)

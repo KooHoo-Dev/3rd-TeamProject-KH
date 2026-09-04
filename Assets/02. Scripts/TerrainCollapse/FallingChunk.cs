@@ -36,6 +36,7 @@ namespace TerrainCollapse
         }
 
         private readonly List<Vector2Int> localCells = new();
+        private readonly List<Vector2Int> sourceCells = new();
         private readonly List<TerrainTileType> cellTypes = new();
         private readonly List<int> cellDurabilities = new();
         private readonly List<int> cellResourceIDs = new();
@@ -53,6 +54,7 @@ namespace TerrainCollapse
         private bool isTrackingStablePosition;
         private bool settled;
         private bool expired;
+        private bool isPlacementOwner;
         private long collapseId;
         private Vector2 stablePositionOrigin;
         private Vector2 beforeVelocity;
@@ -61,6 +63,7 @@ namespace TerrainCollapse
         public bool IsExpired => expired;
         public bool IsComplete => settled || expired;
         public IReadOnlyList<Vector2Int> LocalCells => localCells;
+        public IReadOnlyList<Vector2Int> SourceCells => sourceCells;
         public IReadOnlyList<TerrainTileType> CellTypes => cellTypes;
         public IReadOnlyList<int> CellDurabilities => cellDurabilities;
         public IReadOnlyList<int> CellResourceIDs => cellResourceIDs;
@@ -68,6 +71,7 @@ namespace TerrainCollapse
         public Bounds WorldBounds => compositeCollider.bounds;
         public float CellSize => cellSize;
         public long CollapseId => collapseId;
+        public bool IsPlacementOwner => isPlacementOwner;
         public Vector2 BeforeVelocity => beforeVelocity;
 
         private void Awake()
@@ -83,14 +87,18 @@ namespace TerrainCollapse
         }
 
         public void Configure(
+            IReadOnlyList<Vector2Int> originalCells,
             IReadOnlyList<Vector2Int> cells,
             IReadOnlyList<TerrainTileType> types,
             IReadOnlyList<int> durabilities,
             IReadOnlyList<int> resourceIDs,
             float size,
             long id,
-            float minimumY)
+            float minimumY,
+            bool placementOwner)
         {
+            sourceCells.Clear();
+            sourceCells.AddRange(originalCells);
             localCells.Clear();
             localCells.AddRange(cells);
             cellTypes.Clear();
@@ -102,6 +110,7 @@ namespace TerrainCollapse
             cellSize = size;
             collapseId = id;
             minimumWorldY = minimumY;
+            isPlacementOwner = placementOwner;
         }
 
         public Vector3 GetLocalCellCenterWorld(Vector2Int localCell)

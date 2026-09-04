@@ -159,6 +159,9 @@ namespace TerrainCollapse
             if (dto.BoundaryThickness <= 0 || dto.BoundaryThickness * 2 >= dto.Width ||
                 dto.BoundaryThickness * 2 >= dto.Height)
                 throw new InvalidDataException($"BoundaryThickness 범위가 올바르지 않습니다: {dto.ProfileID}");
+
+            if (dto.RespawnAreaHeight <= 0)
+                throw new InvalidDataException($"RespawnAreaHeight는 1 이상이어야 합니다: {dto.ProfileID}");
         }
     }
 

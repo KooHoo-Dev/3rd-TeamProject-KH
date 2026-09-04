@@ -102,6 +102,7 @@ namespace TerrainCollapse
                 ShopPurchaseFailReason.InsufficientGold => "Not Enough Money",
                 ShopPurchaseFailReason.InventoryRejected => "Not Enough Inventory",
                 ShopPurchaseFailReason.NotForSale => "Not For Sale",
+                ShopPurchaseFailReason.ServerAuthorityUnsupported => "Unavailable In Multiplayer",
                 _ => "Can Not Buy."
             };
 

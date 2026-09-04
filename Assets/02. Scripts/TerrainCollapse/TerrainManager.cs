@@ -49,7 +49,34 @@ namespace TerrainCollapse
         public event Action<TerrainChangeReason> TerrainChanged;
         public event Action<Vector2Int, int> TerrainDurabilityChanged;
         public event Action<TerrainChangeBatch> AuthoritativeBatchApplied;
+        public event Action<IReadOnlyList<long>> CollapseCancelled;
         public event Action<TerrainCellDestroyedInfo> CellDestroyed;
+
+        /// <summary>서버가 무른 낙하 번호를 한 번에 알린다. 지형은 CollapseManager가 이미 되돌린 뒤다.</summary>
+        public void NotifyCollapseCancelled(IReadOnlyList<long> collapseIds)
+            => CollapseCancelled?.Invoke(collapseIds);
+
+        /// <summary>현재 로드된 지형의 Grid 범위와 월드 변환 기준을 반환한다.</summary>
+        public bool TryGetMapBounds(
+            out int mapWidth,
+            out int mapHeight,
+            out float cellSize,
+            out Vector2 origin)
+        {
+            mapWidth = 0;
+            mapHeight = 0;
+            cellSize = 0f;
+            origin = default;
+
+            if (IsReady == false) return false;
+
+            TerrainGridData data = terrainWorld.Data;
+            mapWidth = data.MapWidth;
+            mapHeight = data.MapHeight;
+            cellSize = data.CellSize;
+            origin = data.Origin;
+            return mapWidth > 0 && mapHeight > 0 && cellSize > 0f;
+        }
 
         private void Awake()
         {

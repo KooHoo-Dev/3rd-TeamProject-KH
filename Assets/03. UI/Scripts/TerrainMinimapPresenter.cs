@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using TerrainCollapse;
 using UnityEngine;
@@ -12,16 +11,13 @@ namespace TerrainCollapse
     public sealed class TerrainMinimapPresenter : MonoBehaviour
     {
         [Header("Sources")]
-        [SerializeField] private TerrainMapLoader mapLoader;
+        [SerializeField] private RoomClient roomClient;
         [SerializeField] private TerrainManager terrainManager;
         [SerializeField] private Transform localPlayer;
         [SerializeField] private PlayerExplorationController explorationController;
 
         [Header("View")]
         [SerializeField] private MinimapView minimapView;
-
-        [Header("Initialization")]
-        [SerializeField, Min(0.1f)] private float initializationTimeout = 5f;
 
         [Header("Tile Colors")]
         [SerializeField] private Color emptyColor = new Color(0.03f, 0.04f, 0.06f, 1f);
@@ -38,6 +34,8 @@ namespace TerrainCollapse
         private Color32[] pixels;
         private int mapWidth;
         private int mapHeight;
+        private float cellSize;
+        private Vector2 mapOrigin;
         private bool initialized;
 
         public void SetLocalPlayer(Transform playerTransform)
@@ -48,7 +46,7 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            if (mapLoader == null) mapLoader = FindFirstObjectByType<TerrainMapLoader>();
+            if (roomClient == null) roomClient = FindFirstObjectByType<RoomClient>();
             if (terrainManager == null) terrainManager = FindFirstObjectByType<TerrainManager>();
             if (explorationController == null)
                 explorationController = FindFirstObjectByType<PlayerExplorationController>();
@@ -57,62 +55,72 @@ namespace TerrainCollapse
 
         private void OnEnable()
         {
-            explorationController.CellsObserved += HandleCellsObserved;
-            explorationController.ExplorationRestored += RefreshMap;
+            if (explorationController != null)
+            {
+                explorationController.CellsObserved += HandleCellsObserved;
+                explorationController.ExplorationInitialized += HandleExplorationInitialized;
+                explorationController.ExplorationRestored += RefreshMap;
+            }
+            if (roomClient != null)
+            {
+                roomClient.TerrainSnapshotLoaded += HandleTerrainSnapshotLoaded;
+                roomClient.RemotePlayerRemoved += HandleRemotePlayerRemoved;
+            }
+            TryInitialize();
         }
 
         private void OnDisable()
         {
-            explorationController.CellsObserved -= HandleCellsObserved;
-            explorationController.ExplorationRestored -= RefreshMap;
-        }
-
-        private IEnumerator Start()
-        {
-            float elapsed = 0f;
-
-            while (elapsed < initializationTimeout)
+            if (explorationController != null)
             {
-                if (CanInitialize())
-                {
-                    InitializeMinimap();
-                    yield break;
-                }
-
-                elapsed += Time.unscaledDeltaTime;
-                yield return null;
+                explorationController.CellsObserved -= HandleCellsObserved;
+                explorationController.ExplorationInitialized -= HandleExplorationInitialized;
+                explorationController.ExplorationRestored -= RefreshMap;
             }
-
-            Debug.LogError(
-                "[UI] 제한 시간 안에 지형 미니맵을 초기화하지 못했습니다. 참조와 맵 로드 상태를 확인하십시오.",
-                this);
+            if (roomClient != null)
+            {
+                roomClient.TerrainSnapshotLoaded -= HandleTerrainSnapshotLoaded;
+                roomClient.RemotePlayerRemoved -= HandleRemotePlayerRemoved;
+            }
         }
 
         private void Update()
         {
-            if (initialized == false) return;
+            if (initialized == false)
+            {
+                TryInitialize();
+                return;
+            }
 
             UpdateLocalPlayerMarker();
+            UpdateRemotePlayerMarkers();
+        }
+
+        private void TryInitialize()
+        {
+            if (initialized == false && CanInitialize())
+                InitializeMinimap();
         }
 
         private bool CanInitialize()
         {
-            if (mapLoader == null) return false;
             if (terrainManager == null) return false;
             if (explorationController == null) return false;
             if (minimapView == null) return false;
-            if (mapLoader.LoadedMap == null) return false;
             if (terrainManager.IsReady == false) return false;
             if (explorationController.ExplorationData == null) return false;
 
-            return true;
+            return terrainManager.TryGetMapBounds(out _, out _, out _, out _);
         }
 
         private void InitializeMinimap()
         {
-            TerrainMapFile loadedMap = mapLoader.LoadedMap;
-            mapWidth = loadedMap.Width;
-            mapHeight = loadedMap.Height;
+            if (terrainManager.TryGetMapBounds(
+                    out mapWidth,
+                    out mapHeight,
+                    out cellSize,
+                    out mapOrigin) == false)
+                return;
 
             if (minimapView.Initialize(mapWidth, mapHeight) == false) return;
 
@@ -120,6 +128,34 @@ namespace TerrainCollapse
             initialized = true;
             RefreshMap();
             UpdateLocalPlayerMarker();
+            UpdateRemotePlayerMarkers();
+        }
+
+        private void HandleTerrainSnapshotLoaded(TerrainSnapshot snapshot)
+        {
+            if (snapshot == null) return;
+            if (CanInitialize() == false)
+            {
+                TryInitialize();
+                return;
+            }
+
+            if (initialized == false || mapWidth != snapshot.MapWidth || mapHeight != snapshot.MapHeight)
+            {
+                initialized = false;
+                TryInitialize();
+                return;
+            }
+
+            cellSize = snapshot.CellSize;
+            mapOrigin = snapshot.Origin;
+            RefreshMap();
+            UpdateLocalPlayerMarker();
+        }
+
+        private void HandleExplorationInitialized()
+        {
+            TryInitialize();
         }
 
         private void HandleCellsObserved(IReadOnlyList<Vector2Int> cells)
@@ -155,7 +191,10 @@ namespace TerrainCollapse
 
             int pixelIndex = cell.y * mapWidth + cell.x;
 
-            if (explorationController.ExplorationData.IsExplored(cell) == false)
+            // 월드 안개 View와 동일하게 지상/스폰 영역(y > 0)은 개인 탐험 여부와
+            // 관계없이 공개한다. 전체 맵도 이 텍스처를 공유하므로 같은 결과가 적용된다.
+            if (IsFogFreeCell(cell) == false &&
+                explorationController.ExplorationData.IsExplored(cell) == false)
             {
                 pixels[pixelIndex] = unexploredColor;
                 return;
@@ -169,6 +208,12 @@ namespace TerrainCollapse
 
             terrainManager.TryGetResourceID(cell, out int resourceID);
             pixels[pixelIndex] = GetTileColor(type, resourceID);
+        }
+
+        private bool IsFogFreeCell(Vector2Int cell)
+        {
+            float cellCenterY = mapOrigin.y + (cell.y + 0.5f) * cellSize;
+            return cellCenterY > 0f;
         }
 
         private Color32 GetTileColor(TerrainTileType type, int resourceID)
@@ -197,27 +242,61 @@ namespace TerrainCollapse
                 return;
             }
 
-            TerrainMapFile loadedMap = mapLoader.LoadedMap;
-
-            if (loadedMap == null)
+            if (terrainManager.TryGetMapBounds(
+                    out int width,
+                    out int height,
+                    out float size,
+                    out Vector2 origin) == false)
             {
                 minimapView.SetPlayerVisible(false);
                 return;
             }
 
-            float mapWorldWidth = loadedMap.Width * loadedMap.CellSize;
-            float mapWorldHeight = loadedMap.Height * loadedMap.CellSize;
+            float mapWorldWidth = width * size;
+            float mapWorldHeight = height * size;
 
             float normalizedX = Mathf.InverseLerp(
-                loadedMap.Origin.x,
-                loadedMap.Origin.x + mapWorldWidth,
+                origin.x,
+                origin.x + mapWorldWidth,
                 localPlayer.position.x);
             float normalizedY = Mathf.InverseLerp(
-                loadedMap.Origin.y,
-                loadedMap.Origin.y + mapWorldHeight,
+                origin.y,
+                origin.y + mapWorldHeight,
                 localPlayer.position.y);
 
             minimapView.SetPlayerNormalizedPosition(new Vector2(normalizedX, normalizedY));
+        }
+
+        private void UpdateRemotePlayerMarkers()
+        {
+            if (roomClient == null || minimapView == null ||
+                terrainManager.TryGetMapBounds(
+                    out int width,
+                    out int height,
+                    out float size,
+                    out Vector2 origin) == false)
+                return;
+
+            float mapWorldWidth = width * size;
+            float mapWorldHeight = height * size;
+            foreach (Networking.RemotePlayerView remotePlayer in roomClient.RemotePlayerViews)
+            {
+                if (remotePlayer == null || string.IsNullOrWhiteSpace(remotePlayer.PlayerId))
+                    continue;
+
+                Vector3 position = remotePlayer.transform.position;
+                Vector2 normalizedPosition = new(
+                    Mathf.InverseLerp(origin.x, origin.x + mapWorldWidth, position.x),
+                    Mathf.InverseLerp(origin.y, origin.y + mapWorldHeight, position.y));
+                minimapView.SetRemotePlayerNormalizedPosition(
+                    remotePlayer.PlayerId,
+                    normalizedPosition);
+            }
+        }
+
+        private void HandleRemotePlayerRemoved(string playerId)
+        {
+            minimapView?.RemoveRemotePlayerMarker(playerId);
         }
     }
 }
