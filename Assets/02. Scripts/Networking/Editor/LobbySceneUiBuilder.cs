@@ -27,7 +27,10 @@ namespace TerrainCollapse.Editor
             if (Object.FindFirstObjectByType<EventSystem>() == null)
                 new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
             GameObject root = new(RootName, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            root.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            Canvas canvas = root.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = Camera.main;
+            canvas.planeDistance = 10f;
             CanvasScaler scaler = root.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920f, 1080f);
@@ -90,15 +93,11 @@ namespace TerrainCollapse.Editor
 
         private static LobbyPlayerSlotView[] CreatePlayerSlots(Transform parent)
         {
-            Sprite localSprite = LoadCharacterSprite("Assets/03. UI/Scenes/LocalPlayer.prefab");
-            Sprite remoteSprite = LoadCharacterSprite("Assets/01. Scenes/RemotePlayer.prefab");
-            Color[] playerColors =
-            {
-                new Color(0.93f, 0.23f, 0.23f),
-                new Color(0.96f, 0.80f, 0.16f),
-                new Color(0.25f, 0.78f, 0.35f),
-                new Color(0.24f, 0.52f, 0.95f),
-            };
+            GameObject localPrefab = LoadPlayerPrefab(
+                "Assets/01. Scenes/LocalPlayer.prefab",
+                "Assets/03. UI/Scenes/LocalPlayer.prefab");
+            GameObject remotePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/01. Scenes/RemotePlayer.prefab");
             LobbyPlayerSlotView[] slots = new LobbyPlayerSlotView[4];
             for (int i = 0; i < slots.Length; i++)
             {
@@ -128,19 +127,23 @@ namespace TerrainCollapse.Editor
                 SerializedObject slotSerialized = new(slot.GetComponent<LobbyPlayerSlotView>());
                 slotSerialized.FindProperty("avatarImage").objectReferenceValue = avatarImage;
                 slotSerialized.FindProperty("nickNameText").objectReferenceValue = labelText;
-                slotSerialized.FindProperty("localPlayerSprite").objectReferenceValue = localSprite;
-                slotSerialized.FindProperty("remotePlayerSprite").objectReferenceValue = remoteSprite;
-                slotSerialized.FindProperty("playerColor").colorValue = playerColors[i];
+                slotSerialized.FindProperty("localPlayerPrefab").objectReferenceValue = localPrefab;
+                slotSerialized.FindProperty("remotePlayerPrefab").objectReferenceValue = remotePrefab;
                 slotSerialized.ApplyModifiedPropertiesWithoutUndo();
                 slots[i] = slot.GetComponent<LobbyPlayerSlotView>();
             }
             return slots;
         }
 
-        private static Sprite LoadCharacterSprite(string prefabPath)
+        private static GameObject LoadPlayerPrefab(params string[] prefabPaths)
         {
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            return prefab?.GetComponentInChildren<SpriteRenderer>(true)?.sprite;
+            foreach (string prefabPath in prefabPaths)
+            {
+                GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+                if (prefab != null) return prefab;
+            }
+
+            return null;
         }
 
         private static void Set(SerializedObject serialized, string property, Object value) => serialized.FindProperty(property).objectReferenceValue = value;

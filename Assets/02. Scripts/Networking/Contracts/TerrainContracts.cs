@@ -12,6 +12,8 @@ namespace TerrainCollapse.Networking
         public const string Join = "join";
         public const string Leave = "leave";
         public const string PlayerMove = "player.move";
+        public const string PlayerReady = "player.ready";
+        public const string GameStarted = "game.started";
         public const string PlayerHealthSnapshot = "player.health_snapshot";
         public const string PlayerHealthChanged = "player.health_changed";
         public const string PlayerDied = "player.died";
@@ -52,6 +54,7 @@ namespace TerrainCollapse.Networking
     public sealed class NetworkUser
     {
         public string Id { get; set; }
+        public string ClientID { get; set; }
         public string NickName { get; set; }
     }
 
@@ -62,6 +65,19 @@ namespace TerrainCollapse.Networking
         public string RoomCode { get; set; }
         public NetworkUser User { get; set; }
         public NetworkUser[] Users { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlayerReadyMessage
+    {
+        public string Type { get; set; } = NetworkMessageTypes.PlayerReady;
+    }
+
+    [Serializable]
+    public sealed class GameStartedMessage
+    {
+        public string Type { get; set; }
+        public long StartedAtUnixMilliseconds { get; set; }
     }
 
     // 지형 요청과 서버 확정 상태 전송에 사용하는 공용 데이터 계약

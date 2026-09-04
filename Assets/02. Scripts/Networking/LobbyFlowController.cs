@@ -120,6 +120,7 @@ namespace TerrainCollapse
             if (message?.Room == null) return;
             string nickName = nickNameInput?.text.Trim() ?? session.NickName;
             session.Configure(serverUrl, nickName, message.Room.RoomCode, message.HostToken);
+            session.UpdatePlayers(message.Room.PlayerDetails);
             if (isRoomScene == false)
             {
                 SceneManager.LoadScene(roomSceneName);
@@ -144,7 +145,8 @@ namespace TerrainCollapse
                 if (players != null && i < players.Count)
                     playerSlots[i].SetPlayer(
                         players[i].NickName,
-                        players[i].ClientID == session.ClientId);
+                        players[i].ClientID == session.ClientId,
+                        i);
                 else
                     playerSlots[i].SetEmpty();
             }

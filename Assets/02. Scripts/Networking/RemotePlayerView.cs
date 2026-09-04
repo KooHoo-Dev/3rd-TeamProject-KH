@@ -9,10 +9,12 @@ namespace TerrainCollapse.Networking
         private Vector2 targetPosition;
 
         public string PlayerId { get; private set; }
+        public int ColorIndex { get; private set; }
 
-        public void Initialize(string playerId, Vector2 initialPosition)
+        public void Initialize(string playerId, Vector2 initialPosition, int colorIndex)
         {
             PlayerId = playerId;
+            ColorIndex = colorIndex;
             Vector3 current = transform.position;
             transform.position = new Vector3(initialPosition.x, initialPosition.y, current.z);
             targetPosition = initialPosition;
@@ -21,6 +23,11 @@ namespace TerrainCollapse.Networking
         public void SetServerPosition(Vector2 position)
         {
             targetPosition = position;
+        }
+
+        public void SetColorIndex(int colorIndex)
+        {
+            ColorIndex = colorIndex;
         }
 
         private void Update()

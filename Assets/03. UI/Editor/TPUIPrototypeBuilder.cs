@@ -263,11 +263,12 @@ namespace TerrainCollapse
 
             Image marker = CreateImage("PlayerMarker", mapRect, new Color(1f, 0.88f, 0.1f, 1f))
                 .GetComponent<Image>();
+            marker.sprite = AssetDatabase.LoadAssetAtPath<Sprite>(
+                "Assets/Resources/UI/MinimapPlayerMarker.png");
             RectTransform markerRect = (RectTransform)marker.transform;
             SetAnchoredRect(markerRect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(12f, 12f));
             marker.raycastTarget = false;
-            AddOutline(marker.gameObject, Color.black, 1f);
 
             MinimapView view = mapObject.AddComponent<MinimapView>();
             SetObjectReference(view, "mapImage", mapImage);

@@ -264,6 +264,8 @@ namespace TerrainCollapse
                 origin.y + mapWorldHeight,
                 localPlayer.position.y);
 
+            minimapView.SetPlayerMarkerColor(PlayerColorPalette.GetColor(
+                roomClient != null ? roomClient.LocalPlayerColorIndex : 0));
             minimapView.SetPlayerNormalizedPosition(new Vector2(normalizedX, normalizedY));
         }
 
@@ -290,7 +292,8 @@ namespace TerrainCollapse
                     Mathf.InverseLerp(origin.y, origin.y + mapWorldHeight, position.y));
                 minimapView.SetRemotePlayerNormalizedPosition(
                     remotePlayer.PlayerId,
-                    normalizedPosition);
+                    normalizedPosition,
+                    PlayerColorPalette.GetColor(remotePlayer.ColorIndex));
             }
         }
 
