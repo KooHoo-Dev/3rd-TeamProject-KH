@@ -1100,7 +1100,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.RoomClient
   serverUrl: ws://34.50.63.204:5002
   roomCode: ABCE
-  nickName: Player53453
+  nickName: Player
   connectOnStart: 1
   terrainWorld: {fileID: 190307189}
   terrainManager: {fileID: 190307187}
