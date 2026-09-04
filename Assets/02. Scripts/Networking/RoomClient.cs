@@ -111,6 +111,7 @@ namespace TerrainCollapse
                 return;
             }
             Instance = this;
+            LobbySession.ApplyTo(this);
             if (terrainWorld == null)
                 terrainWorld = FindFirstObjectByType<TerrainGridWorld>();
             if (terrainManager == null)
@@ -133,6 +134,18 @@ namespace TerrainCollapse
                 dynamiteExplosivePrefab = Resources.Load<DynamiteExplosive>("DynamiteExplosive");
             if (dynamiteRoot == null)
                 dynamiteRoot = transform;
+        }
+
+        /// <summary>대기방에서 확정한 접속 정보를 인게임 WebSocket 연결 전에 적용한다.</summary>
+        public void ConfigureConnection(string nextServerUrl, string nextRoomCode, string nextNickName)
+        {
+            if (IsConnected || string.IsNullOrWhiteSpace(nextServerUrl) ||
+                string.IsNullOrWhiteSpace(nextRoomCode) || string.IsNullOrWhiteSpace(nextNickName))
+                return;
+
+            serverUrl = nextServerUrl.TrimEnd('/');
+            roomCode = nextRoomCode.Trim();
+            nickName = nextNickName.Trim();
         }
 
         private void OnEnable()
