@@ -32,6 +32,13 @@ namespace Character
 
         public void TakeDamage(DamageInfo damageInfo)
         {
+            // 서버 연결 중에는 로컬 낙하/매몰/폭발 콜라이더가 체력과 사망을 확정하면 안 된다.
+            // 서버가 보낸 player.health_changed / player.died만 ApplyAuthoritativeState로 반영한다.
+            // 그렇지 않으면 로컬 사망 보관함 요청이 서버의 IsDead 상태보다 먼저 도착한다.
+            roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
+            if (roomClient != null && roomClient.IsConnected)
+                return;
+
             if (isDead) return;
             if (damageInfo.Amount <= 0) return;
             if (IsDamageImmune) return;
@@ -54,6 +61,28 @@ namespace Character
 
             isDead = true;
             Died?.Invoke();
+        }
+
+        /// <summary>
+        /// 로컬 물리 피해 판정은 유지하되, 서버 연결 중에는 서버에게 보고만 한다.
+        /// </summary>
+        public void ReportOrApplyDamage(DamageInfo damageInfo)
+        {
+            if (isDead || damageInfo.Amount <= 0 ||
+                (damageInfo.Type != DamageType.Debug && IsDamageImmune))
+                return;
+
+            roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
+            if (roomClient != null && roomClient.IsConnected)
+            {
+                roomClient.RequestPlayerDamage(
+                    damageInfo.Type,
+                    damageInfo.Amount,
+                    transform.position);
+                return;
+            }
+
+            TakeDamage(damageInfo);
         }
 
         private bool IsServerSpawnSafeZone
@@ -82,6 +111,25 @@ namespace Character
             currentHp = maxHp;
 
             HpChanged?.Invoke(currentHp, maxHp);
+        }
+
+        /// <summary>서버가 확정한 체력 상태를 로컬 표시 상태에 반영</summary>
+        public void ApplyAuthoritativeState(
+            int serverCurrentHealth,
+            int serverMaxHealth,
+            bool serverIsDead,
+            bool notifyDeath)
+        {
+            if (serverMaxHealth <= 0) return;
+
+            bool wasDead = isDead;
+            maxHp = serverMaxHealth;
+            currentHp = Mathf.Clamp(serverCurrentHealth, 0, maxHp);
+            isDead = serverIsDead;
+            HpChanged?.Invoke(currentHp, maxHp);
+
+            if (notifyDeath && wasDead == false && isDead)
+                Died?.Invoke();
         }
     }
 }

@@ -21,6 +21,7 @@ namespace TerrainCollapse
         private PlayerHp playerHp;
         private PlayerInventory inventory;
         private PlayerDeathDropService deathDropService;
+        private RoomClient roomClient;
         private Vector2 spawnPosition;
         private Coroutine respawnRoutine;
 
@@ -35,6 +36,7 @@ namespace TerrainCollapse
 
             terrainManager ??= FindFirstObjectByType<TerrainManager>();
             deathDropService = new PlayerDeathDropService();
+            roomClient = RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
         }
 
         private void Start()
@@ -47,11 +49,15 @@ namespace TerrainCollapse
         private void OnEnable()
         {
             playerHp.Died += HandleDied;
+            if (roomClient != null)
+                roomClient.LocalPlayerRespawned += HandleServerRespawned;
         }
 
         private void OnDisable()
         {
             playerHp.Died -= HandleDied;
+            if (roomClient != null)
+                roomClient.LocalPlayerRespawned -= HandleServerRespawned;
         }
 
         private void HandleDied()
@@ -78,10 +84,21 @@ namespace TerrainCollapse
         {
             if (respawnDelay > 0f) yield return new WaitForSeconds(respawnDelay);
 
+            if (roomClient != null && roomClient.IsConnected)
+            {
+                roomClient.RequestRespawn();
+                respawnRoutine = null;
+                yield break;
+            }
+
             playerController.Respawn(spawnPosition);
             playerHp.ResetHp();
-
             respawnRoutine = null;
+            PlayerRespawned?.Invoke();
+        }
+
+        private void HandleServerRespawned()
+        {
             PlayerRespawned?.Invoke();
         }
     }

@@ -12,6 +12,12 @@ namespace TerrainCollapse.Networking
         public const string Join = "join";
         public const string Leave = "leave";
         public const string PlayerMove = "player.move";
+        public const string PlayerHealthSnapshot = "player.health_snapshot";
+        public const string PlayerHealthChanged = "player.health_changed";
+        public const string PlayerDied = "player.died";
+        public const string PlayerRespawned = "player.respawned";
+        public const string PlayerDamage = "player.damage";
+        public const string PlayerRespawnRequest = "player.respawn_request";
         public const string State = "state";
         public const string Error = "error";
         public const string MapSession = "map_session";
@@ -27,6 +33,10 @@ namespace TerrainCollapse.Networking
         public const string WorldItemRemoved = "world_item.removed";
         public const string WorldItemPickup = "world_item.pickup";
         public const string WorldItemDrop = "world_item.drop";
+        public const string DynamiteThrow = "dynamite.throw";
+        public const string DynamiteThrown = "dynamite.thrown";
+        public const string DynamiteExplodeRequest = "dynamite.explode_request";
+        public const string DynamiteExploded = "dynamite.exploded";
         public const string InventorySnapshot = "inventory.snapshot";
     }
 

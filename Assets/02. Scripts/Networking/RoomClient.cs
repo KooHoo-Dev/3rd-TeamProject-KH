@@ -6,6 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Character;
 using Newtonsoft.Json;
 using TerrainCollapse.Networking;
 using UnityEngine;
@@ -34,6 +35,7 @@ namespace TerrainCollapse
         [SerializeField] private TerrainCollapseCoordinator collapseCoordinator;
         [SerializeField] private ItemDropSpawner itemDropSpawner;
         [SerializeField] private PlayerInventory playerInventory;
+        [SerializeField] private PlayerHp localPlayerHp;
 
         [SerializeField] private PlayerController localPlayer;
         [SerializeField, Min(1f)] private float positionSendRate = 10f;
@@ -41,6 +43,10 @@ namespace TerrainCollapse
         [Header("Remote Player")]
         [SerializeField] private RemotePlayerView remotePlayerPrefab;
         [SerializeField] private Transform remotePlayerRoot;
+
+        [Header("Dynamite")]
+        [SerializeField] private DynamiteExplosive dynamiteExplosivePrefab;
+        [SerializeField] private Transform dynamiteRoot;
 
         private Vector2 lastSentPosition;
         private float nextPositionSendTime;
@@ -51,6 +57,9 @@ namespace TerrainCollapse
         private readonly SemaphoreSlim sendSignal = new(0);
         private readonly HashSet<string> pendingWorldItemPickups = new();
         private readonly HashSet<string> pendingWorldItemDrops = new();
+        private readonly Dictionary<string, DynamiteExplosive> activeDynamites = new();
+        private readonly Dictionary<string, float> nextDamageRequestTimes = new();
+        private float nextAnyDamageRequestTime;
 
         private readonly SortedDictionary<uint, TerrainChangeBatchMessage> bufferedTerrainBatches = new();
         private readonly Dictionary<string, RemotePlayerView> remotePlayers = new();
@@ -76,6 +85,7 @@ namespace TerrainCollapse
         public IEnumerable<RemotePlayerView> RemotePlayerViews => remotePlayers.Values;
         public event Action<TerrainSnapshot> TerrainSnapshotLoaded;
         public event Action<string> RemotePlayerRemoved;
+        public event Action LocalPlayerRespawned;
 
         /// <summary>서버 스냅샷 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
         public bool IsInSpawnArea(Vector2 worldPosition)
@@ -101,6 +111,7 @@ namespace TerrainCollapse
                 return;
             }
             Instance = this;
+            LobbySession.ApplyTo(this);
             if (terrainWorld == null)
                 terrainWorld = FindFirstObjectByType<TerrainGridWorld>();
             if (terrainManager == null)
@@ -115,8 +126,26 @@ namespace TerrainCollapse
                 localPlayer = FindFirstObjectByType<PlayerController>();
             if (playerInventory == null && localPlayer != null)
                 playerInventory = localPlayer.GetComponent<PlayerInventory>();
+            if (localPlayerHp == null && localPlayer != null)
+                localPlayerHp = localPlayer.GetComponent<PlayerHp>();
             if (remotePlayerRoot == null)
                 remotePlayerRoot = transform;
+            if (dynamiteExplosivePrefab == null)
+                dynamiteExplosivePrefab = Resources.Load<DynamiteExplosive>("DynamiteExplosive");
+            if (dynamiteRoot == null)
+                dynamiteRoot = transform;
+        }
+
+        /// <summary>대기방에서 확정한 접속 정보를 인게임 WebSocket 연결 전에 적용한다.</summary>
+        public void ConfigureConnection(string nextServerUrl, string nextRoomCode, string nextNickName)
+        {
+            if (IsConnected || string.IsNullOrWhiteSpace(nextServerUrl) ||
+                string.IsNullOrWhiteSpace(nextRoomCode) || string.IsNullOrWhiteSpace(nextNickName))
+                return;
+
+            serverUrl = nextServerUrl.TrimEnd('/');
+            roomCode = nextRoomCode.Trim();
+            nickName = nextNickName.Trim();
         }
 
         private void OnEnable()
@@ -194,6 +223,7 @@ namespace TerrainCollapse
             CurrentTerrainSnapshot = null;
             bufferedTerrainBatches.Clear();
             ClearRemotePlayers();
+            ClearActiveDynamites();
             hasSentPosition = false;
             handshakeComplete = false;
             cancellation = new CancellationTokenSource();
@@ -248,9 +278,12 @@ namespace TerrainCollapse
             ClearAllPendingExcavations();
             pendingWorldItemPickups.Clear();
             pendingWorldItemDrops.Clear();
+            nextDamageRequestTimes.Clear();
+            nextAnyDamageRequestTime = 0f;
             pendingDeathLootRequestId = null;
             ClearPendingCollapsePlacement();
             ClearRemotePlayers();
+            ClearActiveDynamites();
         }
 
         public bool RequestExcavation(Vector2Int targetCell, int itemId)
@@ -344,6 +377,70 @@ namespace TerrainCollapse
             return false;
         }
 
+        public bool RequestDynamiteThrow(
+            int itemID,
+            Vector2 startPosition,
+            Vector2 targetPosition)
+        {
+            if (IsConnected == false || handshakeComplete == false)
+            {
+                Debug.LogWarning(
+                    "[RoomClient] 서버 연결 또는 hello 완료 전이라 다이너마이트를 사용할 수 없습니다.",
+                    this);
+                return false;
+            }
+
+            Vector2 direction = targetPosition - startPosition;
+
+            if (direction.sqrMagnitude < 0.0001f)
+            {
+                Debug.LogWarning(
+                    "[RoomClient] 다이너마이트 투척 방향이 너무 짧습니다.",
+                    this);
+                return false;
+            }
+
+            direction.Normalize();
+
+            string requestID =
+                $"dynamite-{Interlocked.Increment(ref nextRequestId)}";
+
+            return Send(new DynamiteThrowRequest
+            {
+                RequestId = requestID,
+                ItemID = itemID,
+
+                StartX = startPosition.x,
+                StartY = startPosition.y,
+
+                DirectionX = direction.x,
+                DirectionY = direction.y,
+            });
+        }
+
+        public bool RequestDynamiteExplosion(
+            string projectileID,
+            Vector2 explosionPosition)
+        {
+            if (IsConnected == false ||
+                handshakeComplete == false ||
+                string.IsNullOrWhiteSpace(projectileID))
+            {
+                return false;
+            }
+
+            string requestID =
+                $"dynamite-explode-{Interlocked.Increment(ref nextRequestId)}";
+
+            return Send(new DynamiteExplodeRequest
+            {
+                RequestId = requestID,
+                ProjectileID = projectileID,
+                X = explosionPosition.x,
+                Y = explosionPosition.y,
+            });
+        }
+
         public bool RequestDeathLoot(Vector2Int targetCell)
         {
             if (IsAuthoritativeTerrainMode == false ||
@@ -363,6 +460,56 @@ namespace TerrainCollapse
 
             pendingDeathLootRequestId = null;
             return false;
+        }
+
+        public bool RequestPlayerDamage(
+            DamageType damageType,
+            int amount,
+            Vector2 playerPosition)
+        {
+            if (IsConnected == false || handshakeComplete == false || amount <= 0)
+                return false;
+
+            string typeName = damageType.ToString();
+            float cooldown = damageType == DamageType.Burial ? 0.5f : 0.1f;
+            if (Time.unscaledTime < nextAnyDamageRequestTime)
+                return false;
+            if (nextDamageRequestTimes.TryGetValue(typeName, out float nextTime) &&
+                Time.unscaledTime < nextTime)
+                return false;
+
+            nextDamageRequestTimes[typeName] = Time.unscaledTime + cooldown;
+            nextAnyDamageRequestTime = Time.unscaledTime + 0.1f;
+            string requestId = CreateRequestId(
+                "damage",
+                Interlocked.Increment(ref nextRequestId));
+
+            if (Send(new PlayerDamageRequest
+                {
+                    RequestId = requestId,
+                    DamageType = typeName,
+                    Amount = amount,
+                    X = playerPosition.x,
+                    Y = playerPosition.y,
+                }))
+                return true;
+
+            nextDamageRequestTimes.Remove(typeName);
+            nextAnyDamageRequestTime = 0f;
+            return false;
+        }
+
+        public bool RequestRespawn()
+        {
+            if (IsConnected == false || handshakeComplete == false)
+                return false;
+
+            return Send(new PlayerRespawnRequest
+            {
+                RequestId = CreateRequestId(
+                    "respawn",
+                    Interlocked.Increment(ref nextRequestId)),
+            });
         }
 
         private Uri BuildRoomUri()
@@ -468,6 +615,24 @@ namespace TerrainCollapse
                     case NetworkMessageTypes.InventorySnapshot:
                         EnqueueMessage<InventorySnapshotMessage>(json, HandleInventorySnapshot);
                         break;
+                    case NetworkMessageTypes.PlayerHealthSnapshot:
+                        EnqueueMessage<PlayerHealthSnapshotMessage>(json, HandlePlayerHealthSnapshot);
+                        break;
+                    case NetworkMessageTypes.PlayerHealthChanged:
+                        EnqueueMessage<PlayerHealthChangedMessage>(json, HandlePlayerHealthChanged);
+                        break;
+                    case NetworkMessageTypes.PlayerDied:
+                        EnqueueMessage<PlayerDiedMessage>(json, HandlePlayerDied);
+                        break;
+                    case NetworkMessageTypes.PlayerRespawned:
+                        EnqueueMessage<PlayerRespawnedMessage>(json, HandlePlayerRespawned);
+                        break;
+                    case NetworkMessageTypes.DynamiteThrown:
+                        EnqueueMessage<DynamiteThrownMessage>(json, HandleDynamiteThrown);
+                        break;
+                    case NetworkMessageTypes.DynamiteExploded:
+                        EnqueueMessage<DynamiteExplodedMessage>(json, HandleDynamiteExploded);
+                        break;
                     case NetworkMessageTypes.Error:
                         EnqueueMessage<ErrorMessage>(json, HandleError);
                         break;
@@ -535,6 +700,49 @@ namespace TerrainCollapse
                 RemotePlayerView view = GetOrCreateRemotePlayer(state.Id, position);
                 view?.SetServerPosition(position);
             }
+        }
+
+        private void HandlePlayerHealthSnapshot(PlayerHealthSnapshotMessage message)
+        {
+            if (message?.Players == null) return;
+
+            foreach (PlayerHealthStateDto player in message.Players)
+            {
+                if (player?.PlayerID != localPlayerId) continue;
+                ApplyLocalPlayerHealth(player, false);
+                return;
+            }
+        }
+
+        private void HandlePlayerHealthChanged(PlayerHealthChangedMessage message)
+        {
+            ApplyLocalPlayerHealth(message?.Player, false);
+        }
+
+        private void HandlePlayerDied(PlayerDiedMessage message)
+        {
+            ApplyLocalPlayerHealth(message?.Player, true);
+        }
+
+        private void HandlePlayerRespawned(PlayerRespawnedMessage message)
+        {
+            if (message?.Player?.PlayerID == localPlayerId)
+            {
+                localPlayer?.Respawn(new Vector2(message.X, message.Y));
+                LocalPlayerRespawned?.Invoke();
+            }
+            ApplyLocalPlayerHealth(message?.Player, false);
+        }
+
+        private void ApplyLocalPlayerHealth(PlayerHealthStateDto state, bool notifyDeath)
+        {
+            if (state?.PlayerID != localPlayerId || localPlayerHp == null) return;
+
+            localPlayerHp.ApplyAuthoritativeState(
+                state.CurrentHealth,
+                state.MaxHealth,
+                state.IsDead,
+                notifyDeath);
         }
 
         private RemotePlayerView GetOrCreateRemotePlayer(string playerId, Vector2 position)
@@ -777,6 +985,68 @@ namespace TerrainCollapse
 
             pendingWorldItemPickups.Remove(message.DropID);
             itemDropSpawner?.RemoveNetworkDrop(message.DropID);
+        }
+
+        private void HandleDynamiteThrown(DynamiteThrownMessage message)
+        {
+            if (message == null || string.IsNullOrWhiteSpace(message.ProjectileID))
+                return;
+
+            if (activeDynamites.ContainsKey(message.ProjectileID))
+                return;
+
+            if (dynamiteExplosivePrefab == null)
+            {
+                Debug.LogError(
+                    "[RoomClient] DynamiteExplosive prefab reference is not assigned.",
+                    this);
+                return;
+            }
+
+            Vector2 startPosition = new(message.StartX, message.StartY);
+
+            DynamiteExplosive explosive = Instantiate(
+                dynamiteExplosivePrefab,
+                startPosition,
+                Quaternion.identity,
+                dynamiteRoot);
+
+            bool isOwner = message.OwnerPlayerID == localPlayerId;
+
+            explosive.LaunchFromServer(message, isOwner);
+
+            activeDynamites.Add(message.ProjectileID, explosive);
+        }
+
+        private void HandleDynamiteExploded(
+            DynamiteExplodedMessage message)
+        {
+            if (message == null || string.IsNullOrWhiteSpace(message.ProjectileID))
+                return;
+
+            if (activeDynamites.TryGetValue(
+                    message.ProjectileID,
+                    out DynamiteExplosive explosive) == false)
+            {
+                Debug.LogWarning($"[RoomClient] 폭발할 다이너마이트를 찾지 못했습니다: {message.ProjectileID}", this);
+
+                return;
+            }
+
+            activeDynamites.Remove(message.ProjectileID);
+
+            if (explosive == null)
+                return;
+
+            explosive.ExplodeFromServer(new Vector2(message.X, message.Y), message.ExplosionRadius);
+        }
+
+        private void ClearActiveDynamites()
+        {
+            foreach (DynamiteExplosive explosive in activeDynamites.Values)
+                Destroy(explosive?.gameObject);
+
+            activeDynamites.Clear();
         }
 
         private void HandleInventorySnapshot(InventorySnapshotMessage message)

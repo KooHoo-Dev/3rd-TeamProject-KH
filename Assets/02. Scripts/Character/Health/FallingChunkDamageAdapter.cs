@@ -17,12 +17,12 @@ namespace Character
         [SerializeField, Min(1)] private int impactDamagePerTile = 1;
 
         private FallingTerrainInteraction interaction;
-        private IDamageable damageable;
+        private PlayerHp playerHp;
 
         private void Awake()
         {
             interaction = GetComponent<FallingTerrainInteraction>();
-            damageable = GetComponent<IDamageable>();
+            playerHp = GetComponent<PlayerHp>();
         }
 
         private void OnEnable()
@@ -45,7 +45,7 @@ namespace Character
                 Mathf.Max(0f, impactSpeed - minimumDamageSpeed) * damagePerSpeed);
             int damage = Mathf.Max(minimumCollisionDamage, scaledDamage);
 
-            damageable.TakeDamage(new DamageInfo(
+            playerHp.ReportOrApplyDamage(new DamageInfo(
                 damage,
                 DamageType.FallingChunk,
                 fallingChunk.gameObject));
@@ -55,7 +55,7 @@ namespace Character
         {
             int damage = impact.TileCount * impactDamagePerTile;
 
-            damageable.TakeDamage(new DamageInfo(
+            playerHp.ReportOrApplyDamage(new DamageInfo(
                 damage,
                 DamageType.FallingChunk,
                 impact.Source));
@@ -63,7 +63,7 @@ namespace Character
 
         private void HandleBurialDamage(int amount)
         {
-            damageable.TakeDamage(new DamageInfo(amount, DamageType.Burial, gameObject));
+            playerHp.ReportOrApplyDamage(new DamageInfo(amount, DamageType.Burial, gameObject));
         }
     }
 }
