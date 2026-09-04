@@ -18,7 +18,6 @@ namespace TerrainCollapse
     [RequireComponent(typeof(PlayerInventory))]
     public class ItemController : MonoBehaviour
     {
-        [SerializeField] private Item equippedItem;
         // 둘 다 인벤토리 상태에 따라 런타임에 채워지는 값이라 인스펙터에 노출하지 않습니다.
         [SerializeField]private Item pickaxeItem;
         [SerializeField]private Item activeItem;
@@ -86,6 +85,8 @@ namespace TerrainCollapse
 
             if (pickaxeItem != null)
             {
+                CancelMine();
+                pickaxeItem.OnClearPreview();
                 Destroy(pickaxeItem.gameObject);
                 pickaxeItem = null;
             }
@@ -141,13 +142,9 @@ namespace TerrainCollapse
         {
             if (pickaxeItem == null && activeItem == null) return;
 
-            if (playerController != null &&
-                playerController.IsDead)
+            if (playerController != null && playerController.IsDead)
             {
                 CancelMine();
-
-                equippedItem.OnClearPreview();
-                
                 pickaxeItem?.OnClearPreview();
                 activeItem?.OnClearPreview();
                 isPreviewingActiveItem = false;
@@ -164,37 +161,20 @@ namespace TerrainCollapse
             bool rightReleasedThisFrame = mouse.rightButton.wasReleasedThisFrame;
             bool leftPressedThisFrame = mouse.leftButton.wasPressedThisFrame;
 
-
-            // 아이템 사용 입력 처리
-            if (Pointer.current == null)
-                return;
-
-            if (equippedItem is PickaxeItem)
-            {
-                // 곡괭이는 누르고 있는 동안 반복 사용
-                // 단, 현재 Mine 한 사이클이 끝난 상태에서만 다음 사이클 시작
-                if (Pointer.current.press.isPressed && !isMining)
-                {
-                    TryUseEquippedItem(ownerPos, mouseWorldPos);
-                }
-            }
-
-            // 액티브 아이템이 있을 때만 우클릭으로 프리뷰 시작 가능
-            if (rightPressedThisFrame && activeItem != null && isPreviewingActiveItem == false)
+            // 액티브 아이템 프리뷰가 시작되면 그 동안 곡괭이 입력은 처리하지 않는다.
+            if (rightPressedThisFrame && activeItem != null && !isPreviewingActiveItem)
             {
                 isPreviewingActiveItem = true;
-                // 프리뷰 중에는 곡괭이 조준선이 겹쳐 보이지 않도록 정리
                 pickaxeItem?.OnClearPreview();
             }
 
             if (isPreviewingActiveItem)
             {
                 UpdateActiveItemPreview(ownerPos, mouseWorldPos, leftPressedThisFrame, rightReleasedThisFrame);
+                return;
             }
-            else
-            {
-                UpdatePickaxe(ownerPos, mouseWorldPos, leftPressedThisFrame);
-            }
+
+            UpdatePickaxe(ownerPos, mouseWorldPos);
         }
 
         // 우클릭 홀드 중 매 프레임 처리: 좌클릭이면 취소, 우클릭을 떼면 실제 사용
@@ -231,63 +211,46 @@ namespace TerrainCollapse
             }
         }
 
-        // 평상시(프리뷰 중이 아닐 때) 처리: 곡괭이 조준 표시 + 좌클릭 시 즉시 채굴
-        private void UpdatePickaxe(Vector3 ownerPos, Vector3 mouseWorldPos, bool leftPressedThisFrame)
+        // 평상시 처리: 곡괭이 조준 표시 + 좌클릭 홀드 시 애니메이션 1사이클 단위 반복 채굴
+        private void UpdatePickaxe(Vector3 ownerPos, Vector3 mouseWorldPos)
         {
             if (pickaxeItem == null) return;
 
             pickaxeItem.OnUpdatePreview(ownerPos, mouseWorldPos);
 
-            if (leftPressedThisFrame)
+            Mouse mouse = Mouse.current;
+            if (mouse == null) return;
+
+            if (mouse.leftButton.isPressed && !isMining)
             {
-                pickaxeItem.Use(ownerPos, mouseWorldPos);
-            }
-            else
-            {
-                // 다른 아이템은 기존처럼 클릭 1회당 사용 1회
-                if (Pointer.current.press.wasPressedThisFrame)
-                {
-                    TryUseEquippedItem(ownerPos, mouseWorldPos);
-                }
+                TryStartMine(ownerPos, mouseWorldPos);
             }
         }
-        
+
         private void CancelMine()
         {
             activePickaxe?.CancelPreparedUse();
-
             activePickaxe = null;
             isMining = false;
         }
-        
-        private void TryUseEquippedItem(
-            Vector3 ownerPos,
-            Vector3 targetPos)
+
+        private void TryStartMine(Vector3 ownerPos, Vector3 targetPos)
         {
-            if (isMining)
+            if (isMining) return;
+
+            PickaxeItem pickaxe = pickaxeItem as PickaxeItem;
+            if (pickaxe == null) return;
+
+            if (!pickaxe.PrepareUse(ownerPos, targetPos))
                 return;
 
-            if (equippedItem is PickaxeItem pickaxe)
-            {
-                activePickaxe = pickaxe;
+            activePickaxe = pickaxe;
+            isMining = true;
 
-                if (!activePickaxe.PrepareUse(ownerPos, targetPos))
-                {
-                    activePickaxe = null;
-                    return;
-                }
-
-                isMining = true;
-
-                float mineDirectionX = targetPos.x - ownerPos.x;
-                MineStarted?.Invoke(mineDirectionX);
-
-                return;
-            }
-
-            equippedItem.Use(ownerPos, targetPos);
+            float mineDirectionX = targetPos.x - ownerPos.x;
+            MineStarted?.Invoke(mineDirectionX);
         }
-        
+
         public void ExecuteMineImpact()
         {
             if (!isMining)
