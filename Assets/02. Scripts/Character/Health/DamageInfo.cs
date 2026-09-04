@@ -11,6 +11,7 @@ namespace Character
         Fall,
         FallingChunk,
         Explosion,
+        Debug,
     }
 
     public readonly struct DamageInfo

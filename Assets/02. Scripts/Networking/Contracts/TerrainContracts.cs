@@ -16,6 +16,8 @@ namespace TerrainCollapse.Networking
         public const string PlayerHealthChanged = "player.health_changed";
         public const string PlayerDied = "player.died";
         public const string PlayerRespawned = "player.respawned";
+        public const string PlayerDamage = "player.damage";
+        public const string PlayerRespawnRequest = "player.respawn_request";
         public const string State = "state";
         public const string Error = "error";
         public const string MapSession = "map_session";

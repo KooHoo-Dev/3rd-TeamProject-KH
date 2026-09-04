@@ -29,7 +29,7 @@ namespace Character
         private readonly RaycastHit2D[] groundHits = new RaycastHit2D[8];
 
         private Collider2D bodyCollider;
-        private IDamageable damageable;
+        private PlayerHp playerHp;
         private TerrainManager terrainManager;
         private IPlayerController testPlayerController;
         private float lastStaticSupportY;
@@ -41,7 +41,7 @@ namespace Character
         private void Awake()
         {
             bodyCollider = GetComponent<Collider2D>();
-            damageable = GetComponent<IDamageable>();
+            playerHp = GetComponent<PlayerHp>();
             testPlayerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
             terrainManager = testPlayerController.TerrainManager;
             wasClimbing = testPlayerController.IsClimbing;
@@ -147,7 +147,7 @@ namespace Character
 
             if (damage <= 0) return;
 
-            damageable.TakeDamage(new DamageInfo(damage, DamageType.Fall, null));
+            playerHp.ReportOrApplyDamage(new DamageInfo(damage, DamageType.Fall, null));
         }
     }
 }

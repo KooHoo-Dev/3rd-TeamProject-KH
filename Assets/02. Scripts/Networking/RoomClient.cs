@@ -58,6 +58,8 @@ namespace TerrainCollapse
         private readonly HashSet<string> pendingWorldItemPickups = new();
         private readonly HashSet<string> pendingWorldItemDrops = new();
         private readonly Dictionary<string, DynamiteExplosive> activeDynamites = new();
+        private readonly Dictionary<string, float> nextDamageRequestTimes = new();
+        private float nextAnyDamageRequestTime;
 
         private readonly SortedDictionary<uint, TerrainChangeBatchMessage> bufferedTerrainBatches = new();
         private readonly Dictionary<string, RemotePlayerView> remotePlayers = new();
@@ -83,6 +85,7 @@ namespace TerrainCollapse
         public IEnumerable<RemotePlayerView> RemotePlayerViews => remotePlayers.Values;
         public event Action<TerrainSnapshot> TerrainSnapshotLoaded;
         public event Action<string> RemotePlayerRemoved;
+        public event Action LocalPlayerRespawned;
 
         /// <summary>서버 스냅샷 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
         public bool IsInSpawnArea(Vector2 worldPosition)
@@ -262,6 +265,8 @@ namespace TerrainCollapse
             ClearAllPendingExcavations();
             pendingWorldItemPickups.Clear();
             pendingWorldItemDrops.Clear();
+            nextDamageRequestTimes.Clear();
+            nextAnyDamageRequestTime = 0f;
             pendingDeathLootRequestId = null;
             ClearPendingCollapsePlacement();
             ClearRemotePlayers();
@@ -442,6 +447,56 @@ namespace TerrainCollapse
 
             pendingDeathLootRequestId = null;
             return false;
+        }
+
+        public bool RequestPlayerDamage(
+            DamageType damageType,
+            int amount,
+            Vector2 playerPosition)
+        {
+            if (IsConnected == false || handshakeComplete == false || amount <= 0)
+                return false;
+
+            string typeName = damageType.ToString();
+            float cooldown = damageType == DamageType.Burial ? 0.5f : 0.1f;
+            if (Time.unscaledTime < nextAnyDamageRequestTime)
+                return false;
+            if (nextDamageRequestTimes.TryGetValue(typeName, out float nextTime) &&
+                Time.unscaledTime < nextTime)
+                return false;
+
+            nextDamageRequestTimes[typeName] = Time.unscaledTime + cooldown;
+            nextAnyDamageRequestTime = Time.unscaledTime + 0.1f;
+            string requestId = CreateRequestId(
+                "damage",
+                Interlocked.Increment(ref nextRequestId));
+
+            if (Send(new PlayerDamageRequest
+                {
+                    RequestId = requestId,
+                    DamageType = typeName,
+                    Amount = amount,
+                    X = playerPosition.x,
+                    Y = playerPosition.y,
+                }))
+                return true;
+
+            nextDamageRequestTimes.Remove(typeName);
+            nextAnyDamageRequestTime = 0f;
+            return false;
+        }
+
+        public bool RequestRespawn()
+        {
+            if (IsConnected == false || handshakeComplete == false)
+                return false;
+
+            return Send(new PlayerRespawnRequest
+            {
+                RequestId = CreateRequestId(
+                    "respawn",
+                    Interlocked.Increment(ref nextRequestId)),
+            });
         }
 
         private Uri BuildRoomUri()
@@ -658,6 +713,11 @@ namespace TerrainCollapse
 
         private void HandlePlayerRespawned(PlayerRespawnedMessage message)
         {
+            if (message?.Player?.PlayerID == localPlayerId)
+            {
+                localPlayer?.Respawn(new Vector2(message.X, message.Y));
+                LocalPlayerRespawned?.Invoke();
+            }
             ApplyLocalPlayerHealth(message?.Player, false);
         }
 

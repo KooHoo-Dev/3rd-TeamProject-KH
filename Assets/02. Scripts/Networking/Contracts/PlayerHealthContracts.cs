@@ -27,6 +27,17 @@ namespace TerrainCollapse.Networking
     }
 
     [Serializable]
+    public sealed class PlayerDamageRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.PlayerDamage;
+        public string RequestId { get; set; }
+        public string DamageType { get; set; }
+        public int Amount { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+    }
+
+    [Serializable]
     public sealed class PlayerDiedMessage
     {
         public string Type { get; set; }
@@ -38,5 +49,14 @@ namespace TerrainCollapse.Networking
     {
         public string Type { get; set; }
         public PlayerHealthStateDto Player { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+    }
+
+    [Serializable]
+    public sealed class PlayerRespawnRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.PlayerRespawnRequest;
+        public string RequestId { get; set; }
     }
 }

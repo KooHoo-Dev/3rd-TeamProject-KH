@@ -13,7 +13,8 @@ namespace TerrainCollapse
         private void Update()
         {
             if (Keyboard.current?.kKey.wasPressedThisFrame == true)
-                playerHp.TakeDamage(new DamageInfo(999, DamageType.None, null));
+                playerHp.ReportOrApplyDamage(
+                    new DamageInfo(999, DamageType.Debug, null));
         }
     }
 }

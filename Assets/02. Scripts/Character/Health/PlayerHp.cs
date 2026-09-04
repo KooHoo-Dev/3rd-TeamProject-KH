@@ -63,6 +63,28 @@ namespace Character
             Died?.Invoke();
         }
 
+        /// <summary>
+        /// 로컬 물리 피해 판정은 유지하되, 서버 연결 중에는 서버에게 보고만 한다.
+        /// </summary>
+        public void ReportOrApplyDamage(DamageInfo damageInfo)
+        {
+            if (isDead || damageInfo.Amount <= 0 ||
+                (damageInfo.Type != DamageType.Debug && IsDamageImmune))
+                return;
+
+            roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
+            if (roomClient != null && roomClient.IsConnected)
+            {
+                roomClient.RequestPlayerDamage(
+                    damageInfo.Type,
+                    damageInfo.Amount,
+                    transform.position);
+                return;
+            }
+
+            TakeDamage(damageInfo);
+        }
+
         private bool IsServerSpawnSafeZone
         {
             get
