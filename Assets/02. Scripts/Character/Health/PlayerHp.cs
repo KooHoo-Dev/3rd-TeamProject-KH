@@ -32,6 +32,13 @@ namespace Character
 
         public void TakeDamage(DamageInfo damageInfo)
         {
+            // 서버 연결 중에는 로컬 낙하/매몰/폭발 콜라이더가 체력과 사망을 확정하면 안 된다.
+            // 서버가 보낸 player.health_changed / player.died만 ApplyAuthoritativeState로 반영한다.
+            // 그렇지 않으면 로컬 사망 보관함 요청이 서버의 IsDead 상태보다 먼저 도착한다.
+            roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
+            if (roomClient != null && roomClient.IsConnected)
+                return;
+
             if (isDead) return;
             if (damageInfo.Amount <= 0) return;
             if (IsDamageImmune) return;

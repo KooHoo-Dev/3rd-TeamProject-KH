@@ -193,11 +193,27 @@ namespace TerrainCollapse
             // 우클릭을 뗀 시점에 실제 사용 실행
             if (rightReleasedThisFrame)
             {
-                if (RoomClient.Instance != null)
+                if (RoomClient.Instance is { IsConnected: true } roomClient)
                 {
+                    if (activeItem is DynamiteItem)
+                    {
+                        bool requested = roomClient.RequestDynamiteThrow(
+                            activeItem.Def.ID, ownerPos, mouseWorldPos);
+
+                        if (requested == false)
+                            Debug.LogWarning("[ItemController] 다이너마이트 서버 사용 요청을 보내지 못했습니다.", this);
+
+                        activeItem.OnClearPreview();
+                        isPreviewingActiveItem = false;
+
+                        return;
+                    }
+
                     Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
+
                     activeItem.OnClearPreview();
                     isPreviewingActiveItem = false;
+
                     return;
                 }
 

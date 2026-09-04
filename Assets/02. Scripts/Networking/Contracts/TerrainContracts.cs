@@ -31,6 +31,10 @@ namespace TerrainCollapse.Networking
         public const string WorldItemRemoved = "world_item.removed";
         public const string WorldItemPickup = "world_item.pickup";
         public const string WorldItemDrop = "world_item.drop";
+        public const string DynamiteThrow = "dynamite.throw";
+        public const string DynamiteThrown = "dynamite.thrown";
+        public const string DynamiteExplodeRequest = "dynamite.explode_request";
+        public const string DynamiteExploded = "dynamite.exploded";
         public const string InventorySnapshot = "inventory.snapshot";
     }
 
