@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -56,6 +57,7 @@ namespace TerrainCollapse
             int itemID,
             int quantity,
             Vector2 worldPosition,
+            long pickupAvailableAtUnixMilliseconds,
             out WorldItemDrop itemDrop)
         {
             itemDrop = null;
@@ -73,7 +75,11 @@ namespace TerrainCollapse
                 return false;
 
             itemDrop = Instantiate(dropPrefab, worldPosition, Quaternion.identity, dropRoot);
-            itemDrop.Initialize(dropID, itemDef, quantity, 0f);
+            float pickupDelay = Mathf.Max(
+                0f,
+                (pickupAvailableAtUnixMilliseconds -
+                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) / 1000f);
+            itemDrop.Initialize(dropID, itemDef, quantity, pickupDelay);
             networkDrops[dropID] = itemDrop;
             return true;
         }
@@ -103,6 +109,7 @@ namespace TerrainCollapse
                     drop.ItemID,
                     drop.Quantity,
                     new Vector2(drop.X, drop.Y),
+                    drop.PickupAvailableAtUnixMilliseconds,
                     out _);
             }
         }

@@ -16,6 +16,8 @@ namespace TerrainCollapse.Networking
         public string RequestId { get; set; }
         public string PlayerID { get; set; }
         public InventoryItemDto[] Items { get; set; } = Array.Empty<InventoryItemDto>();
+        public int CurrentWeight { get; set; } = -1;
+        public int MaxWeight { get; set; } = -1;
     }
 
     [Serializable]
@@ -26,6 +28,7 @@ namespace TerrainCollapse.Networking
         public int Quantity { get; set; }
         public float X { get; set; }
         public float Y { get; set; }
+        public long PickupAvailableAtUnixMilliseconds { get; set; }
     }
 
     [Serializable]

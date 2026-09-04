@@ -758,6 +758,7 @@ namespace TerrainCollapse
                 drop.ItemID,
                 drop.Quantity,
                 new Vector2(drop.X, drop.Y),
+                drop.PickupAvailableAtUnixMilliseconds,
                 out _);
         }
 
@@ -781,7 +782,10 @@ namespace TerrainCollapse
             List<KeyValuePair<int, int>> quantities = new(message.Items.Length);
             foreach (InventoryItemDto item in message.Items)
                 if (item != null) quantities.Add(new KeyValuePair<int, int>(item.ItemID, item.Quantity));
-            playerInventory.ReplaceWithSnapshot(quantities);
+            playerInventory.ReplaceWithSnapshot(
+                quantities,
+                message.CurrentWeight,
+                message.MaxWeight);
         }
 
         private void HandlePlacementProposed(TerrainPlacementProposal proposal)
