@@ -746,17 +746,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &268870402 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 5127223286958861709, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-  m_PrefabInstance: {fileID: 1100222295}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
 --- !u!1001 &409346853
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -937,25 +926,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 524b90cc19fb72745b30e88b4528373a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ShopView
---- !u!1 &794077775 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8121915778416061950, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-  m_PrefabInstance: {fileID: 1100222295}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &794077777
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 794077775}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dad26dc8ae4e47f7bb9dd980898d914c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PickaxeSlotView
-  pickaxeInventory: {fileID: 1971883715}
-  iconImage: {fileID: 268870402}
 --- !u!1001 &1100222295
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1052,74 +1022,18 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 2617547110476406479, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Enabled
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3090252470317388474, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_SizeDelta.x
-      value: 800
-      objectReference: {fileID: 0}
-    - target: {fileID: 3557746510327537449, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Sprite
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 3796128737482950036, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Sprite
-      value: 
-      objectReference: {fileID: 7482667652216324306, guid: 2010a9a02fc774578bd86901acf5b4c4, type: 3}
     - target: {fileID: 4451695175285318738, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_Name
       value: TPHud
       objectReference: {fileID: 0}
-    - target: {fileID: 4468001093540700949, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Sprite
+    - target: {fileID: 7000095282351396467, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: pickaxeInventory
       value: 
-      objectReference: {fileID: 7482667652216324306, guid: 2010a9a02fc774578bd86901acf5b4c4, type: 3}
-    - target: {fileID: 4468001093540700949, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Color.b
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4468001093540700949, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Color.g
-      value: 0.27806905
-      objectReference: {fileID: 0}
-    - target: {fileID: 4468001093540700949, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Color.r
-      value: 0.3882353
-      objectReference: {fileID: 0}
-    - target: {fileID: 5328662240680662615, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Sprite
-      value: 
-      objectReference: {fileID: 7482667652216324306, guid: 2010a9a02fc774578bd86901acf5b4c4, type: 3}
-    - target: {fileID: 6018712030019629983, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: focusImage
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 6018712030019629983, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: quantityText
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 6341990560768020492, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_Sprite
-      value: 
-      objectReference: {fileID: -4957339797970971389, guid: 6299ea7ad04fee142ae9be4c8b57438b, type: 3}
-    - target: {fileID: 6636667372105222406, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_text
-      value: GOLD 0
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 1971883715}
     - target: {fileID: 7803401892840059154, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: itemController
       value: 
       objectReference: {fileID: 1971883702}
-    - target: {fileID: 8556648530460091621, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_text
-      value: 0 / 1000
-      objectReference: {fileID: 0}
-    - target: {fileID: 8556648530460091621, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      propertyPath: m_TextStyleHashCode
-      value: -1183493901
-      objectReference: {fileID: 0}
     - target: {fileID: 8854297275230104576, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: mapLoader
       value: 
@@ -1132,14 +1046,10 @@ PrefabInstance:
       propertyPath: terrainManager
       value: 
       objectReference: {fileID: 190307187}
-    m_RemovedComponents:
-    - {fileID: 6018712030019629983, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+    m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 8121915778416061950, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 794077777}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
 --- !u!114 &1100222296 stripped
 MonoBehaviour:
@@ -1686,6 +1596,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ItemController
   equippedItem: {fileID: 0}
+  pickaxeItem: {fileID: 0}
+  activeItem: {fileID: 0}
   pickaxeInventory: {fileID: 1971883715}
 --- !u!114 &1971883704
 MonoBehaviour:
