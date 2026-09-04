@@ -212,34 +212,72 @@ namespace TerrainCollapse
         }
 
         // 평상시 처리: 곡괭이 조준 표시 + 좌클릭 홀드 시 애니메이션 1사이클 단위 반복 채굴
-        private void UpdatePickaxe(Vector3 ownerPos, Vector3 mouseWorldPos)
+        private void UpdatePickaxe(
+            Vector3 ownerPos,
+            Vector3 mouseWorldPos)
         {
-            if (pickaxeItem == null) return;
+            if (pickaxeItem == null)
+                return;
 
-            pickaxeItem.OnUpdatePreview(ownerPos, mouseWorldPos);
+            // 클라이밍 중에는 굴착도, 굴착 대상 표시도 하지 않는다.
+            if (playerController != null &&
+                playerController.IsClimbing)
+            {
+                if (isMining)
+                {
+                    CancelMine();
+                }
+
+                pickaxeItem.OnClearPreview();
+                return;
+            }
+
+            // 굴착 가능한 타일을 매 프레임 탐색하고
+            // 대상 타일에 노란 테두리를 표시한다.
+            pickaxeItem.OnUpdatePreview(
+                ownerPos,
+                mouseWorldPos);
 
             Mouse mouse = Mouse.current;
-            if (mouse == null) return;
+            if (mouse == null)
+                return;
 
-            if (mouse.leftButton.isPressed && !isMining)
+            // 좌클릭 홀드 중이며 현재 Mine 사이클이 끝났다면
+            // 다음 굴착을 시작한다.
+            if (mouse.leftButton.isPressed &&
+                !isMining)
             {
-                TryStartMine(ownerPos, mouseWorldPos);
+                TryStartMine(
+                    ownerPos,
+                    mouseWorldPos);
             }
         }
 
         private void CancelMine()
         {
             activePickaxe?.CancelPreparedUse();
+
             activePickaxe = null;
             isMining = false;
         }
 
-        private void TryStartMine(Vector3 ownerPos, Vector3 targetPos)
+        private void TryStartMine(
+            Vector3 ownerPos,
+            Vector3 targetPos)
         {
-            if (isMining) return;
+            if (isMining)
+                return;
+
+            // 클라이밍 중에는 굴착 시작 불가
+            if (playerController != null &&
+                playerController.IsClimbing)
+            {
+                return;
+            }
 
             PickaxeItem pickaxe = pickaxeItem as PickaxeItem;
-            if (pickaxe == null) return;
+            if (pickaxe == null)
+                return;
 
             if (!pickaxe.PrepareUse(ownerPos, targetPos))
                 return;
@@ -247,7 +285,9 @@ namespace TerrainCollapse
             activePickaxe = pickaxe;
             isMining = true;
 
-            float mineDirectionX = targetPos.x - ownerPos.x;
+            float mineDirectionX =
+                targetPos.x - ownerPos.x;
+
             MineStarted?.Invoke(mineDirectionX);
         }
 
@@ -258,6 +298,15 @@ namespace TerrainCollapse
 
             if (activePickaxe == null)
                 return;
+
+            // 어떤 이유로 Animation Event가 호출되더라도
+            // 클라이밍 상태에서는 절대로 실제 굴착하지 않는다.
+            if (playerController != null &&
+                playerController.IsClimbing)
+            {
+                CancelMine();
+                return;
+            }
 
             activePickaxe.ExecutePreparedUse(transform.position);
         }
