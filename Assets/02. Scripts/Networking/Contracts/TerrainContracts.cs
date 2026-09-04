@@ -54,6 +54,7 @@ namespace TerrainCollapse.Networking
     public sealed class NetworkUser
     {
         public string Id { get; set; }
+        public string ClientID { get; set; }
         public string NickName { get; set; }
     }
 

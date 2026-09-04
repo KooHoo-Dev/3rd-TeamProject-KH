@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using TerrainCollapse.Networking;
 using UnityEngine;
 
 namespace TerrainCollapse
@@ -16,6 +18,8 @@ namespace TerrainCollapse
         public bool IsHost => string.IsNullOrEmpty(HostToken) == false;
         public bool HasRoom => string.IsNullOrEmpty(RoomCode) == false;
         public LobbySocketClient LobbyClient { get; private set; }
+
+        private readonly List<string> orderedPlayerClientIds = new();
 
         public static LobbySession Ensure(string defaultServerUrl = null)
         {
@@ -56,6 +60,27 @@ namespace TerrainCollapse
             NickName = nickName.Trim();
             RoomCode = roomCode.Trim();
             HostToken = hostToken;
+        }
+
+        public void UpdatePlayers(IReadOnlyList<LobbyPlayerInfo> players)
+        {
+            orderedPlayerClientIds.Clear();
+            if (players == null) return;
+
+            for (int i = 0; i < players.Count; i++)
+            {
+                string clientId = players[i]?.ClientID;
+                if (string.IsNullOrWhiteSpace(clientId) == false)
+                    orderedPlayerClientIds.Add(clientId);
+            }
+        }
+
+        public int GetPlayerColorIndex(string clientId)
+        {
+            if (string.IsNullOrWhiteSpace(clientId)) return 0;
+
+            int index = orderedPlayerClientIds.IndexOf(clientId);
+            return index >= 0 ? index : 0;
         }
 
         public string GetWebSocketBaseUrl()

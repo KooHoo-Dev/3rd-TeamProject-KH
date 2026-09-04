@@ -87,6 +87,7 @@ namespace TerrainCollapse
         public TerrainSnapshot CurrentTerrainSnapshot { get; private set; }
         /// <summary>현재 씬에 표시 중인 원격 플레이어 View 목록이다.</summary>
         public IEnumerable<RemotePlayerView> RemotePlayerViews => remotePlayers.Values;
+        public int LocalPlayerColorIndex { get; private set; }
         public event Action<TerrainSnapshot> TerrainSnapshotLoaded;
         public event Action<string> RemotePlayerRemoved;
         public event Action LocalPlayerRespawned;
@@ -245,6 +246,7 @@ namespace TerrainCollapse
                 {
                     Type = NetworkMessageTypes.Hello,
                     NickName = nickName,
+                    ClientID = LobbySession.Instance?.ClientId,
                     DebugMode = debugMode,
                 });
                 Debug.Log($"[RoomClient] Connected: {uri}", this);
@@ -678,6 +680,11 @@ namespace TerrainCollapse
         {
             localPlayerId = message?.User?.Id;
             handshakeComplete = true;
+            int localColorIndex = LobbySession.Instance != null
+                ? LobbySession.Instance.GetPlayerColorIndex(message?.User?.ClientID)
+                : 0;
+            LocalPlayerColorIndex = localColorIndex;
+            PlayerColorPalette.ApplyToSpriteRenderers(localPlayer?.gameObject, localColorIndex);
             // 서버가 hello를 수락한 뒤에만 위치/게임플레이 패킷을 보낸다.
             nextPositionSendTime = Time.unscaledTime;
 
@@ -781,8 +788,15 @@ namespace TerrainCollapse
         {
             if (user == null || string.IsNullOrWhiteSpace(user.Id) || user.Id == localPlayerId)
                 return null;
+            int colorIndex = LobbySession.Instance != null
+                ? LobbySession.Instance.GetPlayerColorIndex(user.ClientID)
+                : 0;
             if (remotePlayers.TryGetValue(user.Id, out RemotePlayerView existing))
+            {
+                existing.SetColorIndex(colorIndex);
+                PlayerColorPalette.ApplyToSpriteRenderers(existing.gameObject, colorIndex);
                 return existing;
+            }
             if (remotePlayerPrefab == null)
             {
                 Debug.LogError("[RoomClient] Remote Player Prefab reference is not assigned.", this);
@@ -794,7 +808,8 @@ namespace TerrainCollapse
                 position,
                 Quaternion.identity,
                 remotePlayerRoot);
-            view.Initialize(user.Id, position);
+            view.Initialize(user.Id, position, colorIndex);
+            PlayerColorPalette.ApplyToSpriteRenderers(view.gameObject, colorIndex);
             remotePlayers.Add(user.Id, view);
             return view;
         }

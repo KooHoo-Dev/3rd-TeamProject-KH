@@ -180,11 +180,20 @@ namespace TerrainCollapse
             SetPlayerVisible(true);
         }
 
+        public void SetPlayerMarkerColor(Color color)
+        {
+            if (playerMarker != null && playerMarker.TryGetComponent(out Image image))
+                image.color = color;
+        }
+
         /// <summary>
         /// 원격 플레이어를 현재 미니맵 뷰에 맞춰 표시한다.
         /// 전체 맵에서는 전체 UV가 사용되므로 모든 맵 내부 원격 플레이어가 보인다.
         /// </summary>
-        public void SetRemotePlayerNormalizedPosition(string playerId, Vector2 normalizedPosition)
+        public void SetRemotePlayerNormalizedPosition(
+            string playerId,
+            Vector2 normalizedPosition,
+            Color color)
         {
             if (string.IsNullOrWhiteSpace(playerId)) return;
 
@@ -192,6 +201,7 @@ namespace TerrainCollapse
                                normalizedPosition.y >= 0f && normalizedPosition.y <= 1f;
             RectTransform marker = GetOrCreateRemotePlayerMarker(playerId);
             if (marker == null) return;
+            if (marker.TryGetComponent(out Image image)) image.color = color;
 
             bool isInsideView = isInsideMap && currentViewUvRect.Contains(normalizedPosition);
             marker.gameObject.SetActive(isInsideView);
@@ -402,8 +412,6 @@ namespace TerrainCollapse
 
             RectTransform marker = Instantiate(prefab, root);
             marker.name = $"RemotePlayerMarker_{playerId}";
-            if (remotePlayerMarkerPrefab == null && marker.TryGetComponent(out Image image))
-                image.color = new Color(0.2f, 0.8f, 1f, 1f);
             marker.gameObject.SetActive(true);
             remotePlayerMarkers[playerId] = marker;
             return marker;
