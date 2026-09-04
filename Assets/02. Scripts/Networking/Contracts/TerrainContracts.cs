@@ -12,6 +12,10 @@ namespace TerrainCollapse.Networking
         public const string Join = "join";
         public const string Leave = "leave";
         public const string PlayerMove = "player.move";
+        public const string PlayerHealthSnapshot = "player.health_snapshot";
+        public const string PlayerHealthChanged = "player.health_changed";
+        public const string PlayerDied = "player.died";
+        public const string PlayerRespawned = "player.respawned";
         public const string State = "state";
         public const string Error = "error";
         public const string MapSession = "map_session";

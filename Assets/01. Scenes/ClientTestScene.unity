@@ -623,7 +623,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -0.5, z: 0}
-  m_LocalScale: {x: 2, y: 2, z: 2}
+  m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1971883701}
@@ -1113,12 +1113,14 @@ MonoBehaviour:
   roomCode: ABCE
   nickName: Player
   connectOnStart: 1
+  debugMode: 1
   terrainWorld: {fileID: 190307189}
   terrainManager: {fileID: 190307187}
   collapseManager: {fileID: 190307185}
   collapseCoordinator: {fileID: 190307184}
   itemDropSpawner: {fileID: 0}
   playerInventory: {fileID: 1971883709}
+  localPlayerHp: {fileID: 0}
   localPlayer: {fileID: 1971883697}
   positionSendRate: 10
   remotePlayerPrefab: {fileID: -4830478704693014780, guid: eaa7f1ac455d74c7a9b3a84a54bd0bb5, type: 3}

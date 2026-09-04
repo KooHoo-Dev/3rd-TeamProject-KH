@@ -6,6 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Character;
 using Newtonsoft.Json;
 using TerrainCollapse.Networking;
 using UnityEngine;
@@ -34,6 +35,7 @@ namespace TerrainCollapse
         [SerializeField] private TerrainCollapseCoordinator collapseCoordinator;
         [SerializeField] private ItemDropSpawner itemDropSpawner;
         [SerializeField] private PlayerInventory playerInventory;
+        [SerializeField] private PlayerHp localPlayerHp;
 
         [SerializeField] private PlayerController localPlayer;
         [SerializeField, Min(1f)] private float positionSendRate = 10f;
@@ -115,6 +117,8 @@ namespace TerrainCollapse
                 localPlayer = FindFirstObjectByType<PlayerController>();
             if (playerInventory == null && localPlayer != null)
                 playerInventory = localPlayer.GetComponent<PlayerInventory>();
+            if (localPlayerHp == null && localPlayer != null)
+                localPlayerHp = localPlayer.GetComponent<PlayerHp>();
             if (remotePlayerRoot == null)
                 remotePlayerRoot = transform;
         }
@@ -468,6 +472,18 @@ namespace TerrainCollapse
                     case NetworkMessageTypes.InventorySnapshot:
                         EnqueueMessage<InventorySnapshotMessage>(json, HandleInventorySnapshot);
                         break;
+                    case NetworkMessageTypes.PlayerHealthSnapshot:
+                        EnqueueMessage<PlayerHealthSnapshotMessage>(json, HandlePlayerHealthSnapshot);
+                        break;
+                    case NetworkMessageTypes.PlayerHealthChanged:
+                        EnqueueMessage<PlayerHealthChangedMessage>(json, HandlePlayerHealthChanged);
+                        break;
+                    case NetworkMessageTypes.PlayerDied:
+                        EnqueueMessage<PlayerDiedMessage>(json, HandlePlayerDied);
+                        break;
+                    case NetworkMessageTypes.PlayerRespawned:
+                        EnqueueMessage<PlayerRespawnedMessage>(json, HandlePlayerRespawned);
+                        break;
                     case NetworkMessageTypes.Error:
                         EnqueueMessage<ErrorMessage>(json, HandleError);
                         break;
@@ -535,6 +551,44 @@ namespace TerrainCollapse
                 RemotePlayerView view = GetOrCreateRemotePlayer(state.Id, position);
                 view?.SetServerPosition(position);
             }
+        }
+
+        private void HandlePlayerHealthSnapshot(PlayerHealthSnapshotMessage message)
+        {
+            if (message?.Players == null) return;
+
+            foreach (PlayerHealthStateDto player in message.Players)
+            {
+                if (player?.PlayerID != localPlayerId) continue;
+                ApplyLocalPlayerHealth(player, false);
+                return;
+            }
+        }
+
+        private void HandlePlayerHealthChanged(PlayerHealthChangedMessage message)
+        {
+            ApplyLocalPlayerHealth(message?.Player, false);
+        }
+
+        private void HandlePlayerDied(PlayerDiedMessage message)
+        {
+            ApplyLocalPlayerHealth(message?.Player, true);
+        }
+
+        private void HandlePlayerRespawned(PlayerRespawnedMessage message)
+        {
+            ApplyLocalPlayerHealth(message?.Player, false);
+        }
+
+        private void ApplyLocalPlayerHealth(PlayerHealthStateDto state, bool notifyDeath)
+        {
+            if (state?.PlayerID != localPlayerId || localPlayerHp == null) return;
+
+            localPlayerHp.ApplyAuthoritativeState(
+                state.CurrentHealth,
+                state.MaxHealth,
+                state.IsDead,
+                notifyDeath);
         }
 
         private RemotePlayerView GetOrCreateRemotePlayer(string playerId, Vector2 position)

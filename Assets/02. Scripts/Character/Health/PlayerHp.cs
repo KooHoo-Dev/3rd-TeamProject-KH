@@ -83,5 +83,24 @@ namespace Character
 
             HpChanged?.Invoke(currentHp, maxHp);
         }
+
+        /// <summary>서버가 확정한 체력 상태를 로컬 표시 상태에 반영</summary>
+        public void ApplyAuthoritativeState(
+            int serverCurrentHealth,
+            int serverMaxHealth,
+            bool serverIsDead,
+            bool notifyDeath)
+        {
+            if (serverMaxHealth <= 0) return;
+
+            bool wasDead = isDead;
+            maxHp = serverMaxHealth;
+            currentHp = Mathf.Clamp(serverCurrentHealth, 0, maxHp);
+            isDead = serverIsDead;
+            HpChanged?.Invoke(currentHp, maxHp);
+
+            if (notifyDeath && wasDead == false && isDead)
+                Died?.Invoke();
+        }
     }
 }
