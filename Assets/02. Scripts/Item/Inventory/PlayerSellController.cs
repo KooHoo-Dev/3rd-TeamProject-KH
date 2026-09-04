@@ -9,20 +9,31 @@ namespace TerrainCollapse
     public sealed class PlayerSellController : MonoBehaviour
     {
         private PlayerInventory inventory;
-        private TestPlayerController playerController;
-        private RoomClient roomClient;
+        private IPlayerController playerController;
         private ItemSaleService itemSaleService;
         private bool wasInSellArea;
 
         private void Awake()
         {
             inventory = GetComponent<PlayerInventory>();
-            playerController = GetComponent<TestPlayerController>();
-            roomClient = RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
+            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
+
+            if (playerController == null)
+            {
+                Debug.LogError("[Sell] IPlayerController가 없어 자동 판매를 비활성화합니다.", this);
+                enabled = false;
+            }
         }
 
         private void Start()
         {
+            if (DataManager.Instance == null)
+            {
+                Debug.LogWarning("[Sell] DataManager가 준비되지 않아 자동 판매를 비활성화합니다.", this);
+                enabled = false;
+                return;
+            }
+
             itemSaleService = new ItemSaleService(DataManager.Instance.ItemTable);
             wasInSellArea = IsInSellArea();
         }
@@ -45,8 +56,6 @@ namespace TerrainCollapse
 
         private bool IsInSellArea()
         {
-            roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
-
             // 로컬 테스트 맵은 기존 지상 진입 규칙을 유지
             return playerController.CurrentPosition.y >= 0f;
         }
