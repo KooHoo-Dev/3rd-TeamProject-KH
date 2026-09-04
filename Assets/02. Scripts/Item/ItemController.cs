@@ -142,6 +142,16 @@ namespace TerrainCollapse
         {
             if (pickaxeItem == null && activeItem == null) return;
 
+            RoomClient roomClient = RoomClient.Instance;
+            if (roomClient != null && roomClient.IsGameplayActive == false)
+            {
+                CancelMine();
+                pickaxeItem?.OnClearPreview();
+                activeItem?.OnClearPreview();
+                isPreviewingActiveItem = false;
+                return;
+            }
+
             if (playerController != null && playerController.IsDead)
             {
                 CancelMine();

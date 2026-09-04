@@ -69,6 +69,8 @@ namespace TerrainCollapse
         private long nextRequestId;
         private bool hasTerrainSnapshot;
         private bool handshakeComplete;
+        private bool hasSentPlayerReady;
+        private bool isGameStarted;
         private long pendingCollapsePlacementId;
         private string pendingCollapsePlacementRequestId;
         private string pendingDeathLootRequestId;
@@ -77,6 +79,8 @@ namespace TerrainCollapse
         public static RoomClient Instance { get; private set; }
         public bool IsConnected => socket?.State == WebSocketState.Open;
         public bool IsAuthoritativeTerrainMode => IsConnected && hasTerrainSnapshot;
+        public bool IsGameplayActive =>
+            IsConnected && handshakeComplete && hasTerrainSnapshot && isGameStarted;
         public bool IsLocalPlayerInSpawnArea =>
             localPlayer != null && IsInSpawnArea(localPlayer.Position);
         public MapSessionDescriptor MapSession { get; private set; }
@@ -180,7 +184,7 @@ namespace TerrainCollapse
 
             SweepPendingTimeouts();
 
-            if (IsConnected && handshakeComplete &&
+            if (IsGameplayActive &&
                 localPlayer != null &&
                 Time.unscaledTime >= nextPositionSendTime)
             {
@@ -226,6 +230,8 @@ namespace TerrainCollapse
             ClearActiveDynamites();
             hasSentPosition = false;
             handshakeComplete = false;
+            hasSentPlayerReady = false;
+            isGameStarted = false;
             cancellation = new CancellationTokenSource();
             socket = new ClientWebSocket();
 
@@ -261,6 +267,8 @@ namespace TerrainCollapse
             bufferedTerrainBatches.Clear();
             hasSentPosition = false;
             handshakeComplete = false;
+            hasSentPlayerReady = false;
+            isGameStarted = false;
             source?.Cancel();
 
             if (currentSocket != null)
@@ -288,7 +296,7 @@ namespace TerrainCollapse
 
         public bool RequestExcavation(Vector2Int targetCell, int itemId)
         {
-            if (IsAuthoritativeTerrainMode == false)
+            if (IsGameplayActive == false)
             {
                 Debug.LogWarning("[RoomClient] 서버 지형 준비 전이거나 연결되어 있지 않아 채굴 요청을 보내지 않았습니다.", this);
                 return false;
@@ -332,7 +340,7 @@ namespace TerrainCollapse
 
         public bool RequestWorldItemPickup(string dropID, Vector2 dropPosition)
         {
-            if (!IsConnected || !handshakeComplete || string.IsNullOrWhiteSpace(dropID) ||
+            if (!IsGameplayActive || string.IsNullOrWhiteSpace(dropID) ||
                 pendingWorldItemPickups.Add(dropID) == false)
                 return false;
 
@@ -354,7 +362,7 @@ namespace TerrainCollapse
 
         public bool RequestWorldItemDrop(int itemID, int quantity, Vector2 dropPosition)
         {
-            if (IsAuthoritativeTerrainMode == false || itemID <= 0 || quantity <= 0)
+            if (IsGameplayActive == false || itemID <= 0 || quantity <= 0)
                 return false;
 
             string requestId = CreateRequestId(
@@ -382,7 +390,7 @@ namespace TerrainCollapse
             Vector2 startPosition,
             Vector2 targetPosition)
         {
-            if (IsConnected == false || handshakeComplete == false)
+            if (IsGameplayActive == false)
             {
                 Debug.LogWarning(
                     "[RoomClient] 서버 연결 또는 hello 완료 전이라 다이너마이트를 사용할 수 없습니다.",
@@ -422,8 +430,7 @@ namespace TerrainCollapse
             string projectileID,
             Vector2 explosionPosition)
         {
-            if (IsConnected == false ||
-                handshakeComplete == false ||
+            if (IsGameplayActive == false ||
                 string.IsNullOrWhiteSpace(projectileID))
             {
                 return false;
@@ -443,7 +450,7 @@ namespace TerrainCollapse
 
         public bool RequestDeathLoot(Vector2Int targetCell)
         {
-            if (IsAuthoritativeTerrainMode == false ||
+            if (IsGameplayActive == false ||
                 string.IsNullOrEmpty(pendingDeathLootRequestId) == false)
                 return false;
 
@@ -467,7 +474,7 @@ namespace TerrainCollapse
             int amount,
             Vector2 playerPosition)
         {
-            if (IsConnected == false || handshakeComplete == false || amount <= 0)
+            if (IsGameplayActive == false || amount <= 0)
                 return false;
 
             string typeName = damageType.ToString();
@@ -501,7 +508,7 @@ namespace TerrainCollapse
 
         public bool RequestRespawn()
         {
-            if (IsConnected == false || handshakeComplete == false)
+            if (IsGameplayActive == false)
                 return false;
 
             return Send(new PlayerRespawnRequest
@@ -639,6 +646,9 @@ namespace TerrainCollapse
                     case NetworkMessageTypes.Welcome:
                         EnqueueMessage<WelcomeMessage>(json, HandleWelcome);
                         break;
+                    case NetworkMessageTypes.GameStarted:
+                        EnqueueMessage<GameStartedMessage>(json, HandleGameStarted);
+                        break;
                     case NetworkMessageTypes.Join:
                         EnqueueMessage<PlayerJoinedMessage>(json, HandlePlayerJoined);
                         break;
@@ -676,6 +686,16 @@ namespace TerrainCollapse
                     SpawnRemotePlayer(user, Vector2.zero);
 
             Debug.Log("[RoomClient] Hello accepted.", this);
+        }
+
+        private void HandleGameStarted(GameStartedMessage message)
+        {
+            if (isGameStarted) return;
+
+            isGameStarted = true;
+            localPlayer?.SetWaitingForTerrainSnapshot(false);
+            nextPositionSendTime = Time.unscaledTime;
+            Debug.Log("[RoomClient] All players are ready. Gameplay started.", this);
         }
 
         private void HandlePlayerJoined(PlayerJoinedMessage message)
@@ -816,7 +836,6 @@ namespace TerrainCollapse
             terrainWorld.LoadSnapshot(snapshot);
             collapseManager?.ClearActiveChunks();
             RespawnLocalPlayerOnSnapshot(snapshot);
-            localPlayer?.SetWaitingForTerrainSnapshot(false);
             CurrentTerrainSnapshot = snapshot;
             hasTerrainSnapshot = true;
             // Snapshot은 해당 Revision까지의 완전한 상태다. 이전에 쌓인 Batch는 이미 반영됐거나
@@ -824,10 +843,26 @@ namespace TerrainCollapse
             bufferedTerrainBatches.Clear();
             ClearAllPendingExcavations();
             TerrainSnapshotLoaded?.Invoke(snapshot);
+            SendPlayerReady();
             Debug.Log(
                 $"[RoomClient] Terrain built locally: revision={snapshot.Revision}, " +
                 $"size={snapshot.MapWidth}x{snapshot.MapHeight}, cells={snapshot.Cells.Count}",
                 this);
+        }
+
+        private void SendPlayerReady()
+        {
+            if (hasSentPlayerReady || !IsConnected || !handshakeComplete || !hasTerrainSnapshot)
+                return;
+
+            if (Send(new PlayerReadyMessage()) == false)
+            {
+                Debug.LogWarning("[RoomClient] Failed to send player.ready.", this);
+                return;
+            }
+
+            hasSentPlayerReady = true;
+            Debug.Log("[RoomClient] Terrain ready; player.ready sent.", this);
         }
 
         private void DrainBufferedTerrainBatches()
