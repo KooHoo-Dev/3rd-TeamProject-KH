@@ -24,7 +24,10 @@ namespace TerrainCollapse
 
         private void OnDisable()
         {
-            pickaxeInventory.PickaxeChanged -= HandlePickaxeChanged;
+            if (pickaxeInventory != null)
+            {
+                pickaxeInventory.PickaxeChanged -= HandlePickaxeChanged;
+            }
         }
 
         private void HandlePickaxeChanged(ItemDef def) => Refresh();
