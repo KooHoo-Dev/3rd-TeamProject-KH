@@ -1100,7 +1100,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.RoomClient
   serverUrl: ws://34.50.63.204:5002
   roomCode: ABCE
-  nickName: Player
+  nickName: Player53453
   connectOnStart: 1
   terrainWorld: {fileID: 190307189}
   terrainManager: {fileID: 190307187}
@@ -1108,7 +1108,7 @@ MonoBehaviour:
   collapseCoordinator: {fileID: 190307184}
   itemDropSpawner: {fileID: 0}
   playerInventory: {fileID: 1971883709}
-  localPlayer: {fileID: 0}
+  localPlayer: {fileID: 1971883697}
   positionSendRate: 10
   remotePlayerPrefab: {fileID: -4830478704693014780, guid: eaa7f1ac455d74c7a9b3a84a54bd0bb5, type: 3}
   remotePlayerRoot: {fileID: 912427809}
