@@ -11,6 +11,9 @@ namespace TerrainCollapse
         
         private ItemController itemController;
         
+        private static readonly int ClimbAnimSpeedHash =
+            Animator.StringToHash("ClimbAnimSpeed");
+        
         private static readonly int SpeedHash =
             Animator.StringToHash("Speed");
 
@@ -53,6 +56,18 @@ namespace TerrainCollapse
                 return;
 
             Vector2 velocity = playerController.Velocity;
+            
+            float climbAnimSpeed = 0f;
+
+            if (playerController.IsClimbing &&
+                velocity.sqrMagnitude > 0.001f)
+            {
+                climbAnimSpeed = 1f;
+            }
+
+            animator.SetFloat(
+                ClimbAnimSpeedHash,
+                climbAnimSpeed);
 
             animator.SetFloat(
                 SpeedHash,
@@ -81,6 +96,17 @@ namespace TerrainCollapse
             }
             
             UpdateSortingOrder();
+            
+            bool isClimbing = playerController.IsClimbing;
+
+            animator.SetBool(
+                ClimbingHash,
+                isClimbing);
+
+            if (isClimbing)
+            {
+                animator.ResetTrigger(MineHash);
+            }
         }
         
         private void OnEnable()
