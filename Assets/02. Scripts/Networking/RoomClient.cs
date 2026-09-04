@@ -23,6 +23,10 @@ namespace TerrainCollapse
         [SerializeField] private string roomCode = "ABCE";
         [SerializeField] private string nickName = "Player";
         [SerializeField] private bool connectOnStart = true;
+
+        [Header("Debug")]
+        [SerializeField] private bool debugMode;
+
         [Header("Scene References")]
         [SerializeField] private TerrainGridWorld terrainWorld;
         [SerializeField] private TerrainManager terrainManager;
@@ -201,7 +205,12 @@ namespace TerrainCollapse
                 await socket.ConnectAsync(uri, cancellation.Token);
                 _ = SendLoopAsync(socket, cancellation.Token);
                 _ = ReceiveLoopAsync(socket, cancellation.Token);
-                Send(new { Type = NetworkMessageTypes.Hello, NickName = nickName });
+                Send(new
+                {
+                    Type = NetworkMessageTypes.Hello,
+                    NickName = nickName,
+                    DebugMode = debugMode,
+                });
                 Debug.Log($"[RoomClient] Connected: {uri}", this);
             }
             catch (Exception exception)
