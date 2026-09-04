@@ -30,8 +30,6 @@ namespace TerrainCollapse
         private void Update()
         {
             if (playerController.IsDead || itemSaleService == null) return;
-            // 현재 서버에는 판매/골드 변경 명령이 없으므로 멀티플레이에서는 판매하지 않는다.
-            if (roomClient != null) return;
 
             bool isInSellArea = IsInSellArea();
 

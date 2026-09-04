@@ -46,6 +46,7 @@ namespace TerrainCollapse
         private readonly ConcurrentQueue<Action> mainThreadActions = new();
         private readonly SemaphoreSlim sendSignal = new(0);
         private readonly HashSet<string> pendingWorldItemPickups = new();
+        private readonly HashSet<string> pendingWorldItemDrops = new();
 
         private readonly SortedDictionary<uint, TerrainChangeBatchMessage> bufferedTerrainBatches = new();
         private readonly Dictionary<string, RemotePlayerView> remotePlayers = new();
@@ -57,6 +58,7 @@ namespace TerrainCollapse
         private bool handshakeComplete;
         private long pendingCollapsePlacementId;
         private string pendingCollapsePlacementRequestId;
+        private string pendingDeathLootRequestId;
         private string localPlayerId;
 
         public static RoomClient Instance { get; private set; }
@@ -236,6 +238,8 @@ namespace TerrainCollapse
             outgoingJson.Clear();
             ClearAllPendingExcavations();
             pendingWorldItemPickups.Clear();
+            pendingWorldItemDrops.Clear();
+            pendingDeathLootRequestId = null;
             ClearPendingCollapsePlacement();
             ClearRemotePlayers();
         }
@@ -303,6 +307,52 @@ namespace TerrainCollapse
                 return true;
 
             pendingWorldItemPickups.Remove(dropID);
+            return false;
+        }
+
+        public bool RequestWorldItemDrop(int itemID, int quantity, Vector2 dropPosition)
+        {
+            if (IsAuthoritativeTerrainMode == false || itemID <= 0 || quantity <= 0)
+                return false;
+
+            string requestId = CreateRequestId(
+                "drop",
+                Interlocked.Increment(ref nextRequestId));
+            if (pendingWorldItemDrops.Add(requestId) == false)
+                return false;
+
+            if (Send(new WorldItemDropRequest
+                {
+                    RequestId = requestId,
+                    ItemID = itemID,
+                    Quantity = quantity,
+                    X = dropPosition.x,
+                    Y = dropPosition.y,
+                }))
+                return true;
+
+            pendingWorldItemDrops.Remove(requestId);
+            return false;
+        }
+
+        public bool RequestDeathLoot(Vector2Int targetCell)
+        {
+            if (IsAuthoritativeTerrainMode == false ||
+                string.IsNullOrEmpty(pendingDeathLootRequestId) == false)
+                return false;
+
+            string requestId = CreateRequestId(
+                "death-loot",
+                Interlocked.Increment(ref nextRequestId));
+            pendingDeathLootRequestId = requestId;
+            if (Send(new TerrainDeathLootRequest
+                {
+                    RequestId = requestId,
+                    TargetCell = new GridCoord(targetCell.x, targetCell.y),
+                }))
+                return true;
+
+            pendingDeathLootRequestId = null;
             return false;
         }
 
@@ -667,6 +717,11 @@ namespace TerrainCollapse
             // 반대로 굴착이 player.not_found 로 거절되면 아무것도 안 풀렸다.
             ReleasePendingFor(message?.RequestId);
 
+            if (string.Equals(message?.RequestId, pendingDeathLootRequestId, StringComparison.Ordinal))
+                pendingDeathLootRequestId = null;
+            if (string.IsNullOrEmpty(message?.RequestId) == false)
+                pendingWorldItemDrops.Remove(message.RequestId);
+
             if (message?.Code?.StartsWith("item.", StringComparison.Ordinal) == true ||
                 message?.Code?.StartsWith("inventory.", StringComparison.Ordinal) == true)
                 pendingWorldItemPickups.Clear();
@@ -689,6 +744,7 @@ namespace TerrainCollapse
             }
 
             pendingWorldItemPickups.Clear();
+            pendingWorldItemDrops.Clear();
             itemDropSpawner.ReplaceNetworkDrops(message?.Drops);
         }
 
@@ -716,6 +772,11 @@ namespace TerrainCollapse
         private void HandleInventorySnapshot(InventorySnapshotMessage message)
         {
             if (playerInventory == null || message?.Items == null) return;
+
+            if (string.Equals(message.RequestId, pendingDeathLootRequestId, StringComparison.Ordinal))
+                pendingDeathLootRequestId = null;
+            if (string.IsNullOrEmpty(message.RequestId) == false)
+                pendingWorldItemDrops.Remove(message.RequestId);
 
             List<KeyValuePair<int, int>> quantities = new(message.Items.Length);
             foreach (InventoryItemDto item in message.Items)

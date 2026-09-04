@@ -13,6 +13,7 @@ namespace TerrainCollapse.Networking
     public sealed class InventorySnapshotMessage
     {
         public string Type { get; set; }
+        public string RequestId { get; set; }
         public string PlayerID { get; set; }
         public InventoryItemDto[] Items { get; set; } = Array.Empty<InventoryItemDto>();
     }
@@ -55,6 +56,17 @@ namespace TerrainCollapse.Networking
         public string Type { get; set; } = NetworkMessageTypes.WorldItemPickup;
         public string RequestId { get; set; }
         public string DropID { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+    }
+
+    [Serializable]
+    public sealed class WorldItemDropRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.WorldItemDrop;
+        public string RequestId { get; set; }
+        public int ItemID { get; set; }
+        public int Quantity { get; set; }
         public float X { get; set; }
         public float Y { get; set; }
     }

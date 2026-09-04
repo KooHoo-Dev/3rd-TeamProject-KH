@@ -20,11 +20,13 @@ namespace TerrainCollapse.Networking
         public const string TerrainCollapseStarted = "terrain_collapse_started";
         public const string TerrainCollapseCancelled = "terrain_collapse_cancelled";
         public const string TerrainCollapsePlacementRequest = "terrain_collapse_place";
+        public const string TerrainDeathLootRequest = "terrain_death_loot";
         public const string TerrainChangeBatch = "terrain_batch";
         public const string WorldItemSnapshot = "world_item.snapshot";
         public const string WorldItemSpawned = "world_item.spawned";
         public const string WorldItemRemoved = "world_item.removed";
         public const string WorldItemPickup = "world_item.pickup";
+        public const string WorldItemDrop = "world_item.drop";
         public const string InventorySnapshot = "inventory.snapshot";
     }
 
@@ -107,6 +109,14 @@ namespace TerrainCollapse.Networking
 
         public bool IsValid()
             => CollapseID > 0 && SourceCells.Count > 0 && SourceCells.Count == Changes.Count;
+    }
+
+    [Serializable]
+    public sealed class TerrainDeathLootRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.TerrainDeathLootRequest;
+        public string RequestId { get; set; }
+        public GridCoord TargetCell { get; set; }
     }
 
     [Serializable]
