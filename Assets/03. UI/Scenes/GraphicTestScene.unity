@@ -768,6 +768,10 @@ PrefabInstance:
     - target: {fileID: 106939255764490954, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
+      objectReference: {fileID: 987511497}
+    - target: {fileID: 106939255764490954, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: CloseShop
       objectReference: {fileID: 0}
     - target: {fileID: 816648606549949585, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
       propertyPath: m_AnchorMax.y
@@ -968,6 +972,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: LocalPlayer
       objectReference: {fileID: 0}
+    - target: {fileID: 20704105893562237, guid: 5bede47061a434a4d890a413fb61d85b, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
     - target: {fileID: 731800906927187916, guid: 5bede47061a434a4d890a413fb61d85b, type: 3}
       propertyPath: inventoryView
       value: 
@@ -980,6 +988,10 @@ PrefabInstance:
       propertyPath: terrainManager
       value: 
       objectReference: {fileID: 190307187}
+    - target: {fileID: 6961088807696446024, guid: 5bede47061a434a4d890a413fb61d85b, type: 3}
+      propertyPath: m_Layer
+      value: 8
+      objectReference: {fileID: 0}
     - target: {fileID: 6987074887034728510, guid: 5bede47061a434a4d890a413fb61d85b, type: 3}
       propertyPath: terrainManager
       value: 
@@ -1082,6 +1094,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4215f371a3354ac993bd229350cd2f36, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PickaxeInventory
+--- !u!114 &987511512 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2238639522403857094, guid: 5bede47061a434a4d890a413fb61d85b, type: 3}
+  m_PrefabInstance: {fileID: 987511496}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63bcc6d2efbb4acaa5368ff035aa4979, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ItemController
 --- !u!1001 &1100222295
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1697,7 +1720,7 @@ PrefabInstance:
     - target: {fileID: 7803401892840059154, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: itemController
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 987511512}
     - target: {fileID: 8017121283901639082, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: -4.899994
@@ -2085,11 +2108,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 94df4db72b41479195f6446ef6fa7511, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerExplorationController
-  mapLoader: {fileID: 190307188}
   terrainManager: {fileID: 190307187}
+  roomClient: {fileID: 0}
   localPlayer: {fileID: 987511500}
   visionRadius: 4
-  initializationTimeout: 5
 --- !u!4 &1873007158
 Transform:
   m_ObjectHideFlags: 0
@@ -2117,11 +2139,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7258531f7cf942a3bd8d998be737dd19, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ExplorationForWorldView
-  mapLoader: {fileID: 190307188}
+  roomClient: {fileID: 0}
+  terrainManager: {fileID: 0}
   explorationController: {fileID: 1873007157}
   fogColor: {r: 0, g: 0, b: 0, a: 0.88235295}
   sortingOrder: 10
-  initializationTimeout: 5
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
