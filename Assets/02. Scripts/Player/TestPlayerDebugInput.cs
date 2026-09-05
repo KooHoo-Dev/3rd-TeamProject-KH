@@ -12,6 +12,8 @@ namespace TerrainCollapse
         private void Awake() => playerHp = GetComponent<PlayerHp>();
         private void Update()
         {
+            if (ChatInputState.IsTyping) return;
+
             if (Keyboard.current?.kKey.wasPressedThisFrame == true)
                 playerHp.ReportOrApplyDamage(
                     new DamageInfo(999, DamageType.Debug, null));

@@ -48,6 +48,7 @@ namespace TerrainCollapse
                 CloseShop();
 
             if (IsShopAccessible == false) return;
+            if (ChatInputState.IsTyping) return;
 
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null && keyboard[toggleKey].wasPressedThisFrame)

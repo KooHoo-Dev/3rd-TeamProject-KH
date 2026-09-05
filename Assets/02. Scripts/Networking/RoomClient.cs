@@ -137,6 +137,8 @@ namespace TerrainCollapse
         public event Action LocalPlayerRespawned;
         public event Action<GameEndedMessage> GameEnded;
         public event Action<GameStartedMessage> GameStarted;
+        public event Action<ChatBroadcastMessage> ChatMessageReceived;
+        public event Action<ChatSystemMessage> SystemMessageReceived;
 
         /// <summary>서버 스냅샷 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
         public bool IsInSpawnArea(Vector2 worldPosition)
@@ -472,6 +474,15 @@ namespace TerrainCollapse
 
         }
 
+        public bool SendChat(string text)
+        {
+            if (!IsConnected || !handshakeComplete) return false;
+            string normalized = text?.Trim();
+            if (string.IsNullOrWhiteSpace(normalized)) return false;
+            if (normalized.Length > 200) normalized = normalized.Substring(0, 200);
+            return Send(new ChatSendRequest { Text = normalized });
+        }
+
         public bool RequestDebugGold()
         {
             if (IsGameplayActive == false || string.IsNullOrEmpty(pendingDebugGoldRequestId) == false)
@@ -756,6 +767,12 @@ namespace TerrainCollapse
                         break;
                     case NetworkMessageTypes.GameEnded:
                         EnqueueMessage<GameEndedMessage>(json, HandleGameEnded);
+                        break;
+                    case NetworkMessageTypes.ChatMessage:
+                        EnqueueMessage<ChatBroadcastMessage>(json, message => ChatMessageReceived?.Invoke(message));
+                        break;
+                    case NetworkMessageTypes.ChatSystem:
+                        EnqueueMessage<ChatSystemMessage>(json, message => SystemMessageReceived?.Invoke(message));
                         break;
                     case NetworkMessageTypes.Join:
                         EnqueueMessage<PlayerJoinedMessage>(json, HandlePlayerJoined);

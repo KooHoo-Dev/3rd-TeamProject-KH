@@ -80,6 +80,8 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            if (ChatInputState.IsTyping) return;
+
             if (Keyboard.current?.mKey.wasPressedThisFrame == true)
                 ToggleFullMap();
 

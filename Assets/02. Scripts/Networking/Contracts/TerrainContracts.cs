@@ -15,6 +15,9 @@ namespace TerrainCollapse.Networking
         public const string PlayerReady = "player.ready";
         public const string GameStarted = "game.started";
         public const string GameEnded = "game.ended";
+        public const string ChatSend = "chat.send";
+        public const string ChatMessage = "chat.message";
+        public const string ChatSystem = "chat.system";
         public const string PlayerHealthSnapshot = "player.health_snapshot";
         public const string PlayerHealthChanged = "player.health_changed";
         public const string PlayerDied = "player.died";
@@ -105,6 +108,32 @@ namespace TerrainCollapse.Networking
         public string[] WinnerPlayerIDs { get; set; } = Array.Empty<string>();
         public long EndedAtUnixMilliseconds { get; set; }
         public GameResultPlayerDto[] Players { get; set; } = Array.Empty<GameResultPlayerDto>();
+    }
+
+    [Serializable]
+    public sealed class ChatSendRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.ChatSend;
+        public string Text { get; set; }
+    }
+
+    [Serializable]
+    public sealed class ChatBroadcastMessage
+    {
+        public string Type { get; set; }
+        public string PlayerID { get; set; }
+        public string ClientID { get; set; }
+        public string NickName { get; set; }
+        public int ElapsedSeconds { get; set; }
+        public string Text { get; set; }
+    }
+
+    [Serializable]
+    public sealed class ChatSystemMessage
+    {
+        public string Type { get; set; }
+        public int ElapsedSeconds { get; set; }
+        public string Text { get; set; }
     }
 
     // 지형 요청과 서버 확정 상태 전송에 사용하는 공용 데이터 계약
