@@ -44,7 +44,7 @@ namespace TerrainCollapse.Networking
             label.alignment = TextAlignmentOptions.Center;
             label.fontSize = fontSize;
             label.fontStyle = FontStyles.Bold;
-            label.enableWordWrapping = false;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
             label.overflowMode = TextOverflowModes.Overflow;
             label.richText = false;
             label.raycastTarget = false;

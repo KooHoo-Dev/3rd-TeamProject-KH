@@ -144,6 +144,9 @@ namespace TerrainCollapse
         public void Respawn(Vector2 spawnPosition)
         {
             body.position = spawnPosition;
+
+            if (isWaitingForTerrainSnapshot) terrainSnapshotWaitingPosition = spawnPosition;
+
             body.linearVelocity = Vector2.zero;
             body.angularVelocity = 0f;
             Physics2D.SyncTransforms();

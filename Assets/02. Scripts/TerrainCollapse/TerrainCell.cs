@@ -13,6 +13,7 @@ namespace TerrainCollapse
         Stone = 3,
         Bedrock = 4,
         DeepStone = 5,
+        SpawnPlatform = 6,
         DeathLoot = 99,
     }
 

@@ -72,6 +72,8 @@ namespace TerrainCollapse.Networking
         public string RoomCode { get; set; }
         public NetworkUser User { get; set; }
         public NetworkUser[] Users { get; set; }
+        public float SpawnX { get; set; }
+        public float SpawnY { get; set; }
     }
 
     [Serializable]

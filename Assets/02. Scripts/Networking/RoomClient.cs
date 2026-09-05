@@ -87,6 +87,7 @@ namespace TerrainCollapse
         private string pendingCollapsePlacementRequestId;
         private string pendingDeathLootRequestId;
         private string localPlayerId;
+        private Vector2? pendingInitialSpawn;
         private Coroutine gameEndPresentationCoroutine;
         private float timeScaleBeforeGameEnd = 1f;
 
@@ -300,6 +301,7 @@ namespace TerrainCollapse
             ClearActiveDynamites();
             hasSentPosition = false;
             handshakeComplete = false;
+            pendingInitialSpawn = null;
             hasSentPlayerReady = false;
             isGameStarted = false;
             isGameEnded = false;
@@ -349,6 +351,7 @@ namespace TerrainCollapse
             bufferedTerrainBatches.Clear();
             hasSentPosition = false;
             handshakeComplete = false;
+            pendingInitialSpawn = null;
             hasSentPlayerReady = false;
             isGameStarted = false;
             isGameEnded = false;
@@ -826,6 +829,9 @@ namespace TerrainCollapse
         private void HandleWelcome(WelcomeMessage message)
         {
             localPlayerId = message?.User?.Id;
+
+            if (message != null) pendingInitialSpawn = new Vector2(message.SpawnX, message.SpawnY);
+
             handshakeComplete = true;
             int localColorIndex = LobbySession.Instance != null
                 ? LobbySession.Instance.GetPlayerColorIndex(message?.User?.ClientID)
@@ -1083,7 +1089,14 @@ namespace TerrainCollapse
             }
             terrainWorld.LoadSnapshot(snapshot);
             collapseManager?.ClearActiveChunks();
-            RespawnLocalPlayerOnSnapshot(snapshot);
+
+            if (pendingInitialSpawn.HasValue)
+            {
+                localPlayer?.Respawn(pendingInitialSpawn.Value);
+                pendingInitialSpawn = null;
+            }
+            else RespawnLocalPlayerOnSnapshot(snapshot);
+
             CurrentTerrainSnapshot = snapshot;
             hasTerrainSnapshot = true;
             // Snapshot은 해당 Revision까지의 완전한 상태다. 이전에 쌓인 Batch는 이미 반영됐거나
@@ -1475,7 +1488,13 @@ namespace TerrainCollapse
             Vector2 currentPosition = localPlayer.Position;
             foreach (Vector2Int groundCell in occupiedCells)
             {
-                Vector2Int spawnCell = groundCell + Vector2Int.up;
+                bool isSpawnPlatform = terrainManager != null &&
+                                       terrainManager.TryGetTileType(
+                                           groundCell,
+                                           out TerrainTileType groundType) &&
+                                       groundType == TerrainTileType.SpawnPlatform;
+                Vector2Int spawnCell = groundCell +
+                                       Vector2Int.up * (isSpawnPlatform ? 2 : 1);
                 if (occupiedCells.Contains(spawnCell) || occupiedCells.Contains(spawnCell + Vector2Int.up))
                     continue;
 
