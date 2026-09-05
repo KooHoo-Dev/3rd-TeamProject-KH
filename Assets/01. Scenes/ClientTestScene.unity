@@ -1022,7 +1022,7 @@ MonoBehaviour:
   collapseCoordinator: {fileID: 190307184}
   itemDropSpawner: {fileID: 0}
   playerInventory: {fileID: 1971883709}
-  localPlayerHp: {fileID: 0}
+  localPlayerHp: {fileID: 1971883706}
   localPlayer: {fileID: 1971883697}
   positionSendRate: 10
   remotePlayerPrefab: {fileID: -4830478704693014780, guid: eaa7f1ac455d74c7a9b3a84a54bd0bb5, type: 3}

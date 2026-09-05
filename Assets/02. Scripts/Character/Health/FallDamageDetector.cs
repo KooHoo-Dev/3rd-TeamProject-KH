@@ -31,32 +31,50 @@ namespace Character
         private Collider2D bodyCollider;
         private PlayerHp playerHp;
         private TerrainManager terrainManager;
-        private IPlayerController testPlayerController;
+        private IPlayerController playerController;
         private float lastStaticSupportY;
         private float? fallStartY;
         private bool wasGrounded;
         private bool wasOnStaticGround;
         private bool wasClimbing;
+        private bool initialized;
 
         private void Awake()
         {
             bodyCollider = GetComponent<Collider2D>();
             playerHp = GetComponent<PlayerHp>();
-            testPlayerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
-            terrainManager = testPlayerController.TerrainManager;
-            wasClimbing = testPlayerController.IsClimbing;
+            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
+        }
+
+        private void Start()
+        {
+            if (playerController == null)
+            {
+                Debug.LogError(
+                    "[FallDamageDetector] IPlayerController component is missing.",
+                    this);
+                enabled = false;
+                return;
+            }
+
+            terrainManager = playerController.TerrainManager;
+            wasClimbing = playerController.IsClimbing;
 
             GroundContact ground = GetGroundContact();
-            wasGrounded = ground.IsGrounded;
+            wasGrounded = playerController.IsGrounded;
             wasOnStaticGround = ground.IsStatic;
 
             if (ground.IsStatic) lastStaticSupportY = ground.Height;
+            initialized = true;
         }
 
         private void FixedUpdate()
         {
+            if (initialized == false) return;
+
             GroundContact ground = GetGroundContact();
-            bool isClimbing = testPlayerController.IsClimbing;
+            bool isGrounded = playerController.IsGrounded;
+            bool isClimbing = playerController.IsClimbing;
 
             if (wasClimbing == false && isClimbing)
             {
@@ -72,27 +90,30 @@ namespace Character
             else if (wasClimbing && isClimbing == false)
             {
                 // 잡기 해제 지점을 새로운 낙하 시작점으로 저장
-                fallStartY = ground.IsGrounded
+                fallStartY = isGrounded
                     ? null
                     : bodyCollider.bounds.min.y;
             }
             else if (isClimbing == false)
             {
                 // 마지막 Static 지형에서 발이 떨어진 높이를 낙하 시작점으로 저장
-                if (wasOnStaticGround && ground.IsGrounded == false)
+                if (wasOnStaticGround && isGrounded == false)
                     fallStartY = lastStaticSupportY;
 
                 // 낙하 추적 중 새로운 지면에 착지하면 두 지면의 높이 차이로 피해 계산
-                if (fallStartY.HasValue && wasGrounded == false && ground.IsGrounded)
+                if (fallStartY.HasValue && wasGrounded == false && isGrounded)
                 {
-                    ApplyFallDamage(fallStartY.Value, ground.Height);
+                    float landingHeight = ground.IsGrounded
+                        ? ground.Height
+                        : bodyCollider.bounds.min.y;
+                    ApplyFallDamage(fallStartY.Value, landingHeight);
                     fallStartY = null;
                 }
             }
 
             if (ground.IsStatic) lastStaticSupportY = ground.Height;
 
-            wasGrounded = ground.IsGrounded;
+            wasGrounded = isGrounded;
             wasOnStaticGround = ground.IsStatic;
             wasClimbing = isClimbing;
         }
@@ -102,8 +123,12 @@ namespace Character
             bool isGrounded = false;
             bool isStatic = false;
             float height = float.NegativeInfinity;
-            float groundCheckDistance = Mathf.Max(0.001f, testPlayerController.CollisionSkin);
-            LayerMask groundMask = testPlayerController.CollisionMask;
+            // PlayerCollisionMove는 지형과 CollisionSkin만큼 간격을 두므로
+            // 경계 오차에 의해 보조 지면 조회가 누락되지 않도록 여유를 둔다.
+            float groundCheckDistance = Mathf.Max(
+                0.01f,
+                playerController.CollisionSkin * 2f);
+            LayerMask groundMask = playerController.CollisionMask;
 
             ContactFilter2D filter = new ContactFilter2D
             {

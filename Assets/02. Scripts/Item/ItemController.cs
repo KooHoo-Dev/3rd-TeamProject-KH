@@ -145,20 +145,21 @@ namespace TerrainCollapse
             RoomClient roomClient = RoomClient.Instance;
             if (roomClient != null && roomClient.IsGameplayActive == false)
             {
-                CancelMine();
-                pickaxeItem?.OnClearPreview();
-                activeItem?.OnClearPreview();
-                isPreviewingActiveItem = false;
+                CancelCurrentUse();
                 return;
             }
 
             if (playerController != null && playerController.IsDead)
             {
-                CancelMine();
-                pickaxeItem?.OnClearPreview();
+                CancelCurrentUse();
+                return;
+            }
+
+            bool isBuried = playerController?.IsBuried == true;
+            if (isBuried)
+            {
                 activeItem?.OnClearPreview();
                 isPreviewingActiveItem = false;
-                return;
             }
 
             Mouse mouse = Mouse.current;
@@ -172,7 +173,8 @@ namespace TerrainCollapse
             bool leftPressedThisFrame = mouse.leftButton.wasPressedThisFrame;
 
             // 액티브 아이템 프리뷰가 시작되면 그 동안 곡괭이 입력은 처리하지 않는다.
-            if (rightPressedThisFrame && activeItem != null && !isPreviewingActiveItem)
+            if (isBuried == false &&
+                rightPressedThisFrame && activeItem != null && !isPreviewingActiveItem)
             {
                 isPreviewingActiveItem = true;
                 pickaxeItem?.OnClearPreview();
@@ -293,6 +295,14 @@ namespace TerrainCollapse
 
             activePickaxe = null;
             isMining = false;
+        }
+
+        private void CancelCurrentUse()
+        {
+            CancelMine();
+            pickaxeItem?.OnClearPreview();
+            activeItem?.OnClearPreview();
+            isPreviewingActiveItem = false;
         }
 
         private void TryStartMine(

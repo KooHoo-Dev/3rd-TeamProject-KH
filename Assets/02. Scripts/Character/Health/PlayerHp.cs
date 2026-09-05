@@ -75,10 +75,17 @@ namespace Character
             roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
             if (roomClient != null && roomClient.IsConnected)
             {
-                roomClient.RequestPlayerDamage(
-                    damageInfo.Type,
-                    damageInfo.Amount,
-                    transform.position);
+                if (roomClient.RequestPlayerDamage(
+                        damageInfo.Type,
+                        damageInfo.Amount,
+                        transform.position) == false)
+                {
+                    Debug.LogWarning(
+                        $"[Player Hp] Damage request rejected locally: " +
+                        $"type={damageInfo.Type}, amount={damageInfo.Amount}, " +
+                        $"gameplayActive={roomClient.IsGameplayActive}",
+                        this);
+                }
                 return;
             }
 

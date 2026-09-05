@@ -16,6 +16,7 @@ namespace TerrainCollapse
         [SerializeField] private Vector2 dropOffset = new(0f, 0.5f);
 
         private PlayerInventory inventory;
+        private IPlayerController playerController;
         private int pressedItemID = -1;
         private float dropKeyPressedTime;
         private bool isDropKeyHeld;
@@ -25,6 +26,7 @@ namespace TerrainCollapse
         private void Awake()
         {
             inventory = GetComponent<PlayerInventory>();
+            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
         }
 
         private void Start()
@@ -35,6 +37,12 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            if (playerController?.IsBuried == true)
+            {
+                CancelPendingDrop();
+                return;
+            }
+
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null) return;
 
@@ -104,6 +112,16 @@ namespace TerrainCollapse
 
             StopCoroutine(dropAllCoroutine);
             dropAllCoroutine = null;
+        }
+
+        private void CancelPendingDrop()
+        {
+            if (isDropKeyHeld == false && dropAllCoroutine == null) return;
+
+            isDropKeyHeld = false;
+            pressedItemID = -1;
+            StopDropAllCoroutine();
+            inventoryView?.SetHoldProgress(0f);
         }
 
         private void TryDrop(int itemID, int quantity)
