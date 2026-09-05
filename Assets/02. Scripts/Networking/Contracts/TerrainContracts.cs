@@ -12,6 +12,7 @@ namespace TerrainCollapse.Networking
         public const string Join = "join";
         public const string Leave = "leave";
         public const string PlayerMove = "player.move";
+        public const string PlayerAction = "player.action";
         public const string PlayerReady = "player.ready";
         public const string GameStarted = "game.started";
         public const string GameEnded = "game.ended";

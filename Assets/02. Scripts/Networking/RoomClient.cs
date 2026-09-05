@@ -54,6 +54,10 @@ namespace TerrainCollapse
         [SerializeField, Min(0f)] private float gameEndSlowMotionSeconds = 1.5f;
 
         private Vector2 lastSentPosition;
+        private Vector2 lastSentVelocity;
+        private bool lastSentGrounded;
+        private bool lastSentClimbing;
+        private bool lastSentBuried;
         private float nextPositionSendTime;
         private bool hasSentPosition;
 
@@ -238,19 +242,36 @@ namespace TerrainCollapse
                 Time.unscaledTime >= nextPositionSendTime)
             {
                 Vector2 position = localPlayer.Position;
+                Vector2 velocity = localPlayer.Velocity;
+                bool grounded = localPlayer.IsGrounded;
+                bool climbing = localPlayer.IsClimbing;
+                bool buried = localPlayer.IsBuried;
 
                 if (hasSentPosition == false ||
-                    (position - lastSentPosition).sqrMagnitude > 0.0001f)
+                    (position - lastSentPosition).sqrMagnitude > 0.0001f ||
+                    (velocity - lastSentVelocity).sqrMagnitude > 0.0001f ||
+                    grounded != lastSentGrounded ||
+                    climbing != lastSentClimbing ||
+                    buried != lastSentBuried)
                 {
                     if (Send(new
                     {
                         Type = NetworkMessageTypes.PlayerMove,
                         X = position.x,
-                        Y = position.y
+                        Y = position.y,
+                        VelocityX = velocity.x,
+                        VelocityY = velocity.y,
+                        IsGrounded = grounded,
+                        IsClimbing = climbing,
+                        IsBuried = buried,
                     }) == false)
                         return;
 
                     lastSentPosition = position;
+                    lastSentVelocity = velocity;
+                    lastSentGrounded = grounded;
+                    lastSentClimbing = climbing;
+                    lastSentBuried = buried;
                     hasSentPosition = true;
                 }
 
@@ -783,6 +804,9 @@ namespace TerrainCollapse
                     case NetworkMessageTypes.State:
                         EnqueueMessage<PlayerStateMessage>(json, HandlePlayerState);
                         break;
+                    case NetworkMessageTypes.PlayerAction:
+                        EnqueueMessage<PlayerActionMessage>(json, HandlePlayerAction);
+                        break;
                     default:
                         EnqueueMainThread(() => Debug.LogWarning($"[RoomClient] Unsupported message type: {header?.Type}", this));
                         break;
@@ -808,6 +832,9 @@ namespace TerrainCollapse
                 : 0;
             LocalPlayerColorIndex = localColorIndex;
             PlayerColorPalette.ApplyToSpriteRenderers(localPlayer?.gameObject, localColorIndex);
+            localPlayer?.GetComponent<PlayerNameTag>()?.SetIdentity(
+                message?.User?.NickName,
+                localColorIndex);
             // 서버가 hello를 수락한 뒤에만 위치/게임플레이 패킷을 보낸다.
             nextPositionSendTime = Time.unscaledTime;
 
@@ -891,7 +918,7 @@ namespace TerrainCollapse
 
         private void HandlePlayerLeft(PlayerLeftMessage message)
         {
-            RemoveRemotePlayer(message?.Id);
+            RemoveRemotePlayer(message?.User?.Id ?? message?.Id);
         }
 
         private void HandlePlayerState(PlayerStateMessage message)
@@ -904,8 +931,16 @@ namespace TerrainCollapse
 
                 Vector2 position = new(state.X, state.Y);
                 RemotePlayerView view = GetOrCreateRemotePlayer(state.Id, position);
-                view?.SetServerPosition(position);
+                view?.SetServerState(state);
             }
+        }
+
+        private void HandlePlayerAction(PlayerActionMessage message)
+        {
+            if (message == null || message.PlayerID == localPlayerId) return;
+            if (message.Action == "mine" &&
+                remotePlayers.TryGetValue(message.PlayerID, out RemotePlayerView remote))
+                remote.PlayMine(message.DirectionX);
         }
 
         private void HandlePlayerHealthSnapshot(PlayerHealthSnapshotMessage message)
@@ -914,20 +949,33 @@ namespace TerrainCollapse
 
             foreach (PlayerHealthStateDto player in message.Players)
             {
-                if (player?.PlayerID != localPlayerId) continue;
-                ApplyLocalPlayerHealth(player, false);
-                return;
+                if (player?.PlayerID == localPlayerId)
+                    ApplyLocalPlayerHealth(player, false);
+                else if (player != null &&
+                         remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
+                    remote.SetDead(player.IsDead);
             }
         }
 
         private void HandlePlayerHealthChanged(PlayerHealthChangedMessage message)
         {
-            ApplyLocalPlayerHealth(message?.Player, false);
+            PlayerHealthStateDto player = message?.Player;
+            if (player?.PlayerID == localPlayerId) ApplyLocalPlayerHealth(player, player.IsDead);
+            else if (player != null &&
+                     remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
+                remote.SetDead(player.IsDead);
         }
 
         private void HandlePlayerDied(PlayerDiedMessage message)
         {
-            ApplyLocalPlayerHealth(message?.Player, true);
+            PlayerHealthStateDto player = message?.Player;
+            if (player?.PlayerID == localPlayerId)
+            {
+                ApplyLocalPlayerHealth(player, true);
+            }
+            else if (player != null &&
+                     remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
+                remote.SetDead(true);
         }
 
         private void HandlePlayerRespawned(PlayerRespawnedMessage message)
@@ -936,6 +984,12 @@ namespace TerrainCollapse
             {
                 localPlayer?.Respawn(new Vector2(message.X, message.Y));
                 LocalPlayerRespawned?.Invoke();
+            }
+            else if (message?.Player != null &&
+                     remotePlayers.TryGetValue(message.Player.PlayerID, out RemotePlayerView remote))
+            {
+                remote.Teleport(new Vector2(message.X, message.Y));
+                remote.SetDead(false);
             }
             ApplyLocalPlayerHealth(message?.Player, false);
         }
@@ -972,7 +1026,7 @@ namespace TerrainCollapse
                 : 0;
             if (remotePlayers.TryGetValue(user.Id, out RemotePlayerView existing))
             {
-                existing.SetColorIndex(colorIndex);
+                existing.SetIdentity(user.NickName, colorIndex);
                 PlayerColorPalette.ApplyToSpriteRenderers(existing.gameObject, colorIndex);
                 return existing;
             }
@@ -987,7 +1041,7 @@ namespace TerrainCollapse
                 position,
                 Quaternion.identity,
                 remotePlayerRoot);
-            view.Initialize(user.Id, position, colorIndex);
+            view.Initialize(user.Id, user.NickName, position, colorIndex);
             PlayerColorPalette.ApplyToSpriteRenderers(view.gameObject, colorIndex);
             remotePlayers.Add(user.Id, view);
             return view;

@@ -25,6 +25,7 @@ GameObject:
   - component: {fileID: 2820725278437513781}
   - component: {fileID: 8844910528004389864}
   - component: {fileID: 4984966413924890664}
+  - component: {fileID: 9100000000000000201}
   m_Layer: 0
   m_Name: LocalPlayer
   m_TagString: Untagged
@@ -333,6 +334,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1995b6cfeb39a47c381b203e0f85d9d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.TestPlayerDebugInput
+--- !u!114 &9100000000000000201
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2805296468540921998}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bbf05d4562f450f94df15fddcf4dad0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.Networking.PlayerNameTag
+  localPosition: {x: 0, y: 1, z: -0.1}
+  fontSize: 30
+  worldScale: 0.1
+  sortingOrder: 100
 --- !u!1 &4502014114268016359
 GameObject:
   m_ObjectHideFlags: 0
