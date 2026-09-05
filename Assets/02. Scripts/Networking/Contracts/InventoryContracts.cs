@@ -21,6 +21,20 @@ namespace TerrainCollapse.Networking
     }
 
     [Serializable]
+    public sealed class InventorySellRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.InventorySell;
+        public string RequestId { get; set; }
+    }
+
+    [Serializable]
+    public sealed class InventoryDebugGoldRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.InventoryDebugGold;
+        public string RequestId { get; set; }
+    }
+
+    [Serializable]
     public sealed class WorldItemDropDto
     {
         public string DropID { get; set; }

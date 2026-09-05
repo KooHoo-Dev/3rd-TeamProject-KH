@@ -14,6 +14,7 @@ namespace TerrainCollapse.Networking
         public const string PlayerMove = "player.move";
         public const string PlayerReady = "player.ready";
         public const string GameStarted = "game.started";
+        public const string GameEnded = "game.ended";
         public const string PlayerHealthSnapshot = "player.health_snapshot";
         public const string PlayerHealthChanged = "player.health_changed";
         public const string PlayerDied = "player.died";
@@ -40,6 +41,8 @@ namespace TerrainCollapse.Networking
         public const string DynamiteExplodeRequest = "dynamite.explode_request";
         public const string DynamiteExploded = "dynamite.exploded";
         public const string InventorySnapshot = "inventory.snapshot";
+        public const string InventorySell = "inventory.sell";
+        public const string InventoryDebugGold = "inventory.debug_gold";
     }
 
     // JSON 메시지의 Type 필드만 먼저 읽기 위한 헤더 데이터
@@ -77,7 +80,31 @@ namespace TerrainCollapse.Networking
     public sealed class GameStartedMessage
     {
         public string Type { get; set; }
+        public long ServerNowUnixMilliseconds { get; set; }
         public long StartedAtUnixMilliseconds { get; set; }
+        public long EndsAtUnixMilliseconds { get; set; }
+        public int GameDurationSeconds { get; set; }
+        public int VictoryGold { get; set; }
+        public int ReadyDelaySeconds { get; set; }
+        public int CountdownSeconds { get; set; }
+    }
+
+    [Serializable]
+    public sealed class GameResultPlayerDto
+    {
+        public string PlayerID { get; set; }
+        public string NickName { get; set; }
+        public int Gold { get; set; }
+    }
+
+    [Serializable]
+    public sealed class GameEndedMessage
+    {
+        public string Type { get; set; }
+        public string Reason { get; set; }
+        public string[] WinnerPlayerIDs { get; set; } = Array.Empty<string>();
+        public long EndedAtUnixMilliseconds { get; set; }
+        public GameResultPlayerDto[] Players { get; set; } = Array.Empty<GameResultPlayerDto>();
     }
 
     // 지형 요청과 서버 확정 상태 전송에 사용하는 공용 데이터 계약

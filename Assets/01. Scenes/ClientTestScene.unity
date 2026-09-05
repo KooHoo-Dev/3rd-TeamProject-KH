@@ -1029,6 +1029,8 @@ MonoBehaviour:
   remotePlayerRoot: {fileID: 912427809}
   dynamiteExplosivePrefab: {fileID: 5800443297313628158, guid: e13d0ad6707377b4eb949e8d55a4cfd6, type: 3}
   dynamiteRoot: {fileID: 801389962}
+  gameEndTimeScale: 0.08
+  gameEndSlowMotionSeconds: 1.5
 --- !u!4 &1934651728
 Transform:
   m_ObjectHideFlags: 0
@@ -1216,6 +1218,10 @@ PrefabInstance:
       propertyPath: itemController
       value: 
       objectReference: {fileID: 1971883702}
+    - target: {fileID: 8242170458116077820, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 8556648530460091621, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_text
       value: 0 / 1000
@@ -1223,6 +1229,10 @@ PrefabInstance:
     - target: {fileID: 8556648530460091621, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: m_TextStyleHashCode
       value: -1183493901
+      objectReference: {fileID: 0}
+    - target: {fileID: 8812195081025289486, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8854297275230104576, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: mapLoader

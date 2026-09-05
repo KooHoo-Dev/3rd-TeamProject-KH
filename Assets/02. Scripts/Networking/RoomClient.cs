@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -48,6 +49,10 @@ namespace TerrainCollapse
         [SerializeField] private DynamiteExplosive dynamiteExplosivePrefab;
         [SerializeField] private Transform dynamiteRoot;
 
+        [Header("Game End Presentation")]
+        [SerializeField, Range(0.01f, 1f)] private float gameEndTimeScale = 0.08f;
+        [SerializeField, Min(0f)] private float gameEndSlowMotionSeconds = 1.5f;
+
         private Vector2 lastSentPosition;
         private float nextPositionSendTime;
         private bool hasSentPosition;
@@ -71,16 +76,55 @@ namespace TerrainCollapse
         private bool handshakeComplete;
         private bool hasSentPlayerReady;
         private bool isGameStarted;
+        private bool isGameEnded;
+        private string pendingInventorySellRequestId;
+        private string pendingDebugGoldRequestId;
         private long pendingCollapsePlacementId;
         private string pendingCollapsePlacementRequestId;
         private string pendingDeathLootRequestId;
         private string localPlayerId;
+        private Coroutine gameEndPresentationCoroutine;
+        private float timeScaleBeforeGameEnd = 1f;
 
         public static RoomClient Instance { get; private set; }
         public bool IsConnected => socket?.State == WebSocketState.Open;
         public bool IsAuthoritativeTerrainMode => IsConnected && hasTerrainSnapshot;
+        private long serverClockOffsetMilliseconds;
+        private long EstimatedServerNowUnixMilliseconds =>
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + serverClockOffsetMilliseconds;
+        public bool IsMovementActive =>
+            IsConnected && handshakeComplete && hasTerrainSnapshot && isGameStarted && isGameEnded == false;
         public bool IsGameplayActive =>
-            IsConnected && handshakeComplete && hasTerrainSnapshot && isGameStarted;
+            IsMovementActive && GameStartedAtUnixMilliseconds > 0 &&
+            EstimatedServerNowUnixMilliseconds >= GameStartedAtUnixMilliseconds;
+        public bool HasGameStartSchedule => isGameStarted && GameStartedAtUnixMilliseconds > 0;
+        public int GameCountdownSeconds { get; private set; }
+        public double SecondsUntilGameplayStart => Math.Max(
+            0d,
+            (GameStartedAtUnixMilliseconds - EstimatedServerNowUnixMilliseconds) / 1000d);
+        public long GameStartedAtUnixMilliseconds { get; private set; }
+        public long GameEndsAtUnixMilliseconds { get; private set; }
+        public long GameEndedAtUnixMilliseconds { get; private set; }
+        public int GameDurationSeconds { get; private set; }
+        public int VictoryGold { get; private set; }
+        public string LocalPlayerID => localPlayerId;
+        public double GameElapsedSeconds
+        {
+            get
+            {
+                if (GameStartedAtUnixMilliseconds <= 0)
+                    return 0d;
+
+                long currentMilliseconds =
+                    isGameEnded && GameEndedAtUnixMilliseconds > 0
+                        ? GameEndedAtUnixMilliseconds
+                        : EstimatedServerNowUnixMilliseconds;
+
+                return Math.Max(
+                    0d,
+                    (currentMilliseconds - GameStartedAtUnixMilliseconds) / 1000d);
+            }
+        }
         public bool IsLocalPlayerInSpawnArea =>
             localPlayer != null && IsInSpawnArea(localPlayer.Position);
         public MapSessionDescriptor MapSession { get; private set; }
@@ -91,6 +135,8 @@ namespace TerrainCollapse
         public event Action<TerrainSnapshot> TerrainSnapshotLoaded;
         public event Action<string> RemotePlayerRemoved;
         public event Action LocalPlayerRespawned;
+        public event Action<GameEndedMessage> GameEnded;
+        public event Action<GameStartedMessage> GameStarted;
 
         /// <summary>서버 스냅샷 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
         public bool IsInSpawnArea(Vector2 worldPosition)
@@ -185,7 +231,7 @@ namespace TerrainCollapse
 
             SweepPendingTimeouts();
 
-            if (IsGameplayActive &&
+            if (IsMovementActive &&
                 localPlayer != null &&
                 Time.unscaledTime >= nextPositionSendTime)
             {
@@ -233,6 +279,16 @@ namespace TerrainCollapse
             handshakeComplete = false;
             hasSentPlayerReady = false;
             isGameStarted = false;
+            isGameEnded = false;
+            pendingInventorySellRequestId = null;
+            pendingDebugGoldRequestId = null;
+            GameStartedAtUnixMilliseconds = 0;
+            GameEndsAtUnixMilliseconds = 0;
+            GameEndedAtUnixMilliseconds = 0;
+            GameDurationSeconds = 0;
+            VictoryGold = 0;
+            GameCountdownSeconds = 0;
+            serverClockOffsetMilliseconds = 0;
             cancellation = new CancellationTokenSource();
             socket = new ClientWebSocket();
 
@@ -260,6 +316,7 @@ namespace TerrainCollapse
 
         public async Task DisconnectAsync()
         {
+            StopGameEndPresentation();
             CancellationTokenSource source = cancellation;
             ClientWebSocket currentSocket = socket;
             cancellation = null;
@@ -271,6 +328,16 @@ namespace TerrainCollapse
             handshakeComplete = false;
             hasSentPlayerReady = false;
             isGameStarted = false;
+            isGameEnded = false;
+            pendingInventorySellRequestId = null;
+            pendingDebugGoldRequestId = null;
+            GameStartedAtUnixMilliseconds = 0;
+            GameEndsAtUnixMilliseconds = 0;
+            GameEndedAtUnixMilliseconds = 0;
+            GameDurationSeconds = 0;
+            VictoryGold = 0;
+            GameCountdownSeconds = 0;
+            serverClockOffsetMilliseconds = 0;
             source?.Cancel();
 
             if (currentSocket != null)
@@ -384,6 +451,42 @@ namespace TerrainCollapse
                 return true;
 
             pendingWorldItemDrops.Remove(requestId);
+            return false;
+        }
+
+        public bool RequestInventorySell()
+        {
+            if (IsGameplayActive == false || string.IsNullOrEmpty(pendingInventorySellRequestId) == false)
+                return false;
+
+            string requestId = CreateRequestId(
+                "sell",
+                Interlocked.Increment(ref nextRequestId));
+            pendingInventorySellRequestId = requestId;
+
+            if (Send(new InventorySellRequest { RequestId = requestId }))
+                return true;
+
+            pendingInventorySellRequestId = null;
+            return false;
+
+        }
+
+        public bool RequestDebugGold()
+        {
+            if (IsGameplayActive == false || string.IsNullOrEmpty(pendingDebugGoldRequestId) == false)
+                return false;
+
+            string requestId = CreateRequestId(
+                "debug-gold",
+                Interlocked.Increment(ref nextRequestId));
+            pendingDebugGoldRequestId = requestId;
+
+            if (Send(new InventoryDebugGoldRequest { RequestId = requestId }))
+                return true;
+
+            pendingDebugGoldRequestId = null;
+
             return false;
         }
 
@@ -651,6 +754,9 @@ namespace TerrainCollapse
                     case NetworkMessageTypes.GameStarted:
                         EnqueueMessage<GameStartedMessage>(json, HandleGameStarted);
                         break;
+                    case NetworkMessageTypes.GameEnded:
+                        EnqueueMessage<GameEndedMessage>(json, HandleGameEnded);
+                        break;
                     case NetworkMessageTypes.Join:
                         EnqueueMessage<PlayerJoinedMessage>(json, HandlePlayerJoined);
                         break;
@@ -697,12 +803,68 @@ namespace TerrainCollapse
 
         private void HandleGameStarted(GameStartedMessage message)
         {
-            if (isGameStarted) return;
+            if (isGameStarted || message == null) return;
 
+            StopGameEndPresentation();
+            long localNow = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            serverClockOffsetMilliseconds = message.ServerNowUnixMilliseconds - localNow;
             isGameStarted = true;
+            isGameEnded = false;
+            GameCountdownSeconds = Mathf.Max(0, message.CountdownSeconds);
+            GameStartedAtUnixMilliseconds = message.StartedAtUnixMilliseconds;
+            GameEndsAtUnixMilliseconds = message.EndsAtUnixMilliseconds;
+            GameEndedAtUnixMilliseconds = 0;
+            GameDurationSeconds = message.GameDurationSeconds;
+            VictoryGold = message.VictoryGold;
             localPlayer?.SetWaitingForTerrainSnapshot(false);
             nextPositionSendTime = Time.unscaledTime;
-            Debug.Log("[RoomClient] All players are ready. Gameplay started.", this);
+            GameStarted?.Invoke(message);
+            Debug.Log(
+                $"[RoomClient] All players are ready. Gameplay starts in " +
+                $"{SecondsUntilGameplayStart:F1}s.",
+                this);
+        }
+
+        private void HandleGameEnded(GameEndedMessage message)
+        {
+            if (isGameEnded) return;
+
+            isGameEnded = true;
+            GameEndedAtUnixMilliseconds = message?.EndedAtUnixMilliseconds ??
+                                          DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            pendingInventorySellRequestId = null;
+            pendingDebugGoldRequestId = null;
+            localPlayer?.SetWaitingForTerrainSnapshot(true);
+            StartGameEndPresentation();
+            GameEnded?.Invoke(message);
+            string winners = message?.WinnerPlayerIDs == null
+                ? string.Empty
+                : string.Join(", ", message.WinnerPlayerIDs);
+            Debug.Log($"[RoomClient] Game ended. reason={message?.Reason}, winners={winners}", this);
+        }
+
+        private void StartGameEndPresentation()
+        {
+            StopGameEndPresentation();
+            timeScaleBeforeGameEnd = Time.timeScale;
+            Time.timeScale = Mathf.Clamp(gameEndTimeScale, 0.01f, 1f);
+            gameEndPresentationCoroutine = StartCoroutine(RestoreTimeScaleAfterGameEnd());
+        }
+
+        private IEnumerator RestoreTimeScaleAfterGameEnd()
+        {
+            yield return new WaitForSecondsRealtime(gameEndSlowMotionSeconds);
+            Time.timeScale = timeScaleBeforeGameEnd;
+            gameEndPresentationCoroutine = null;
+        }
+
+        private void StopGameEndPresentation()
+        {
+            if (gameEndPresentationCoroutine == null) return;
+
+            StopCoroutine(gameEndPresentationCoroutine);
+            gameEndPresentationCoroutine = null;
+            Time.timeScale = timeScaleBeforeGameEnd;
         }
 
         private void HandlePlayerJoined(PlayerJoinedMessage message)
@@ -988,6 +1150,10 @@ namespace TerrainCollapse
                 pendingDeathLootRequestId = null;
             if (string.IsNullOrEmpty(message?.RequestId) == false)
                 pendingWorldItemDrops.Remove(message.RequestId);
+            if (string.Equals(message?.RequestId, pendingInventorySellRequestId, StringComparison.Ordinal))
+                pendingInventorySellRequestId = null;
+            if (string.Equals(message?.RequestId, pendingDebugGoldRequestId, StringComparison.Ordinal))
+                pendingDebugGoldRequestId = null;
 
             if (message?.Code?.StartsWith("item.", StringComparison.Ordinal) == true ||
                 message?.Code?.StartsWith("inventory.", StringComparison.Ordinal) == true)
@@ -1107,6 +1273,10 @@ namespace TerrainCollapse
                 pendingDeathLootRequestId = null;
             if (string.IsNullOrEmpty(message.RequestId) == false)
                 pendingWorldItemDrops.Remove(message.RequestId);
+            if (string.Equals(message.RequestId, pendingInventorySellRequestId, StringComparison.Ordinal))
+                pendingInventorySellRequestId = null;
+            if (string.Equals(message.RequestId, pendingDebugGoldRequestId, StringComparison.Ordinal))
+                pendingDebugGoldRequestId = null;
 
             List<KeyValuePair<int, int>> quantities = new(message.Items.Length);
             foreach (InventoryItemDto item in message.Items)

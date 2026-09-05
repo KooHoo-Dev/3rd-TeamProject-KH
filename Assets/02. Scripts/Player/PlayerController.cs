@@ -81,7 +81,9 @@ namespace TerrainCollapse
         private void Update()
         {
             inputReader.Tick();
-            if (lifeCycle.IsDead || terrainState.IsInteractionLocked || terrainState.IsEscaping) return;
+            if (isWaitingForTerrainSnapshot || lifeCycle.IsDead ||
+                terrainState.IsInteractionLocked || terrainState.IsEscaping)
+                return;
             if (inputReader.CurrentInput.ClimbTogglePressed) ToggleClimbState();
         }
 
