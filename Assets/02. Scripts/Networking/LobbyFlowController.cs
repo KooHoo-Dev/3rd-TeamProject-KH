@@ -57,8 +57,7 @@ namespace TerrainCollapse
             }
             if (session.IsHost == false) SetStatus("Waiting for the host to start the game.");
             if (startGameButton != null) startGameButton.gameObject.SetActive(session.IsHost);
-            if (lobbyClient.LastState != null)
-                HandleState(lobbyClient.LastState);
+            ReturnToLobbyAsync();
         }
 
         private void OnDestroy()
@@ -131,8 +130,11 @@ namespace TerrainCollapse
                 roomInfoText.text = $"ROOM CODE: {message.Room.RoomCode}  ({message.Room.Players.Count}/{message.Room.MaxPlayers})";
             UpdatePlayerSlots(message.Room.PlayerDetails);
             if (startGameButton != null)
+            {
+                startGameButton.gameObject.SetActive(session.IsHost);
                 startGameButton.interactable = session.IsHost && message.Room.Players.Count >= 2 &&
                                                message.Room.Players.Count <= 4 && message.Room.IsStarted == false;
+            }
         }
 
         private void UpdatePlayerSlots(List<LobbyPlayerInfo> players)
@@ -173,6 +175,22 @@ namespace TerrainCollapse
             isLoadingGame = true;
             await lobbyClient.DisconnectAsync();
             SceneManager.LoadScene(gameSceneName);
+        }
+
+        private async void ReturnToLobbyAsync()
+        {
+            if (lobbyClient.IsConnected)
+            {
+                if (lobbyClient.LastState != null) HandleState(lobbyClient.LastState);
+                return;
+            }
+
+            SetStatus("Returning to room lobby...");
+            await lobbyClient.ConnectReturnAsync(
+                session.GetWebSocketBaseUrl(),
+                session.RoomCode,
+                session.NickName,
+                session.ClientId);
         }
 
         private void SetStatus(string text)

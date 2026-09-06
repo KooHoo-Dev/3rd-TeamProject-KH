@@ -26,6 +26,12 @@ namespace TerrainCollapse
 
         public void Tick()
         {
+            if (ChatInputState.IsTyping)
+            {
+                CurrentInput = new PlayerInputData(0f, 0f, false, false);
+                return;
+            }
+
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null)
             {

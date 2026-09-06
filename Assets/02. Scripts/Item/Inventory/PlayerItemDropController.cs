@@ -37,6 +37,12 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            if (ChatInputState.IsTyping)
+            {
+                CancelPendingDrop();
+                return;
+            }
+
             if (playerController?.IsBuried == true)
             {
                 CancelPendingDrop();

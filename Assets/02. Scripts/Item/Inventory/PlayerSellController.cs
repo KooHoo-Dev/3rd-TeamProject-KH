@@ -46,9 +46,17 @@ namespace TerrainCollapse
 
             if (wasInSellArea == false && isInSellArea)
             {
-                ItemSaleResult result = itemSaleService.SellAllExchangeItems(inventory);
-
-                if (result.EarnedGold > 0) LogSaleResult(result);
+                RoomClient roomClient = RoomClient.Instance;
+                if (roomClient != null && roomClient.IsConnected)
+                {
+                    if (roomClient.RequestInventorySell() == false)
+                        Debug.LogWarning("[Sell] 서버에 자동 판매 요청을 보내지 못했습니다.", this);
+                }
+                else
+                {
+                    ItemSaleResult result = itemSaleService.SellAllExchangeItems(inventory);
+                    if (result.EarnedGold > 0) LogSaleResult(result);
+                }
             }
 
             wasInSellArea = isInSellArea;
@@ -56,6 +64,10 @@ namespace TerrainCollapse
 
         private bool IsInSellArea()
         {
+            RoomClient roomClient = RoomClient.Instance;
+            if (roomClient != null && roomClient.IsAuthoritativeTerrainMode)
+                return roomClient.IsLocalPlayerInSpawnArea;
+
             // 로컬 테스트 맵은 기존 지상 진입 규칙을 유지
             return playerController.CurrentPosition.y >= 0f;
         }

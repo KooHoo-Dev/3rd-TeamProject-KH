@@ -166,11 +166,23 @@ namespace TerrainCollapse
             return true;
         }
 
+        public bool IsCellMineable(Vector2Int cell)
+        {
+            if (TryGetTileType(cell, out TerrainTileType type) == false) return false;
+
+            TerrainDataManager dataManager = TerrainDataManager.Instance;
+            dataManager.EnsureLoaded();
+
+            return dataManager.TryGetTileDef(type, out TerrainTileDef tileDef) && tileDef.IsMineable;
+        }
+
         public bool CanCreateDeathLootCell(Vector2Int cell)
         {
             if (IsReady == false) return false;
             if (TryGetTileType(cell, out TerrainTileType type) &&
-                (type == TerrainTileType.Bedrock || type == TerrainTileType.DeathLoot))
+                (type == TerrainTileType.Bedrock ||
+                 type == TerrainTileType.SpawnPlatform ||
+                 type == TerrainTileType.DeathLoot))
                 return false;
 
             return true;
@@ -299,6 +311,7 @@ namespace TerrainCollapse
             {
                 if (TryGetTileType(start, out TerrainTileType startType) == false ||
                     startType == TerrainTileType.Bedrock ||
+                    startType == TerrainTileType.SpawnPlatform ||
                     visited.Add(start) == false)
                     continue;
 
@@ -320,7 +333,8 @@ namespace TerrainCollapse
                         if (TryGetTileType(next, out TerrainTileType nextType) == false)
                             continue;
 
-                        if (nextType == TerrainTileType.Bedrock)
+                        if (nextType == TerrainTileType.Bedrock ||
+                            nextType == TerrainTileType.SpawnPlatform)
                         {
                             supported = true;
                             continue;

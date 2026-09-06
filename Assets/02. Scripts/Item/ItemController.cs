@@ -141,6 +141,11 @@ namespace TerrainCollapse
         private void Update()
         {
             if (pickaxeItem == null && activeItem == null) return;
+            if (ChatInputState.IsTyping)
+            {
+                CancelCurrentUse();
+                return;
+            }
 
             RoomClient roomClient = RoomClient.Instance;
             if (roomClient != null && roomClient.IsGameplayActive == false)

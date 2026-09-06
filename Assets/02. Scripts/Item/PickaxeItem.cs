@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace TerrainCollapse
 {
@@ -104,6 +103,8 @@ namespace TerrainCollapse
             // 1. 매몰(Buried) 상태 체크
             if (manager.HasTerrain(startCell))
             {
+                if (manager.IsCellMineable(startCell) == false) return false;
+
                 targetCell = startCell;
                 manager.TryCellToWorldCenter(targetCell, out worldPos);
                 return true;
@@ -170,6 +171,9 @@ namespace TerrainCollapse
                 Vector2Int currentCell = new Vector2Int(currX, currY);
                 if (currentCell != start && manager.HasTerrain(currentCell))
                 {
+                    // 채굴 불가 타일은 시야를 막지만 타깃으로 선택하지 않음
+                    if (manager.IsCellMineable(currentCell) == false) return false;
+
                     snappedCell = currentCell;
                     return true;
                 }
@@ -192,8 +196,19 @@ namespace TerrainCollapse
                     // → 여기서 멈추고, 막고 있는 타일 중 하나를 타겟으로 반환
                     if (horizBlocked && vertBlocked)
                     {
-                        snappedCell = horizNeighbor;
-                        return true;
+                        if (manager.IsCellMineable(horizNeighbor))
+                        {
+                            snappedCell = horizNeighbor;
+                            return true;
+                        }
+
+                        if (manager.IsCellMineable(vertNeighbor))
+                        {
+                            snappedCell = vertNeighbor;
+                            return true;
+                        }
+
+                        return false;
                     }
                 }
 
@@ -261,7 +276,10 @@ namespace TerrainCollapse
             if (pendingTerrainManager == null)
                 return false;
 
-            if (!pendingTerrainManager.HasTerrain(pendingTargetCell))
+            if (pendingTerrainManager.HasTerrain(pendingTargetCell) == false)
+                return false;
+
+            if (pendingTerrainManager.IsCellMineable(pendingTargetCell) == false)
                 return false;
 
             if (!pendingTerrainManager.TryCellToWorldCenter(
