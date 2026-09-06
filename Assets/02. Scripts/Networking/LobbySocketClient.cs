@@ -46,6 +46,14 @@ namespace TerrainCollapse
                 ClientID = clientId,
             });
 
+        public Task ConnectReturnAsync(string serverUrl, string roomCode, string nickName, string clientId) =>
+            ConnectAsync(serverUrl, new LobbyReturnMessage
+            {
+                RoomCode = roomCode,
+                NickName = nickName,
+                ClientID = clientId,
+            });
+
         public bool RequestStart(string hostToken) => Send(new LobbyStartRequest { HostToken = hostToken });
 
         public async Task DisconnectAsync()

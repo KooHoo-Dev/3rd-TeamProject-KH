@@ -32,11 +32,15 @@ namespace TerrainCollapse
         private static readonly int DeadHash =
             Animator.StringToHash("Dead");
 
+        private static readonly int DeadStateHash =
+            Animator.StringToHash("Base Layer.Dead");
+
 
         private Animator animator;
         private SpriteRenderer spriteRenderer;
 
         private IPlayerController playerController;
+        private bool wasDead;
 
 
         private void Awake()
@@ -85,9 +89,11 @@ namespace TerrainCollapse
                 ClimbingHash,
                 playerController.IsClimbing);
 
-            animator.SetBool(
-                DeadHash,
-                playerController.IsDead);
+            bool isDead = playerController.IsDead;
+            animator.SetBool(DeadHash, isDead);
+            if (isDead && wasDead == false)
+                animator.Play(DeadStateHash, 0, 0f);
+            wasDead = isDead;
 
             if (itemController == null ||
                 !itemController.IsMining)

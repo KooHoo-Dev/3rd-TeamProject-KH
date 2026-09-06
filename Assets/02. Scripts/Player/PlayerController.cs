@@ -81,7 +81,9 @@ namespace TerrainCollapse
         private void Update()
         {
             inputReader.Tick();
-            if (lifeCycle.IsDead || terrainState.IsInteractionLocked || terrainState.IsEscaping) return;
+            if (isWaitingForTerrainSnapshot || lifeCycle.IsDead ||
+                terrainState.IsInteractionLocked || terrainState.IsEscaping)
+                return;
             if (inputReader.CurrentInput.ClimbTogglePressed) ToggleClimbState();
         }
 
@@ -142,6 +144,9 @@ namespace TerrainCollapse
         public void Respawn(Vector2 spawnPosition)
         {
             body.position = spawnPosition;
+
+            if (isWaitingForTerrainSnapshot) terrainSnapshotWaitingPosition = spawnPosition;
+
             body.linearVelocity = Vector2.zero;
             body.angularVelocity = 0f;
             Physics2D.SyncTransforms();

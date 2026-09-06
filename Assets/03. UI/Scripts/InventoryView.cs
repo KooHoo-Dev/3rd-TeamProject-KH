@@ -45,6 +45,7 @@ namespace TerrainCollapse
         private void Update()
         {
             if (slotViews == null || slotViews.Length == 0) return;
+            if (ChatInputState.IsTyping) return;
 
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null)
@@ -64,6 +65,11 @@ namespace TerrainCollapse
             Mouse mouse = Mouse.current;
             if (mouse == null) return;
             if (minimapView.IsFullMapOpen) return;
+            if (ChatInputState.IsPointerOverChat)
+            {
+                scrollFocusAccumulator = 0f;
+                return;
+            }
 
             scrollFocusAccumulator += Mathf.Clamp(mouse.scroll.ReadValue().y, -1f, 1f);
 

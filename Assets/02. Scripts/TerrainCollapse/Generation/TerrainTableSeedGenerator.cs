@@ -163,8 +163,15 @@ namespace TerrainCollapse
                 map.SetTile(new Vector2Int(areaMaxX, y), TerrainTileType.Bedrock);
             }
 
-            for (int x = areaMinX + 1; x < areaMaxX; x++)
-                map.RespawnPoints.Add(new Vector2Int(x, areaMinY));
+            int platformMinX = areaMinX + profile.BoundaryThickness + profile.RespawnExitWidth;
+            int platformMaxX = platformMinX + profile.RespawnPlatformWidth - 1;
+            for (int x = platformMinX; x <= platformMaxX; x++)
+                map.SetTile(new Vector2Int(x, areaMinY), TerrainTileType.SpawnPlatform);
+
+            int spawnMinX = platformMinX + 2;
+            int spawnMaxX = platformMaxX - 2;
+            for (int x = spawnMinX; x <= spawnMaxX; x++)
+                map.RespawnPoints.Add(new Vector2Int(x, areaMinY + 2));
         }
 
         public static TerrainMapFile CreateEmptyMap(
