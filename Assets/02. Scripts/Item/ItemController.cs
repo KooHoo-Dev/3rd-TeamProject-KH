@@ -102,23 +102,30 @@ namespace TerrainCollapse
         /// 인벤토리 UI(휠/숫자키) 등 외부에서 호출. itemID 하나만 넘기면 되고,
         /// 실제 보유 여부와 타입 적합성은 여기서 검증합니다.
         /// 곡괭이(좌클릭 고정)/환전용/골드처럼 우클릭 프리뷰-사용 흐름과 맞지 않는 타입,
-        /// 또는 보유하지 않은 아이템이면 장착되지 않고 false를 반환합니다.
+        /// 또는 보유하지 않은 아이템이면 장착되지 않습니다.
         /// </summary>
-        public bool SetActiveItem(int itemID)
+        public void SetActiveItem(int itemID)
         {
-            if (inventory == null || inventory.Has(itemID, 1) == false)
-                return false;
-
             if (DataManager.Instance.ItemTable.TryGet(itemID, out ItemDef def) == false)
-                return false;
+                return;
 
-            if (def.Type == ItemType.Pickaxe || def.Type == ItemType.Exchange || def.Type == ItemType.Gold)
-                return false;
+            // 휠이 가리키는 대상이
+            // "액티브 아이템(우클릭 프리뷰-사용 흐름)"으로 쓸 수 있는 대상인지 판단.
+            // 환전/골드 타입이거나, 보유 수량이 0이면 액티브 아이템으로 쓸 수 없다.
+            bool isUsableAsActiveItem =
+                def.Type != ItemType.Exchange &&
+                def.Type != ItemType.Gold &&
+                inventory.Has(itemID, 1);
+
+            if (isUsableAsActiveItem == false)
+            {
+                ClearActiveItem();
+                return;
+            }
 
             Item itemInstance = Instantiate(def.Prefab);
             itemInstance.Init(def);
             EquipActiveItemInstance(itemInstance);
-            return true;
         }
 
         /// <summary>
@@ -140,8 +147,6 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (pickaxeItem == null && activeItem == null) return;
-
             RoomClient roomClient = RoomClient.Instance;
             if (roomClient != null && roomClient.IsGameplayActive == false)
             {
