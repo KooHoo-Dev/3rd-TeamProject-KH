@@ -38,6 +38,16 @@ namespace TerrainCollapse.Networking
     }
 
     [Serializable]
+    public sealed class PlayerHealRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.PlayerHeal;
+        public string RequestId { get; set; }
+        public int Amount { get; set; }
+        public float X { get; set; }
+        public float Y { get; set; }
+    }
+
+    [Serializable]
     public sealed class PlayerDiedMessage
     {
         public string Type { get; set; }

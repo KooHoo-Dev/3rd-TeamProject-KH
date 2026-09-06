@@ -24,6 +24,7 @@ namespace TerrainCollapse.Networking
         public const string PlayerDied = "player.died";
         public const string PlayerRespawned = "player.respawned";
         public const string PlayerDamage = "player.damage";
+        public const string PlayerHeal = "player.heal";
         public const string PlayerRespawnRequest = "player.respawn_request";
         public const string State = "state";
         public const string Error = "error";
@@ -150,7 +151,7 @@ namespace TerrainCollapse.Networking
         public GridCoord TargetCell { get; set; }
         public int ItemID { get; set; }
 
-        public bool IsValid() => ItemID > 0;
+        public bool IsValid() => ItemID >= 0;
     }
 
     [Serializable]
@@ -158,8 +159,12 @@ namespace TerrainCollapse.Networking
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainCollapseStartRequest;
         public string RequestId { get; set; }
+        public List<TerrainCollapseStartGroupDto> Groups { get; set; } = new();
+    }
 
-        // 부유 그룹의 원본 셀
+    [Serializable]
+    public sealed class TerrainCollapseStartGroupDto
+    {
         public List<GridCoord> SourceCells { get; set; } = new();
     }
 
@@ -177,6 +182,12 @@ namespace TerrainCollapse.Networking
     {
         public string Type { get; set; } = NetworkMessageTypes.TerrainCollapseStarted;
         public string RequestId { get; set; }
+        public List<TerrainCollapseStartedDto> Collapses { get; set; } = new();
+    }
+
+    [Serializable]
+    public sealed class TerrainCollapseStartedDto
+    {
         public long CollapseID { get; set; }
         public string OwnerPlayerID { get; set; }
         public uint StartedRevision { get; set; }

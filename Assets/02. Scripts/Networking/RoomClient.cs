@@ -66,6 +66,7 @@ namespace TerrainCollapse
         private readonly SemaphoreSlim sendSignal = new(0);
         private readonly HashSet<string> pendingWorldItemPickups = new();
         private readonly HashSet<string> pendingWorldItemDrops = new();
+        private readonly HashSet<string> pendingDynamiteExplosions = new();
         private readonly Dictionary<string, DynamiteExplosive> activeDynamites = new();
         private readonly Dictionary<string, float> nextDamageRequestTimes = new();
         private float nextAnyDamageRequestTime;
@@ -381,6 +382,7 @@ namespace TerrainCollapse
             ClearAllPendingExcavations();
             pendingWorldItemPickups.Clear();
             pendingWorldItemDrops.Clear();
+            pendingDynamiteExplosions.Clear();
             nextDamageRequestTimes.Clear();
             nextAnyDamageRequestTime = 0f;
             pendingDeathLootRequestId = null;
@@ -396,7 +398,7 @@ namespace TerrainCollapse
                 Debug.LogWarning("[RoomClient] 서버 지형 준비 전이거나 연결되어 있지 않아 채굴 요청을 보내지 않았습니다.", this);
                 return false;
             }
-            if (itemId <= 0)
+            if (itemId < 0)
             {
                 Debug.LogWarning($"[RoomClient] 서버가 허용하지 않는 곡괭이 ItemID입니다: {itemId}", this);
                 return false;
@@ -570,22 +572,24 @@ namespace TerrainCollapse
             string projectileID,
             Vector2 explosionPosition)
         {
-            if (IsGameplayActive == false ||
-                string.IsNullOrWhiteSpace(projectileID))
-            {
+            if (IsGameplayActive == false || string.IsNullOrWhiteSpace(projectileID))
                 return false;
-            }
 
-            string requestID =
-                $"dynamite-explode-{Interlocked.Increment(ref nextRequestId)}";
+            string requestId = $"dynamite-explode-{Interlocked.Increment(ref nextRequestId)}";
 
-            return Send(new DynamiteExplodeRequest
+            pendingDynamiteExplosions.Add(requestId);
+
+            bool sent = Send(new DynamiteExplodeRequest
             {
-                RequestId = requestID,
+                RequestId = requestId,
                 ProjectileID = projectileID,
                 X = explosionPosition.x,
                 Y = explosionPosition.y,
             });
+
+            if (sent == false) pendingDynamiteExplosions.Remove(requestId);
+
+            return sent;
         }
 
         public bool RequestDeathLoot(Vector2Int targetCell)
@@ -644,6 +648,22 @@ namespace TerrainCollapse
             nextDamageRequestTimes.Remove(typeName);
             nextAnyDamageRequestTime = 0f;
             return false;
+        }
+
+        public bool RequestPlayerHeal(int amount, Vector2 playerPosition)
+        {
+            if (IsGameplayActive == false || amount <= 0)
+                return false;
+
+            return Send(new PlayerHealRequest
+            {
+                RequestId = CreateRequestId(
+                    "heal",
+                    Interlocked.Increment(ref nextRequestId)),
+                Amount = amount,
+                X = playerPosition.x,
+                Y = playerPosition.y,
+            });
         }
 
         public bool RequestRespawn()
@@ -1204,13 +1224,19 @@ namespace TerrainCollapse
                 message.RequestId,
                 pendingCollapsePlacementRequestId,
                 StringComparison.Ordinal);
+            bool isLocalDynamiteExplosionResult =
+                string.IsNullOrEmpty(message.RequestId) == false &&
+                pendingDynamiteExplosions.Contains(message.RequestId);
             batch.IsPlacementOwner =
-                isLocalExcavationResult || isLocalCollapsePlacementResult;
+                isLocalExcavationResult ||
+                isLocalCollapsePlacementResult ||
+                isLocalDynamiteExplosionResult;
 
             // 서버가 이 요청에 답을 했다. 로컬 적용의 성패와 상관없이 기다림은 끝난다.
             // 적용 뒤에 풀면 적용이 한 번 실패하는 순간 그 칸이 영영 잠긴다.
             if (isLocalExcavationResult) ClearPendingExcavation(message.RequestId);
             if (isLocalCollapsePlacementResult) ClearPendingCollapsePlacement();
+            if (isLocalDynamiteExplosionResult) pendingDynamiteExplosions.Remove(message.RequestId);
 
             if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
             {
@@ -1229,6 +1255,8 @@ namespace TerrainCollapse
             // 그래서 낙하 시작 실패가 남의 굴착 대기를 잘못 풀어 주었다.
             // 반대로 굴착이 player.not_found 로 거절되면 아무것도 안 풀렸다.
             ReleasePendingFor(message?.RequestId);
+            if (string.IsNullOrEmpty(message?.RequestId) == false)
+                pendingDynamiteExplosions.Remove(message.RequestId);
 
             if (string.Equals(message?.RequestId, pendingDeathLootRequestId, StringComparison.Ordinal))
                 pendingDeathLootRequestId = null;
@@ -1321,8 +1349,13 @@ namespace TerrainCollapse
         private void HandleDynamiteExploded(
             DynamiteExplodedMessage message)
         {
-            if (message == null || string.IsNullOrWhiteSpace(message.ProjectileID))
+            if (message == null)
                 return;
+
+            if (string.IsNullOrEmpty(message.RequestId) == false)
+                pendingDynamiteExplosions.Remove(message.RequestId);
+
+            if (string.IsNullOrWhiteSpace(message.ProjectileID)) return;
 
             if (activeDynamites.TryGetValue(
                     message.ProjectileID,
@@ -1418,9 +1451,9 @@ namespace TerrainCollapse
             Debug.LogWarning("[RoomClient] 붕괴 지형 배치 요청을 보내지 못했습니다.", this);
         }
 
-        private void HandleCollapseStartRequested(IReadOnlyList<Vector2Int> sourceCells)
+        private void HandleCollapseStartRequested(IReadOnlyList<List<Vector2Int>> groups)
         {
-            if (IsAuthoritativeTerrainMode == false || sourceCells == null || sourceCells.Count == 0)
+            if (IsAuthoritativeTerrainMode == false || groups == null || groups.Count == 0)
                 return;
 
             TerrainCollapseStartRequest request = new()
@@ -1429,8 +1462,17 @@ namespace TerrainCollapse
                     "collapse-start",
                     Interlocked.Increment(ref nextRequestId)),
             };
-            foreach (Vector2Int sourceCell in sourceCells)
-                request.SourceCells.Add(new GridCoord(sourceCell.x, sourceCell.y));
+            foreach (List<Vector2Int> group in groups)
+            {
+                if (group == null || group.Count == 0) continue;
+
+                TerrainCollapseStartGroupDto groupDto = new();
+                foreach (Vector2Int sourceCell in group)
+                    groupDto.SourceCells.Add(new GridCoord(sourceCell.x, sourceCell.y));
+                request.Groups.Add(groupDto);
+            }
+
+            if (request.Groups.Count == 0) return;
 
             if (Send(request) == false)
                 Debug.LogWarning("[RoomClient] 낙하 지형 시작 요청을 보내지 못했습니다.", this);
@@ -1438,22 +1480,28 @@ namespace TerrainCollapse
 
         private void HandleCollapseStarted(TerrainCollapseStartedMessage message)
         {
-            if (collapseManager == null || message?.SourceCells == null ||
-                message.SourceCells.Count == 0 || message.CollapseID <= 0)
+            if (collapseManager == null || message?.Collapses == null)
                 return;
 
-            List<Vector2Int> sourceCells = new(message.SourceCells.Count);
-            foreach (GridCoord cell in message.SourceCells)
-                sourceCells.Add(new Vector2Int(cell.X, cell.Y));
+            foreach (TerrainCollapseStartedDto collapse in message.Collapses)
+            {
+                if (collapse?.SourceCells == null ||
+                    collapse.SourceCells.Count == 0 || collapse.CollapseID <= 0)
+                    continue;
 
-            bool isPlacementOwner = string.Equals(
-                message.OwnerPlayerID,
-                localPlayerId,
-                StringComparison.Ordinal);
-            collapseManager.CreateChunk(
-                sourceCells,
-                message.CollapseID,
-                isPlacementOwner);
+                List<Vector2Int> sourceCells = new(collapse.SourceCells.Count);
+                foreach (GridCoord cell in collapse.SourceCells)
+                    sourceCells.Add(new Vector2Int(cell.X, cell.Y));
+
+                bool isPlacementOwner = string.Equals(
+                    collapse.OwnerPlayerID,
+                    localPlayerId,
+                    StringComparison.Ordinal);
+                collapseManager.CreateChunk(
+                    sourceCells,
+                    collapse.CollapseID,
+                    isPlacementOwner);
+            }
         }
 
         private void QueueConnectionError(string operation, Exception exception)

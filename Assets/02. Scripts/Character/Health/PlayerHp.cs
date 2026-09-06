@@ -106,6 +106,17 @@ namespace Character
         {
             if (isDead || amount <= 0) return;
 
+            roomClient ??= RoomClient.Instance ?? FindFirstObjectByType<RoomClient>();
+            if (roomClient != null && roomClient.IsConnected)
+            {
+                if (roomClient.RequestPlayerHeal(amount, transform.position) == false)
+                    Debug.LogWarning(
+                        $"[Player Hp] Heal request rejected locally: amount={amount}, " +
+                        $"gameplayActive={roomClient.IsGameplayActive}",
+                        this);
+                return;
+            }
+
             int previousHp = currentHp;
             currentHp = Mathf.Clamp(currentHp + amount, 0, maxHp);
 

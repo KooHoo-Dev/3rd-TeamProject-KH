@@ -15,7 +15,7 @@ namespace TerrainCollapse
         private int chainCount;
         private bool placementOwnerForCurrentChain = true;
 
-        public event System.Action<IReadOnlyList<Vector2Int>> CollapseStartRequested;
+        public event System.Action<IReadOnlyList<List<Vector2Int>>> CollapseStartRequested;
 
         public void Configure(TerrainManager terrain, CollapseManager collapse)
         {
@@ -86,15 +86,14 @@ namespace TerrainCollapse
             {
                 List<List<Vector2Int>> groups = terrainManager.FindFloatingGroups();
                 
-                foreach (List<Vector2Int> group in groups)
+                if (RoomClient.Instance?.IsAuthoritativeTerrainMode == true)
                 {
-                    if (RoomClient.Instance?.IsAuthoritativeTerrainMode == true)
-                    {
-                        if (placementOwnerForCurrentChain)
-                            CollapseStartRequested?.Invoke(group);
-                    }
-                    else collapseManager.CreateChunk(group, placementOwnerForCurrentChain);
+                    if (placementOwnerForCurrentChain && groups.Count > 0)
+                        CollapseStartRequested?.Invoke(groups);
                 }
+                else
+                    foreach (List<Vector2Int> group in groups)
+                        collapseManager.CreateChunk(group, placementOwnerForCurrentChain);
 
                 return groups.Count > 0;
             }
