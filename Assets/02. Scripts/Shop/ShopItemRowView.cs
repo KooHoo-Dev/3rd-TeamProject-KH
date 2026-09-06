@@ -41,7 +41,7 @@ namespace TerrainCollapse
             onBuyClicked = buyCallback;
 
             if (nameText != null) nameText.text = listing.Name;
-            if (priceText != null) priceText.text = $"{listing.Price} Gold";
+            if (priceText != null) priceText.text = $"{listing.Price} 골드";
 
             if (iconImage != null)
             {
