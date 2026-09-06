@@ -139,7 +139,9 @@ namespace TerrainCollapse
 
             CreateHeader(shopPanelBackground);
             CreateCloseButton(shopPanelBackground);
+            CreateTabBar(shopPanelBackground);
             CreateItemList(shopPanelBackground);
+            CreateUndoButton(shopPanelBackground);
             CreateFooter(shopPanelBackground);
 
             return popupRoot;
@@ -223,6 +225,56 @@ namespace TerrainCollapse
 
         #endregion
 
+        #region 탭 바 (곡괭이 / 아이템)
+
+        // 헤더 바로 아래 가로 탭 바. 기본 선택(곡괭이 탭)은 런타임 ShopView.Show()에서 결정하고,
+        // 여기서는 두 버튼의 자리와 이름만 만들어둔다.
+        private void CreateTabBar(Transform shopPanelBackground)
+        {
+            GameObject tabBar = NewUI("TabBar", shopPanelBackground);
+
+            RectTransform tabBarRect = (RectTransform)tabBar.transform;
+            tabBarRect.anchorMin = new Vector2(0f, 1f);
+            tabBarRect.anchorMax = new Vector2(1f, 1f);
+            tabBarRect.pivot = new Vector2(0.5f, 1f);
+            tabBarRect.sizeDelta = new Vector2(0f, 56f);
+            tabBarRect.anchoredPosition = new Vector2(0f, -104f); // 헤더(88 + 8 여백) 바로 아래
+
+            HorizontalLayoutGroup layout = tabBar.AddComponent<HorizontalLayoutGroup>();
+            layout.spacing = 8f;
+            layout.padding = new RectOffset(24, 24, 0, 0);
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = true;
+
+            Button pickaxeTab = NewButton("PickaxeTabButton", tabBar.transform, "곡괭이", out TMP_Text pickaxeLabel);
+            pickaxeLabel.fontSize = 24f;
+
+            Button itemTab = NewButton("ItemTabButton", tabBar.transform, "아이템", out TMP_Text itemLabel);
+            itemLabel.fontSize = 24f;
+        }
+
+        #endregion
+
+        #region 되돌리기 버튼
+
+        // 하단 좌측 고정 되돌리기 버튼. 판매 기능 대신 "이번 방문에 산 것만 선입후출로 되돌리기" 용도.
+        private void CreateUndoButton(Transform shopPanelBackground)
+        {
+            Button undoButton = NewButton("UndoButton", shopPanelBackground, "구매 되돌리기", out TMP_Text label);
+            label.fontSize = 22f;
+
+            RectTransform rect = (RectTransform)undoButton.transform;
+            rect.anchorMin = new Vector2(0f, 0f);
+            rect.anchorMax = new Vector2(0f, 0f);
+            rect.pivot = new Vector2(0f, 0f);
+            rect.sizeDelta = new Vector2(180f, 48f);
+            rect.anchoredPosition = new Vector2(16f, 16f);
+        }
+
+        #endregion
+
         #region 아이템 목록 영역
 
         // 실제 아이템 개수만큼 카드가 늘어나는 건 런타임의 ShopView가 담당한다.
@@ -235,8 +287,8 @@ namespace TerrainCollapse
             listRect.anchorMin = new Vector2(0.5f, 0.5f);
             listRect.anchorMax = new Vector2(0.5f, 0.5f);
             listRect.pivot = new Vector2(0.5f, 0.5f);
-            listRect.sizeDelta = new Vector2(840f, 480f);
-            listRect.anchoredPosition = new Vector2(0f, -28f); // 헤더 높이만큼 아래로 보정
+            listRect.sizeDelta = new Vector2(840f, 420f);
+            listRect.anchoredPosition = new Vector2(0f, -60f); // 헤더 + 탭 바 높이만큼 아래로 보정
 
             VerticalLayoutGroup layout = listPanel.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 12f;
@@ -307,7 +359,8 @@ namespace TerrainCollapse
             buyRect.anchoredPosition = new Vector2(-16f, 0f);
 
             ShopItemRowView rowView = row.AddComponent<ShopItemRowView>();
-            rowView.Configure(iconImage, nameText, priceText, buyButton);
+            CanvasGroup canvasGroup = row.AddComponent<CanvasGroup>(); // 잠금 시 카드를 흐리게 + 클릭 차단
+            rowView.Configure(iconImage, nameText, priceText, buyButton, canvasGroup);
 
             row.SetActive(false); // 템플릿은 항상 비활성 - ShopView가 복제한 사본만 화면에 보인다
         }
@@ -353,13 +406,21 @@ namespace TerrainCollapse
                 Debug.LogWarning($"[{nameof(ShopUIBuilder)}] 씬에 EventSystem이 없습니다. 버튼 입력이 동작하려면 EventSystem을 추가하세요.");
             }
 
+            if (Application.isPlaying)
+            {
+                Debug.LogWarning($"[{nameof(ShopUIBuilder)}] 플레이 모드에서 실행 중입니다. 지금 만든 '{RootName}'은 플레이 모드를 종료하면 사라집니다 - 씬에 남기려면 에디트 모드에서 다시 실행하세요.");
+            }
+
             GameObject root = CreateCanvas();
             Undo.RegisterCreatedObjectUndo(root, "Create Shop UI");
 
             GameObject popupRoot = CreatePopupRoot(root.transform);
             popupRoot.SetActive(false); // 평소엔 숨김 - 상점 진입 시에만 활성화
 
-            EditorSceneManager.MarkSceneDirty(gameObject.scene);
+            // MarkSceneDirty는 플레이 모드에서 호출하면 예외가 난다 (플레이 모드의 씬은 저장 대상이 아님).
+            if (Application.isPlaying == false)
+                EditorSceneManager.MarkSceneDirty(gameObject.scene);
+
             Debug.Log($"[{nameof(ShopUIBuilder)}] '{RootName}' 생성 완료.");
         }
 
@@ -375,7 +436,10 @@ namespace TerrainCollapse
             }
 
             Undo.DestroyObjectImmediate(existing);
-            EditorSceneManager.MarkSceneDirty(gameObject.scene);
+
+            if (Application.isPlaying == false)
+                EditorSceneManager.MarkSceneDirty(gameObject.scene);
+
             Debug.Log($"[{nameof(ShopUIBuilder)}] '{RootName}' 오브젝트를 삭제했습니다.");
         }
 

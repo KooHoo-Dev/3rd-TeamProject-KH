@@ -5,15 +5,16 @@ namespace TerrainCollapse
 {
     // 플레이어가 지상(y >= shopAreaMinimumY)에 있을 때만 상점 인터페이스에 접근할 수 있도록 판정하고,
     // 접근 가능한 상태에서 지정 키를 누르면 ShopView(플레이스홀더 UI)를 열고 닫습니다.
-    [RequireComponent(typeof(PlayerInventory))]
+    [RequireComponent(typeof(PlayerInventory), typeof(TestPlayerController), typeof(PickaxeInventory))]
     public sealed class ShopAccessController : MonoBehaviour
     {
         [SerializeField] private float shopAreaMinimumY = 0f; // 지상 기준선
         [SerializeField] private ShopView shopView; // 플레이스홀더 UI (없어도 접근 판정 자체는 동작)
         [SerializeField] private Key toggleKey = Key.B; // 상점 열기/닫기 키 (임시 배치, 추후 상호작용 UI로 교체 가능)
 
-        private IPlayerController playerController;
+        private TestPlayerController playerController;
         private PlayerInventory inventory;
+        private PickaxeInventory pickaxeInventory;
         private ShopService shopService;
 
         public bool IsShopAccessible { get; private set; }
@@ -21,8 +22,9 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
+            playerController = GetComponent<TestPlayerController>();
             inventory = GetComponent<PlayerInventory>();
+            pickaxeInventory = GetComponent<PickaxeInventory>();
         }
 
         private void Start()
@@ -34,7 +36,7 @@ namespace TerrainCollapse
             }
 
             shopService = new ShopService(DataManager.Instance.ItemTable);
-            shopView?.Bind(shopService, inventory);
+            shopView?.Bind(shopService, inventory, pickaxeInventory);
         }
 
         private void Update()
@@ -65,10 +67,11 @@ namespace TerrainCollapse
             if (IsShopOpen) return;
 
             IsShopOpen = true;
+            shopService?.BeginSession(); // 이번 방문의 되돌리기 내역을 새로 시작
             shopView?.Show();
         }
 
-        public void CloseShop()
+        private void CloseShop()
         {
             if (IsShopOpen == false) return;
 
