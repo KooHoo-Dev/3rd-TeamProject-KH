@@ -108,21 +108,28 @@ namespace TerrainCollapse
 
             if (burialFollowChunk != null)
             {
-                Vector2 followPosition =
-                    (Vector2)burialFollowChunk.transform.position + burialFollowOffset;
-                followPosition = ResolveFollowPositionAboveStaticTerrain(followPosition);
-                character.SetTerrainInteractionLocked(true, followPosition);
+                // 청크가 중간 지형에 먼저 걸렸다면 플레이어 추적 고정을 풀어 아래에 남은 공간으로 계속 낙하할 수 있게 한다.
+                // 매몰 후보는 서버의 배치 확정/취소가 올 때까지 그대로 유지한다.
+                if (burialFollowChunk.IsComplete)
+                {
+                    burialFollowChunk = null;
+                    burialFollowOffset = Vector2.zero;
+                    character.SetTerrainInteractionLocked(false, character.Position);
+                }
+                else
+                {
+                    Vector2 followPosition = (Vector2)burialFollowChunk.transform.position + burialFollowOffset;
+                    followPosition = ResolveBelowFallingChunk(followPosition, burialFollowChunk);
+                    followPosition = ResolveFollowPositionAboveStaticTerrain(followPosition);
+                    character.SetTerrainInteractionLocked(true, followPosition);
+                }
             }
 
             if (IsGridSpaceEmpty(character.CollisionBounds) == false)
-            {
                 EnterBuriedState();
-                return;
-            }
 
-            // 낙하 Chunk가 사라졌더라도 동일 CollapseID의 서버 확정 Batch나
-            // 취소 통지가 올 때까지 매몰 후보와 플레이어 위치 잠금을 유지한다.
-            return;
+            // 청크 추적이 끝나도 서버의 배치 확정 또는 취소가 도착할 때까지
+            // pendingBurialImpacts를 유지해 최종 매몰 여부를 판정한다.
         }
 
         private Vector2 ResolveFollowPositionAboveStaticTerrain(Vector2 desiredPosition)
@@ -169,6 +176,46 @@ namespace TerrainCollapse
                 desiredPosition.y += requiredLift;
                 candidate.center += Vector3.up * requiredLift;
             }
+
+            return desiredPosition;
+        }
+
+        /// <summary>FallingChunk와 플레이어의 충돌을 무시하는 동안 플레이어가 청크 내부로 들어갔다면 청크 아래쪽으로 분리 </summary>
+        private Vector2 ResolveBelowFallingChunk(Vector2 desiredPosition, FallingChunk fallingChunk)
+        {
+            if (fallingChunk == null || fallingChunk.CellSize <= 0f)
+                return desiredPosition;
+
+            Bounds candidate = character.CollisionBounds;
+            candidate.center += (Vector3)(desiredPosition - character.Position);
+
+            float collisionSkin = character.CollisionSkin;
+            float playerMinX = candidate.min.x + collisionSkin;
+            float playerMaxX = candidate.max.x - collisionSkin;
+            float playerMinY = candidate.min.y + collisionSkin;
+            float playerMaxY = candidate.max.y - collisionSkin;
+            float halfCellSize = fallingChunk.CellSize * 0.5f;
+            float requiredDrop = 0f;
+
+            foreach (Vector2Int localCell in fallingChunk.LocalCells)
+            {
+                Vector3 tileCenter = fallingChunk.GetLocalCellCenterWorld(localCell);
+                float tileMinX = tileCenter.x - halfCellSize;
+                float tileMaxX = tileCenter.x + halfCellSize;
+                float tileMinY = tileCenter.y - halfCellSize;
+                float tileMaxY = tileCenter.y + halfCellSize;
+
+                bool overlapsX = playerMaxX > tileMinX && playerMinX < tileMaxX;
+                bool overlapsY = playerMaxY > tileMinY && playerMinY < tileMaxY;
+                if (overlapsX == false || overlapsY == false) continue;
+
+                requiredDrop = Mathf.Max(
+                    requiredDrop,
+                    candidate.max.y - tileMinY + collisionSkin);
+            }
+
+            if (requiredDrop > Mathf.Epsilon)
+                desiredPosition.y -= requiredDrop;
 
             return desiredPosition;
         }
