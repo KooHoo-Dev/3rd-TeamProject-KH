@@ -10,10 +10,13 @@ namespace TerrainCollapse
     {
         [SerializeField] private RawImage mapImage;
         [SerializeField] private RectTransform playerMarker;
-        [Tooltip("비워 두면 Local Player Marker를 복제해 원격 마커로 사용합니다.")]
-        [SerializeField] private RectTransform remotePlayerMarkerPrefab;
-        [Tooltip("비워 두면 Local Player Marker와 같은 부모에 생성합니다.")]
-        [SerializeField] private RectTransform remotePlayerMarkerRoot;
+
+        [Tooltip("비워 두면 Local Player Marker를 복제해 원격 마커로 사용합니다.")] [SerializeField]
+        private RectTransform remotePlayerMarkerPrefab;
+
+        [Tooltip("비워 두면 Local Player Marker와 같은 부모에 생성합니다.")] [SerializeField]
+        private RectTransform remotePlayerMarkerRoot;
+
         [SerializeField, Min(1)] private int visibleRadius = 6;
         [SerializeField] private RectTransform mapFrame;
         [SerializeField] private GameObject fullMapDimmer;
@@ -82,14 +85,13 @@ namespace TerrainCollapse
         {
             if (ChatInputState.IsTyping) return;
 
-            if (Keyboard.current?.mKey.wasPressedThisFrame == true)
-                ToggleFullMap();
-
-            if (Keyboard.current?.escapeKey.wasPressedThisFrame == true && isFullMapOpen)
-                ToggleFullMap();
+            bool isTabHeld = Keyboard.current?.tabKey.isPressed == true;
+            if (isTabHeld != isFullMapOpen)
+                SetFullMapOpen(isTabHeld);
 
             if (isFullMapOpen)
                 HandleFullMapInput();
+
         }
 
         public bool Initialize(int width, int height)
