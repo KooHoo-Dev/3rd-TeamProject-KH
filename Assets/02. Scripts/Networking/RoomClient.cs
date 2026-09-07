@@ -51,6 +51,10 @@ namespace TerrainCollapse
         [SerializeField] private DynamiteExplosive dynamiteExplosivePrefab;
         [SerializeField] private Transform dynamiteRoot;
 
+        [Header("Mine")]
+        [SerializeField] private MineExplosive mineExplosivePrefab;
+        [SerializeField] private Transform mineRoot;
+
         [Header("Game End Presentation")]
         [SerializeField, Range(0.01f, 1f)] private float gameEndTimeScale = 0.08f;
         [SerializeField, Min(0f)] private float gameEndSlowMotionSeconds = 1.5f;
@@ -68,8 +72,9 @@ namespace TerrainCollapse
         private readonly SemaphoreSlim sendSignal = new(0);
         private readonly HashSet<string> pendingWorldItemPickups = new();
         private readonly HashSet<string> pendingWorldItemDrops = new();
-        private readonly HashSet<string> pendingDynamiteExplosions = new();
+        private readonly Dictionary<string, string> pendingDynamiteExplosions = new();
         private readonly Dictionary<string, DynamiteExplosive> activeDynamites = new();
+        private readonly Dictionary<string, MineExplosive> activeMines = new();
         private readonly Dictionary<string, float> nextDamageRequestTimes = new();
         private float nextAnyDamageRequestTime;
 
@@ -135,6 +140,7 @@ namespace TerrainCollapse
         }
         public bool IsLocalPlayerInSpawnArea =>
             localPlayer != null && IsInSpawnArea(localPlayer.Position);
+        public Vector2 LocalPlayerPosition => localPlayer != null ? localPlayer.Position : Vector2.zero;
         public MapSessionDescriptor MapSession { get; private set; }
         public TerrainSnapshot CurrentTerrainSnapshot { get; private set; }
         /// <summary>현재 씬에 표시 중인 원격 플레이어 View 목록이다.</summary>
@@ -198,6 +204,10 @@ namespace TerrainCollapse
                 dynamiteExplosivePrefab = Resources.Load<DynamiteExplosive>("DynamiteExplosive");
             if (dynamiteRoot == null)
                 dynamiteRoot = transform;
+            if (mineExplosivePrefab == null)
+                mineExplosivePrefab = Resources.Load<MineExplosive>("Items/Usable/MineExplosive");
+            if (mineRoot == null)
+                mineRoot = transform;
         }
 
         /// <summary>대기방에서 확정한 접속 정보를 인게임 WebSocket 연결 전에 적용한다.</summary>
@@ -320,6 +330,7 @@ namespace TerrainCollapse
             bufferedTerrainBatches.Clear();
             ClearRemotePlayers();
             ClearActiveDynamites();
+            ClearActiveMines();
             hasSentPosition = false;
             handshakeComplete = false;
             pendingInitialSpawn = null;
@@ -410,6 +421,7 @@ namespace TerrainCollapse
             ClearPendingCollapsePlacement();
             ClearRemotePlayers();
             ClearActiveDynamites();
+            ClearActiveMines();
         }
 
         public bool RequestExcavation(Vector2Int targetCell, int itemId)
@@ -607,7 +619,7 @@ namespace TerrainCollapse
 
             string requestId = $"dynamite-explode-{Interlocked.Increment(ref nextRequestId)}";
 
-            pendingDynamiteExplosions.Add(requestId);
+            pendingDynamiteExplosions[requestId] = projectileID;
 
             bool sent = Send(new DynamiteExplodeRequest
             {
@@ -620,6 +632,22 @@ namespace TerrainCollapse
             if (sent == false) pendingDynamiteExplosions.Remove(requestId);
 
             return sent;
+        }
+
+        public bool RequestMinePlacement(int itemID, Vector2 placementPosition)
+        {
+            if (IsGameplayActive == false || itemID <= 0)
+                return false;
+
+            return Send(new DynamiteThrowRequest
+            {
+                RequestId = $"mine-{Interlocked.Increment(ref nextRequestId)}",
+                ItemID = itemID,
+                StartX = placementPosition.x,
+                StartY = placementPosition.y,
+                DirectionX = 0f,
+                DirectionY = 0f,
+            });
         }
 
         public bool RequestDeathLoot(Vector2Int targetCell)
@@ -1277,7 +1305,7 @@ namespace TerrainCollapse
                 StringComparison.Ordinal);
             bool isLocalDynamiteExplosionResult =
                 string.IsNullOrEmpty(message.RequestId) == false &&
-                pendingDynamiteExplosions.Contains(message.RequestId);
+                pendingDynamiteExplosions.ContainsKey(message.RequestId);
             batch.IsPlacementOwner =
                 isLocalExcavationResult ||
                 isLocalCollapsePlacementResult ||
@@ -1306,8 +1334,10 @@ namespace TerrainCollapse
             // 그래서 낙하 시작 실패가 남의 굴착 대기를 잘못 풀어 주었다.
             // 반대로 굴착이 player.not_found 로 거절되면 아무것도 안 풀렸다.
             ReleasePendingFor(message?.RequestId);
-            if (string.IsNullOrEmpty(message?.RequestId) == false)
-                pendingDynamiteExplosions.Remove(message.RequestId);
+            if (string.IsNullOrEmpty(message?.RequestId) == false &&
+                pendingDynamiteExplosions.Remove(message.RequestId, out string projectileID) &&
+                activeMines.TryGetValue(projectileID, out MineExplosive mine))
+                mine.AllowExplosionRetry();
 
             if (string.Equals(message?.RequestId, pendingDeathLootRequestId, StringComparison.Ordinal))
                 pendingDeathLootRequestId = null;
@@ -1322,27 +1352,22 @@ namespace TerrainCollapse
                 message?.Code?.StartsWith("inventory.", StringComparison.Ordinal) == true)
                 pendingWorldItemPickups.Clear();
 
-            if (message?.Code == "terrain.collapse_conflict")
-            {
-                const string text = "다른 클라이언트의 지형 확정을 기다리는 중입니다.";
-                Debug.LogWarning($"[RoomClient] {text}", this);
-                SystemMessageReceived?.Invoke(new ChatSystemMessage
-                {
-                    ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
-                    Text = text,
-                });
+            if (message?.Code is "terrain.collapse_pending" or "terrain.collapse_conflict")
                 return;
-            }
 
             string errorText = string.IsNullOrWhiteSpace(message?.Message)
                 ? message?.Code ?? "알 수 없는 서버 오류"
                 : message.Message;
+            bool isHealthFull = message?.Code == "player.health_full";
             SystemMessageReceived?.Invoke(new ChatSystemMessage
             {
                 ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
-                Text = $"요청 처리에 실패했습니다: {errorText}",
+                Text = isHealthFull ? errorText : $"요청 처리에 실패했습니다: {errorText}",
             });
-            Debug.LogError($"[RoomClient] Server error {message?.Code}: {message?.Message}", this);
+            if (isHealthFull)
+                Debug.Log($"[RoomClient] {errorText}", this);
+            else
+                Debug.LogError($"[RoomClient] Server error {message?.Code}: {message?.Message}", this);
         }
 
         private void HandleWorldItemSnapshot(WorldItemSnapshotMessage message)
@@ -1385,6 +1410,12 @@ namespace TerrainCollapse
             if (message == null || string.IsNullOrWhiteSpace(message.ProjectileID))
                 return;
 
+            if (message.IsMine)
+            {
+                HandleMinePlaced(message);
+                return;
+            }
+
             if (activeDynamites.ContainsKey(message.ProjectileID))
                 return;
 
@@ -1417,6 +1448,12 @@ namespace TerrainCollapse
             if (message == null)
                 return;
 
+            if (message.IsMine)
+            {
+                HandleMineExploded(message);
+                return;
+            }
+
             if (string.IsNullOrEmpty(message.RequestId) == false)
                 pendingDynamiteExplosions.Remove(message.RequestId);
 
@@ -1445,6 +1482,46 @@ namespace TerrainCollapse
                 Destroy(explosive?.gameObject);
 
             activeDynamites.Clear();
+        }
+
+        private void HandleMinePlaced(DynamiteThrownMessage message)
+        {
+            if (message == null || string.IsNullOrWhiteSpace(message.ProjectileID) ||
+                activeMines.ContainsKey(message.ProjectileID))
+                return;
+
+            if (mineExplosivePrefab == null)
+            {
+                Debug.LogError("[RoomClient] MineExplosive prefab reference is not assigned.", this);
+                return;
+            }
+
+            MineExplosive mine = Instantiate(
+                mineExplosivePrefab,
+                new Vector2(message.StartX, message.StartY),
+                Quaternion.identity,
+                mineRoot);
+            mine.PlaceFromServer(message);
+            activeMines.Add(message.ProjectileID, mine);
+        }
+
+        private void HandleMineExploded(DynamiteExplodedMessage message)
+        {
+            if (string.IsNullOrWhiteSpace(message.ProjectileID) ||
+                activeMines.Remove(message.ProjectileID, out MineExplosive mine) == false)
+                return;
+
+            mine?.ExplodeFromServer(
+                new Vector2(message.X, message.Y),
+                message.ExplosionRadius);
+        }
+
+        private void ClearActiveMines()
+        {
+            foreach (MineExplosive mine in activeMines.Values)
+                Destroy(mine?.gameObject);
+
+            activeMines.Clear();
         }
 
         private void HandleInventorySnapshot(InventorySnapshotMessage message)

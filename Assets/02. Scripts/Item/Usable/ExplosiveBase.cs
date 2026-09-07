@@ -37,7 +37,7 @@ namespace TerrainCollapse
         }
 
         // 폭발 이펙트 프리팹을 착탄 지점에 생성
-        private void SpawnExplosionEffect(Vector3 position, float radius)
+        protected void SpawnExplosionEffect(Vector3 position, float radius)
         {
             if (explosionEffectPrefab == null)
                 return;

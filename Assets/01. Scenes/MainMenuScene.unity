@@ -188,6 +188,10 @@ MonoBehaviour:
   startGameButton: {fileID: 0}
   statusText: {fileID: 1455594271}
   mainMenuSceneName: MainMenuScene
+  kickConfirmPopup: {fileID: 0}
+  kickConfirmMessage: {fileID: 0}
+  kickConfirmButton: {fileID: 0}
+  kickCancelButton: {fileID: 0}
 --- !u!1 &1010
 GameObject:
   m_ObjectHideFlags: 0

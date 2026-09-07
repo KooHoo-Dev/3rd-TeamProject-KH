@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TerrainCollapse.Networking;
 using UnityEngine;
 
 namespace TerrainCollapse
@@ -32,6 +33,10 @@ namespace TerrainCollapse
         private SpriteRenderer spriteRenderer;
         private Color originalColor;
         private bool isDetectionActive;
+        private bool isServerControlled;
+        private bool explosionRequested;
+        private string mineID;
+        private float detectionRadius;
         private bool hasCell;
         private Vector2Int placedCell;
 
@@ -51,8 +56,27 @@ namespace TerrainCollapse
         /// </summary>
         public void Place(Vector3 position, Vector2Int? cell = null)
         {
+            detectionRadius = data.DetectionRadius;
+            PlaceInternal(position, cell, data.ArmDelay);
+        }
+
+        /// <summary>서버가 승인한 설치 결과만 멀티플레이 지뢰로 표시한다.</summary>
+        public void PlaceFromServer(DynamiteThrownMessage message)
+        {
+            mineID = message.ProjectileID;
+            isServerControlled = true;
+            detectionRadius = message.DetectionRadius;
+            PlaceInternal(
+                new Vector2(message.StartX, message.StartY),
+                new Vector2Int(message.CellX, message.CellY),
+                message.ArmDelay);
+        }
+
+        private void PlaceInternal(Vector3 position, Vector2Int? cell, float armDelay)
+        {
             transform.position = position;
             isDetectionActive = false;
+            explosionRequested = false;
 
             if (cell.HasValue)
             {
@@ -63,7 +87,7 @@ namespace TerrainCollapse
 
             spriteRenderer.color = disarmedColor;
 
-            StartCoroutine(ArmRoutine());
+            StartCoroutine(ArmRoutine(Mathf.Max(0f, armDelay)));
         }
 
         private void OnDestroy()
@@ -77,9 +101,9 @@ namespace TerrainCollapse
         }
 
         // 설치자가 대피할 수 있도록 armDelay 동안 감지를 비활성 상태로 유지하다가 활성화
-        private IEnumerator ArmRoutine()
+        private IEnumerator ArmRoutine(float armDelay)
         {
-            yield return new WaitForSeconds(data.ArmDelay);
+            yield return new WaitForSeconds(armDelay);
 
             isDetectionActive = true;
 
@@ -96,19 +120,43 @@ namespace TerrainCollapse
             {
                 if (IsPlayerInRange())
                 {
-                    Explode();
-                    yield break;
+                    if (isServerControlled)
+                    {
+                        if (explosionRequested == false &&
+                            RoomClient.Instance?.RequestDynamiteExplosion(mineID, transform.position) == true)
+                            explosionRequested = true;
+                    }
+                    else
+                    {
+                        Explode();
+                        yield break;
+                    }
                 }
 
                 yield return wait;
             }
         }
 
+        /// <summary>서버가 감지 요청을 거절했을 때 다음 감지 주기에 다시 요청한다.</summary>
+        public void AllowExplosionRetry()
+        {
+            if (isServerControlled)
+                explosionRequested = false;
+        }
+
         private bool IsPlayerInRange()
         {
+            if (isServerControlled)
+            {
+                RoomClient roomClient = RoomClient.Instance;
+                return roomClient != null &&
+                       (roomClient.LocalPlayerPosition - (Vector2)transform.position).sqrMagnitude <=
+                       detectionRadius * detectionRadius;
+            }
+
             Collider2D hit = Physics2D.OverlapCircle(
                 transform.position,
-                data.DetectionRadius,
+                detectionRadius,
                 playerLayerMask);
 
             return hit != null;
@@ -136,6 +184,15 @@ namespace TerrainCollapse
 
             Detonate(data.ExplosionRadius, data.Power);
 
+            Destroy(gameObject);
+        }
+
+        public void ExplodeFromServer(Vector2 explosionPosition, float explosionRadius)
+        {
+            isDetectionActive = false;
+            StopAllCoroutines();
+            transform.position = explosionPosition;
+            SpawnExplosionEffect(explosionPosition, explosionRadius);
             Destroy(gameObject);
         }
     }

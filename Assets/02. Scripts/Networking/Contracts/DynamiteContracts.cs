@@ -37,6 +37,12 @@ namespace TerrainCollapse.Networking
         public float ThrowSpeed { get; set; }
         public float FuseTime { get; set; }
         public float ExplosionRadius { get; set; }
+
+        public bool IsMine { get; set; }
+        public int CellX { get; set; }
+        public int CellY { get; set; }
+        public float ArmDelay { get; set; }
+        public float DetectionRadius { get; set; }
     }
 
     [Serializable]
@@ -61,5 +67,6 @@ namespace TerrainCollapse.Networking
         public float X { get; set; }
         public float Y { get; set; }
         public float ExplosionRadius { get; set; }
+        public bool IsMine { get; set; }
     }
 }

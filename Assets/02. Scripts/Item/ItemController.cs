@@ -288,10 +288,40 @@ namespace TerrainCollapse
                     bool requested = roomClient.RequestDynamiteThrow(
                         activeItem.Def.ID, ownerPos, mouseWorldPos);
 
-                    if (requested == false)
-                        Debug.LogWarning("[ItemController] 다이너마이트 서버 사용 요청을 보내지 못했습니다.", this);
-                    else
-                        StartCooldown(activeItem.Def);
+                        if (requested == false)
+                            Debug.LogWarning("[ItemController] 다이너마이트 서버 사용 요청을 보내지 못했습니다.", this);
+
+                        activeItem.OnClearPreview();
+                        isPreviewingActiveItem = false;
+
+                        return;
+                    }
+
+                    if (activeItem is MineItem)
+                    {
+                        bool requested = roomClient.RequestMinePlacement(
+                            activeItem.Def.ID, ownerPos);
+
+                        if (requested == false)
+                            Debug.LogWarning("[ItemController] 지뢰 서버 설치 요청을 보내지 못했습니다.", this);
+
+                        activeItem.OnClearPreview();
+                        isPreviewingActiveItem = false;
+
+                        return;
+                    }
+
+                    if (activeItem is Potion || activeItem is Detector)
+                    {
+                        if (roomClient.RequestUsableItemUse(activeItem.Def.ID) == false)
+                            Debug.LogWarning("[ItemController] 서버 아이템 사용 요청을 보내지 못했습니다.", this);
+
+                        activeItem.OnClearPreview();
+                        isPreviewingActiveItem = false;
+                        return;
+                    }
+
+                    Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
 
                     activeItem.OnClearPreview();
                     isPreviewingActiveItem = false;
