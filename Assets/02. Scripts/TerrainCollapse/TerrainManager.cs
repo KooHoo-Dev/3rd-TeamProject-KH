@@ -111,6 +111,18 @@ namespace TerrainCollapse
             return true;
         }
 
+        /// <summary>현재 셀의 지형 렌더링 정보를 읽는다. 지형 상태를 변경하지 않는다.</summary>
+        public bool TryGetTileVisual(Vector2Int cell, out Sprite sprite, out Color color)
+        {
+            sprite = null;
+            color = Color.white;
+            if (TryGetTileType(cell, out TerrainTileType type) == false) return false;
+
+            sprite = terrainWorld.GetTileSprite(type);
+            color = terrainWorld.GetTileColor(type);
+            return sprite != null;
+        }
+
         public bool TryGetDurability(Vector2Int cell, out int durability)
         {
             durability = 0;
