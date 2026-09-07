@@ -2714,5 +2714,6 @@ MonoBehaviour:
   itemListContent: {fileID: 667501314427221969}
   rowTemplate: {fileID: 4668187610509985592}
   undoButton: {fileID: 0}
+  goldText: {fileID: 0}
   notificationText: {fileID: 2962696920726390955}
   notificationDuration: 2
