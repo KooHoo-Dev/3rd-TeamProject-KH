@@ -11,6 +11,9 @@ namespace TerrainCollapse.Networking
     [Serializable] public sealed class LobbyStateMessage { public string Type; public LobbyRoomInfo Room; public string HostToken; }
     [Serializable] public sealed class LobbyStartedMessage { public string Type; public string RoomCode; }
     [Serializable] public sealed class LobbyErrorMessage { public string Type; public string Code; }
+    [Serializable] public sealed class LobbyChatSendMessage { public string Type = "lobby.chat.send"; public string Text; }
+    [Serializable] public sealed class LobbyChatMessage { public string Type; public string ClientID; public string NickName; public string Text; }
+    [Serializable] public sealed class LobbySystemMessage { public string Type; public string Text; }
     [Serializable] public sealed class LobbyPlayerInfo { public string ClientID; public string NickName; }
     [Serializable] public sealed class LobbyRoomInfo { public string RoomCode; public string HostClientID; public bool IsStarted; public int MaxPlayers; public List<string> Players; public List<LobbyPlayerInfo> PlayerDetails; }
 }

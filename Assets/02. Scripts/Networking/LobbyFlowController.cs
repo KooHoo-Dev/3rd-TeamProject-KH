@@ -24,10 +24,13 @@ namespace TerrainCollapse
         [SerializeField] private Button cancelJoinButton;
         [Header("Room Lobby UI")]
         [SerializeField] private TMP_Text roomInfoText;
+        [SerializeField] private TMP_Text playerCountText;
         [SerializeField] private LobbyPlayerSlotView[] playerSlots;
         [SerializeField] private Button copyRoomCodeButton;
+        [SerializeField] private Button returnButton;
         [SerializeField] private Button startGameButton;
         [SerializeField] private TMP_Text statusText;
+        [SerializeField] private string mainMenuSceneName = "MainMenuScene";
 
         private LobbySession session;
         private LobbySocketClient lobbyClient;
@@ -46,6 +49,7 @@ namespace TerrainCollapse
             joinRoomButton?.onClick.AddListener(ShowJoinPopup);
             confirmJoinButton?.onClick.AddListener(JoinRoom);
             cancelJoinButton?.onClick.AddListener(HideJoinPopup);
+            returnButton?.onClick.AddListener(ReturnToMainMenu);
             startGameButton?.onClick.AddListener(StartGame);
             copyRoomCodeButton?.onClick.AddListener(CopyRoomCode);
 
@@ -127,7 +131,9 @@ namespace TerrainCollapse
             }
 
             if (roomInfoText != null)
-                roomInfoText.text = $"ROOM CODE: {message.Room.RoomCode}  ({message.Room.Players.Count}/{message.Room.MaxPlayers})";
+                roomInfoText.text = message.Room.RoomCode;
+            if (playerCountText != null)
+                playerCountText.text = $"({message.Room.Players.Count}/{message.Room.MaxPlayers})";
             UpdatePlayerSlots(message.Room.PlayerDetails);
             if (startGameButton != null)
             {
@@ -152,6 +158,18 @@ namespace TerrainCollapse
                 else
                     playerSlots[i].SetEmpty();
             }
+        }
+
+        private async void ReturnToMainMenu()
+        {
+            if (isLoadingGame) return;
+
+            isLoadingGame = true;
+
+            await lobbyClient.DisconnectAsync();
+
+            session.ClearRoom();
+            SceneManager.LoadScene(mainMenuSceneName);
         }
 
         private void HandleStarted(string roomCode)

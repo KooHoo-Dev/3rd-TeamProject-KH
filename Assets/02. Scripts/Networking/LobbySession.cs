@@ -101,5 +101,12 @@ namespace TerrainCollapse
                 Instance.RoomCode,
                 Instance.NickName);
         }
+
+        public void ClearRoom()
+        {
+            RoomCode = null;
+            HostToken = null;
+            orderedPlayerClientIds.Clear();
+        }
     }
 }

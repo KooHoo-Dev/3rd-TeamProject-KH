@@ -20,6 +20,8 @@ namespace TerrainCollapse
         public event Action<LobbyStateMessage> StateReceived;
         public event Action<string> ErrorReceived;
         public event Action<string> Started;
+        public event Action<LobbyChatMessage> ChatMessageReceived;
+        public event Action<LobbySystemMessage> SystemMessageReceived;
 
         public bool IsConnected => socket?.State == WebSocketState.Open;
         public LobbyStateMessage LastState { get; private set; } // 씬 전환 중 놓칠 수 있는 가장 최근의 대기방 상태
@@ -55,6 +57,13 @@ namespace TerrainCollapse
             });
 
         public bool RequestStart(string hostToken) => Send(new LobbyStartRequest { HostToken = hostToken });
+        public bool SendChat(string text)
+        {
+            string normalized = text?.Trim();
+            if (string.IsNullOrWhiteSpace(normalized)) return false;
+            if (normalized.Length > 200) normalized = normalized.Substring(0, 200);
+            return Send(new LobbyChatSendMessage { Text = normalized });
+        }
 
         public async Task DisconnectAsync()
         {
@@ -149,6 +158,14 @@ namespace TerrainCollapse
                 case "lobby.error":
                     LobbyErrorMessage error = JsonConvert.DeserializeObject<LobbyErrorMessage>(json);
                     mainThreadActions.Enqueue(() => ErrorReceived?.Invoke(error.Code));
+                    break;
+                case "lobby.chat":
+                    LobbyChatMessage chat = JsonConvert.DeserializeObject<LobbyChatMessage>(json);
+                    mainThreadActions.Enqueue(() => ChatMessageReceived?.Invoke(chat));
+                    break;
+                case "lobby.system":
+                    LobbySystemMessage system = JsonConvert.DeserializeObject<LobbySystemMessage>(json);
+                    mainThreadActions.Enqueue(() => SystemMessageReceived?.Invoke(system));
                     break;
             }
         }
