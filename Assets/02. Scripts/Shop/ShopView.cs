@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using TerrainCollapse.Networking;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -19,6 +20,7 @@ namespace TerrainCollapse
         [SerializeField] private RectTransform itemListContent; // 카드가 배치될 부모 (ShopUIBuilder의 ItemListPanel)
         [SerializeField] private ShopItemRowView rowTemplate; // 씬에서는 비활성 상태로 존재하는 카드 템플릿
         [SerializeField] private Button undoButton;
+        [SerializeField] private TMP_Text goldText;
         [SerializeField] private TMP_Text notificationText;
         [SerializeField, Min(0.1f)] private float notificationDuration = 2f;
 
@@ -31,14 +33,49 @@ namespace TerrainCollapse
         private IReadOnlyList<ShopListing> listings = Array.Empty<ShopListing>();
         private readonly List<ShopItemRowView> spawnedRows = new();
         private Coroutine notificationRoutine;
+        private RoomClient roomClient;
 
         private GameObject Root => panelRoot != null ? panelRoot : gameObject;
 
         public void Bind(ShopService service, IItemInventory playerInventory, PickaxeInventory playerPickaxeInventory)
         {
+            if (inventory != null)
+                inventory.ItemChanged -= HandleInventoryChanged;
+
             shopService = service;
             inventory = playerInventory;
             pickaxeInventory = playerPickaxeInventory;
+
+            if (roomClient != null)
+                roomClient.ShopNotificationReceived -= ShowNotification;
+            roomClient = RoomClient.Instance;
+            if (roomClient != null)
+                roomClient.ShopNotificationReceived += ShowNotification;
+
+            if (inventory != null)
+                inventory.ItemChanged += HandleInventoryChanged;
+
+            RefreshGold();
+        }
+
+        private void OnDestroy()
+        {
+            if (inventory != null)
+                inventory.ItemChanged -= HandleInventoryChanged;
+            if (roomClient != null)
+                roomClient.ShopNotificationReceived -= ShowNotification;
+        }
+
+        public void BeginSession()
+        {
+            if (TryGetServerClient(out RoomClient roomClient))
+            {
+                if (roomClient.RequestShop(ShopActions.Begin) == false)
+                    ShowNotification("상점 이용 요청을 보내지 못했습니다.");
+                return;
+            }
+
+            shopService?.BeginSession();
         }
 
         private void Awake()
@@ -57,6 +94,7 @@ namespace TerrainCollapse
         public void Show()
         {
             Root.SetActive(true);
+            RefreshGold();
             SetCategory(ShopCategory.Pickaxe); // 상점에 들어올 때마다 기본값은 곡괭이 탭
         }
 
@@ -116,6 +154,13 @@ namespace TerrainCollapse
         // 카드의 구매 버튼이 눌렸을 때 ShopItemRowView가 호출하는 콜백
         private void HandlePurchaseRequested(ShopListing listing)
         {
+            if (TryGetServerClient(out RoomClient roomClient))
+            {
+                if (roomClient.RequestShop(ShopActions.Purchase, listing.ItemID) == false)
+                    ShowNotification("구매 요청을 보내지 못했습니다.");
+                return;
+            }
+
             ShopPurchaseResult result = shopService.TryPurchase(inventory, listing.ItemID, 1);
 
             if (result.Success)
@@ -131,6 +176,13 @@ namespace TerrainCollapse
         // 되돌리기 버튼 클릭 - 이번 방문에서 가장 최근에 산 것부터 선입후출로 되돌린다.
         private void HandleUndoClicked()
         {
+            if (TryGetServerClient(out RoomClient roomClient))
+            {
+                if (roomClient.RequestShop(ShopActions.Undo) == false)
+                    ShowNotification("구매 되돌리기 요청을 보내지 못했습니다.");
+                return;
+            }
+
             ShopUndoResult result = shopService.TryUndoLastPurchase(inventory);
 
             if (result.Success)
@@ -141,6 +193,37 @@ namespace TerrainCollapse
             }
 
             ShowNotification(GetUndoFailMessage(result.FailReason));
+        }
+
+        private static bool TryGetServerClient(out RoomClient roomClient)
+        {
+            roomClient = RoomClient.Instance;
+            return roomClient != null && roomClient.IsConnected;
+        }
+
+        private void HandleInventoryChanged(InventoryItemChange change)
+        {
+            if (TryGetGoldItemID(out int goldItemID) && change.ItemID == goldItemID)
+                RefreshGold();
+        }
+
+        private void RefreshGold()
+        {
+            if (goldText == null || inventory == null || TryGetGoldItemID(out int goldItemID) == false)
+                return;
+
+            goldText.text = $"{inventory.GetQuantity(goldItemID):N0} 골드";
+        }
+
+        private static bool TryGetGoldItemID(out int goldItemID)
+        {
+            goldItemID = 0;
+            if (DataManager.Instance == null ||
+                DataManager.Instance.ItemTable.TryGetGold(out ItemDef goldItem) == false)
+                return false;
+
+            goldItemID = goldItem.ID;
+            return true;
         }
 
         private static string GetPurchaseFailMessage(ShopPurchaseFailReason reason) => reason switch

@@ -52,6 +52,7 @@ namespace TerrainCollapse.Networking
         public const string InventoryGoldRanking = "inventory.gold_ranking";
         public const string InventorySell = "inventory.sell";
         public const string InventoryDebugGold = "inventory.debug_gold";
+        public const string ShopRequest = "shop.request";
     }
 
     // JSON 메시지의 Type 필드만 먼저 읽기 위한 헤더 데이터

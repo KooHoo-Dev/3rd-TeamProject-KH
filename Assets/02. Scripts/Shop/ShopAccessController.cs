@@ -5,14 +5,14 @@ namespace TerrainCollapse
 {
     // 플레이어가 지상(y >= shopAreaMinimumY)에 있을 때만 상점 인터페이스에 접근할 수 있도록 판정하고,
     // 접근 가능한 상태에서 지정 키를 누르면 ShopView(플레이스홀더 UI)를 열고 닫습니다.
-    [RequireComponent(typeof(PlayerInventory), typeof(TestPlayerController), typeof(PickaxeInventory))]
+    [RequireComponent(typeof(PlayerInventory), typeof(PlayerController), typeof(PickaxeInventory))]
     public sealed class ShopAccessController : MonoBehaviour
     {
         [SerializeField] private float shopAreaMinimumY = 0f; // 지상 기준선
         [SerializeField] private ShopView shopView; // 플레이스홀더 UI (없어도 접근 판정 자체는 동작)
         [SerializeField] private Key toggleKey = Key.B; // 상점 열기/닫기 키 (임시 배치, 추후 상호작용 UI로 교체 가능)
 
-        private TestPlayerController playerController;
+        private PlayerController playerController;
         private PlayerInventory inventory;
         private PickaxeInventory pickaxeInventory;
         private ShopService shopService;
@@ -22,7 +22,7 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            playerController = GetComponent<TestPlayerController>();
+            playerController = GetComponent<PlayerController>();
             inventory = GetComponent<PlayerInventory>();
             pickaxeInventory = GetComponent<PickaxeInventory>();
         }
@@ -42,8 +42,7 @@ namespace TerrainCollapse
         private void Update()
         {
             bool wasAccessible = IsShopAccessible;
-            IsShopAccessible = playerController.IsDead == false
-                                && playerController.CurrentPosition.y >= shopAreaMinimumY;
+            IsShopAccessible = playerController.IsDead == false && IsInShopArea();
 
             // 지상 구역을 벗어나면 상점이 열려 있어도 강제로 닫음
             if (wasAccessible && IsShopAccessible == false)
@@ -53,8 +52,19 @@ namespace TerrainCollapse
             if (ChatInputState.IsTyping) return;
 
             Keyboard keyboard = Keyboard.current;
-            if (keyboard != null && keyboard[toggleKey].wasPressedThisFrame)
+            if (keyboard != null &&
+                (keyboard[toggleKey].wasPressedThisFrame ||
+                 (IsShopOpen && keyboard[Key.Escape].wasPressedThisFrame)))
                 ToggleShop();
+        }
+
+        private bool IsInShopArea()
+        {
+            RoomClient roomClient = RoomClient.Instance;
+            if (roomClient?.IsAuthoritativeTerrainMode == true)
+                return roomClient.IsLocalPlayerInSpawnArea;
+
+            return playerController.CurrentPosition.y >= shopAreaMinimumY;
         }
 
         private void ToggleShop()
@@ -68,11 +78,11 @@ namespace TerrainCollapse
             if (IsShopOpen) return;
 
             IsShopOpen = true;
-            shopService?.BeginSession(); // 이번 방문의 되돌리기 내역을 새로 시작
+            shopView?.BeginSession();
             shopView?.Show();
         }
 
-        private void CloseShop()
+        public void CloseShop()
         {
             if (IsShopOpen == false) return;
 

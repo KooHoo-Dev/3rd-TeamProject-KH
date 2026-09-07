@@ -16,9 +16,7 @@ namespace TerrainCollapse
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text priceText;
         [SerializeField] private Button buyButton;
-        [SerializeField] private CanvasGroup canvasGroup; // 잠금 시 카드를 흐리게 + 클릭 차단
-
-        private const float LOCKED_ALPHA = 0.4f;
+        [SerializeField] private CanvasGroup canvasGroup;
 
         private ShopListing listing;
         private Action<ShopListing> onBuyClicked;
@@ -47,7 +45,7 @@ namespace TerrainCollapse
             if (nameText != null) nameText.text = listing.Name;
 
             if (priceText != null)
-                priceText.text = isLocked ? "보유 곡괭이보다 채굴력이 낮음" : $"{listing.Price} 골드";
+                priceText.text = $"{listing.Price:N0} 골드";
 
             if (iconImage != null)
             {
@@ -57,10 +55,13 @@ namespace TerrainCollapse
 
             if (canvasGroup != null)
             {
-                canvasGroup.alpha = isLocked ? LOCKED_ALPHA : 1f;
-                canvasGroup.interactable = isLocked == false;
-                canvasGroup.blocksRaycasts = isLocked == false;
+                canvasGroup.alpha = 1f;
+                canvasGroup.interactable = true;
+                canvasGroup.blocksRaycasts = true;
             }
+
+            if (buyButton != null)
+                buyButton.interactable = isLocked == false;
         }
 
         private void HandleBuyClicked()

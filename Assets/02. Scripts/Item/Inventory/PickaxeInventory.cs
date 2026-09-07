@@ -75,6 +75,11 @@ namespace TerrainCollapse
         {
             if (inventory.TryRemove(def.ID, addedQuantity) == false) return;
 
+            // 서버 인벤토리 Snapshot에는 장착 곡괭이가 계속 포함된다.
+            // 이미 장착한 동일 곡괭이를 다시 받은 경우 수량을 중복 누적하지 않는다.
+            if (CurrentDef != null && CurrentDef.ID == def.ID)
+                return;
+
             // 다른 종류의 곡괭이를 새로 얻었다면 업그레이드로 취급 - 기존 것은 반납하지 않고 그대로 폐기한다.
             if (CurrentDef != null && CurrentDef.ID != def.ID)
             {

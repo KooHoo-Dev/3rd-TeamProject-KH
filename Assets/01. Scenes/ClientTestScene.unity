@@ -1016,6 +1016,7 @@ MonoBehaviour:
   nickName: Player
   connectOnStart: 1
   debugMode: 1
+  mainMenuSceneName: MainMenuScene
   terrainWorld: {fileID: 190307189}
   terrainManager: {fileID: 190307187}
   collapseManager: {fileID: 190307185}
@@ -1029,6 +1030,8 @@ MonoBehaviour:
   remotePlayerRoot: {fileID: 912427809}
   dynamiteExplosivePrefab: {fileID: 5800443297313628158, guid: e13d0ad6707377b4eb949e8d55a4cfd6, type: 3}
   dynamiteRoot: {fileID: 801389962}
+  mineExplosivePrefab: {fileID: 0}
+  mineRoot: {fileID: 0}
   gameEndTimeScale: 0.08
   gameEndSlowMotionSeconds: 1.5
 --- !u!4 &1934651728
@@ -1247,6 +1250,107 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4215f371a3354ac993bd229350cd2f36, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PickaxeInventory
+--- !u!1001 &3762321568520262760
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3677568889802370026, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 7527009593963667744}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_Pivot.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_Pivot.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_AnchorMin.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5562868584648566612, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8471650360522374208, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_Name
+      value: Shop UI Server
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
 --- !u!1001 &7527009593963667742
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1259,6 +1363,10 @@ PrefabInstance:
       propertyPath: terrainManager
       value: 
       objectReference: {fileID: 190307187}
+    - target: {fileID: 1299874328272229677, guid: ca2943f7899b24f63aca13dcc6048a74, type: 3}
+      propertyPath: shopView
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 2805296468540921998, guid: ca2943f7899b24f63aca13dcc6048a74, type: 3}
       propertyPath: m_Name
       value: LocalPlayer
@@ -1320,6 +1428,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ca2943f7899b24f63aca13dcc6048a74, type: 3}
+--- !u!114 &7527009593963667744 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1299874328272229677, guid: ca2943f7899b24f63aca13dcc6048a74, type: 3}
+  m_PrefabInstance: {fileID: 7527009593963667742}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a32fe02619697334287ac6291642bbc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ShopAccessController
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1335,3 +1454,4 @@ SceneRoots:
   - {fileID: 1934651728}
   - {fileID: 1961313651}
   - {fileID: 1104309846}
+  - {fileID: 3762321568520262760}

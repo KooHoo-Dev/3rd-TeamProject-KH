@@ -90,6 +90,7 @@ namespace TerrainCollapse
         private bool isGameStarted;
         private bool isGameEnded;
         private string pendingInventorySellRequestId;
+        private string pendingShopRequestId;
         private string pendingDebugGoldRequestId;
         private long pendingCollapsePlacementId;
         private string pendingCollapsePlacementRequestId;
@@ -153,6 +154,7 @@ namespace TerrainCollapse
         public event Action<GameStartedMessage> GameStarted;
         public event Action<ChatBroadcastMessage> ChatMessageReceived;
         public event Action<ChatSystemMessage> SystemMessageReceived;
+        public event Action<string> ShopNotificationReceived;
         public event Action<UsableItemUsedMessage> UsableItemUsed;
         public event Action<GoldRankingMessage> GoldRankingChanged;
         public GoldRankingMessage CurrentGoldRanking { get; private set; }
@@ -338,6 +340,7 @@ namespace TerrainCollapse
             isGameStarted = false;
             isGameEnded = false;
             pendingInventorySellRequestId = null;
+            pendingShopRequestId = null;
             pendingDebugGoldRequestId = null;
             GameStartedAtUnixMilliseconds = 0;
             GameEndsAtUnixMilliseconds = 0;
@@ -389,6 +392,7 @@ namespace TerrainCollapse
             isGameStarted = false;
             isGameEnded = false;
             pendingInventorySellRequestId = null;
+            pendingShopRequestId = null;
             pendingDebugGoldRequestId = null;
             GameStartedAtUnixMilliseconds = 0;
             GameEndsAtUnixMilliseconds = 0;
@@ -531,6 +535,27 @@ namespace TerrainCollapse
             pendingInventorySellRequestId = null;
             return false;
 
+        }
+
+        public bool RequestShop(string action, int itemID = 0)
+        {
+            if (IsGameplayActive == false || string.IsNullOrEmpty(pendingShopRequestId) == false)
+                return false;
+
+            string requestId = CreateRequestId(
+                "shop",
+                Interlocked.Increment(ref nextRequestId));
+            pendingShopRequestId = requestId;
+            if (Send(new ShopRequest
+            {
+                RequestId = requestId,
+                Action = action,
+                ItemID = itemID,
+            }))
+                return true;
+
+            pendingShopRequestId = null;
+            return false;
         }
 
         public bool RequestUsableItemUse(int itemID)
@@ -1328,6 +1353,11 @@ namespace TerrainCollapse
 
         private void HandleError(ErrorMessage message)
         {
+            bool isShopRequest = string.Equals(
+                message?.RequestId,
+                pendingShopRequestId,
+                StringComparison.Ordinal);
+
             // 어느 요청의 답인지로만 푼다.
             //
             // 예전에는 코드가 "terrain." 으로 시작하기만 하면 굴착과 낙하를 한꺼번에 풀었다.
@@ -1345,6 +1375,8 @@ namespace TerrainCollapse
                 pendingWorldItemDrops.Remove(message.RequestId);
             if (string.Equals(message?.RequestId, pendingInventorySellRequestId, StringComparison.Ordinal))
                 pendingInventorySellRequestId = null;
+            if (string.Equals(message?.RequestId, pendingShopRequestId, StringComparison.Ordinal))
+                pendingShopRequestId = null;
             if (string.Equals(message?.RequestId, pendingDebugGoldRequestId, StringComparison.Ordinal))
                 pendingDebugGoldRequestId = null;
 
@@ -1358,6 +1390,14 @@ namespace TerrainCollapse
             string errorText = string.IsNullOrWhiteSpace(message?.Message)
                 ? message?.Code ?? "알 수 없는 서버 오류"
                 : message.Message;
+
+            if (isShopRequest)
+            {
+                ShopNotificationReceived?.Invoke(errorText);
+                Debug.LogWarning($"[RoomClient] Shop request failed: {message?.Code}: {errorText}", this);
+                return;
+            }
+
             bool isHealthFull = message?.Code == "player.health_full";
             SystemMessageReceived?.Invoke(new ChatSystemMessage
             {
@@ -1534,6 +1574,8 @@ namespace TerrainCollapse
                 pendingWorldItemDrops.Remove(message.RequestId);
             if (string.Equals(message.RequestId, pendingInventorySellRequestId, StringComparison.Ordinal))
                 pendingInventorySellRequestId = null;
+            if (string.Equals(message.RequestId, pendingShopRequestId, StringComparison.Ordinal))
+                pendingShopRequestId = null;
             if (string.Equals(message.RequestId, pendingDebugGoldRequestId, StringComparison.Ordinal))
                 pendingDebugGoldRequestId = null;
 

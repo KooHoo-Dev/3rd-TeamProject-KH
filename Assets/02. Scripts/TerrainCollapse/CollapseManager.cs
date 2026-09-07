@@ -114,6 +114,28 @@ namespace TerrainCollapse
             if (cells == null || cells.Count == 0) return;
             
             TerrainGridWorld source = terrainGridWorld;
+            if (source?.Data == null)
+            {
+                Debug.LogError("[Terrain Collapse] TerrainGridWorld가 준비되지 않아 Chunk를 만들 수 없습니다.", this);
+                return;
+            }
+
+            List<TerrainCell> sourceCells = new(cells.Count);
+            foreach (Vector2Int worldCell in cells)
+            {
+                TerrainCell sourceCell = source.Data.GetCellOrNull(worldCell);
+                if (sourceCell == null || sourceCell.Type == TerrainTileType.Empty)
+                {
+                    Debug.LogWarning(
+                        $"[Terrain Collapse] 원본 셀이 없어 Chunk 생성을 건너뜁니다: " +
+                        $"id={collapseId}, cell={worldCell}",
+                        this);
+                    return;
+                }
+
+                sourceCells.Add(sourceCell);
+            }
+
             Vector2Int anchor = cells[0];
 
             GameObject root = new($"FallingChunk_{collapseId}",
@@ -136,10 +158,11 @@ namespace TerrainCollapse
             List<int> cellDurabilities = new(cells.Count);
             List<int> cellResourceIDs = new(cells.Count);
             
-            foreach (Vector2Int worldCell in cells)
+            for (int i = 0; i < cells.Count; i++)
             {
+                Vector2Int worldCell = cells[i];
                 Vector2Int localCell = worldCell - anchor;
-                TerrainCell sourceCell = source.Data.GetCellOrNull(worldCell);
+                TerrainCell sourceCell = sourceCells[i];
                 TerrainTileType type = sourceCell.Type;
                 localCells.Add(localCell);
                 cellTypes.Add(type);
