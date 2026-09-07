@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System;
+using TerrainCollapse.Networking;
 
 namespace TerrainCollapse
 {
@@ -53,12 +54,16 @@ namespace TerrainCollapse
         {
             inventory.ItemChanged += HandleInventoryChanged;
             pickaxeInventory.PickaxeChanged += HandlePickaxeChanged;
+            if (RoomClient.Instance != null)
+                RoomClient.Instance.UsableItemUsed += HandleUsableItemUsed;
         }
 
         private void OnDisable()
         {
             inventory.ItemChanged -= HandleInventoryChanged;
             pickaxeInventory.PickaxeChanged -= HandlePickaxeChanged;
+            if (RoomClient.Instance != null)
+                RoomClient.Instance.UsableItemUsed -= HandleUsableItemUsed;
         }
 
         private void Start()
@@ -233,7 +238,8 @@ namespace TerrainCollapse
                         return;
                     }
 
-                    Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
+                    if (roomClient.RequestUsableItemUse(activeItem.Def.ID) == false)
+                        Debug.LogWarning("[ItemController] 서버 아이템 사용 요청을 보내지 못했습니다.", this);
 
                     activeItem.OnClearPreview();
                     isPreviewingActiveItem = false;
@@ -257,6 +263,13 @@ namespace TerrainCollapse
 
                 isPreviewingActiveItem = false;
             }
+        }
+
+        private void HandleUsableItemUsed(UsableItemUsedMessage message)
+        {
+            if (message == null || activeItem == null || activeItem.Def.ID != message.ItemID) return;
+            if (activeItem is Potion potion) potion.PlayConfirmedEffect(transform.position);
+            else if (activeItem is Detector detector) detector.ShowConfirmedResults(transform.position, message.DetectedCells);
         }
 
         // 평상시 처리: 곡괭이 조준 표시 + 좌클릭 홀드 시 애니메이션 1사이클 단위 반복 채굴

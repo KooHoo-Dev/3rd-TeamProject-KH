@@ -145,6 +145,7 @@ namespace TerrainCollapse
         public event Action<GameStartedMessage> GameStarted;
         public event Action<ChatBroadcastMessage> ChatMessageReceived;
         public event Action<ChatSystemMessage> SystemMessageReceived;
+        public event Action<UsableItemUsedMessage> UsableItemUsed;
         public event Action<GoldRankingMessage> GoldRankingChanged;
         public GoldRankingMessage CurrentGoldRanking { get; private set; }
 
@@ -518,6 +519,15 @@ namespace TerrainCollapse
 
         }
 
+        public bool RequestUsableItemUse(int itemID)
+        {
+            return IsGameplayActive && itemID > 0 && Send(new UsableItemUseRequest
+            {
+                RequestId = CreateRequestId("use", Interlocked.Increment(ref nextRequestId)),
+                ItemID = itemID,
+            });
+        }
+
         public bool SendChat(string text)
         {
             if (!IsConnected || !handshakeComplete) return false;
@@ -802,6 +812,9 @@ namespace TerrainCollapse
                         break;
                     case NetworkMessageTypes.InventoryGoldRanking:
                         EnqueueMessage<GoldRankingMessage>(json, HandleGoldRanking);
+                        break;
+                    case NetworkMessageTypes.UsableItemUsed:
+                        EnqueueMessage<UsableItemUsedMessage>(json, message => UsableItemUsed?.Invoke(message));
                         break;
                     case NetworkMessageTypes.PlayerHealthSnapshot:
                         EnqueueMessage<PlayerHealthSnapshotMessage>(json, HandlePlayerHealthSnapshot);
