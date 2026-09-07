@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace TerrainCollapse
 {
@@ -22,6 +23,8 @@ namespace TerrainCollapse
         [SerializeField] private GameObject roomCodePopup;
         [SerializeField] private Button confirmJoinButton;
         [SerializeField] private Button cancelJoinButton;
+        [SerializeField] private GameObject kickedNoticePopup;
+        [SerializeField] private Button kickedNoticeCloseButton;
         [Header("Room Lobby UI")]
         [SerializeField] private TMP_Text roomInfoText;
         [SerializeField] private TMP_Text playerCountText;
@@ -31,10 +34,15 @@ namespace TerrainCollapse
         [SerializeField] private Button startGameButton;
         [SerializeField] private TMP_Text statusText;
         [SerializeField] private string mainMenuSceneName = "MainMenuScene";
+        [SerializeField] private GameObject kickConfirmPopup;
+        [SerializeField] private TMP_Text kickConfirmMessage;
+        [SerializeField] private Button kickConfirmButton;
+        [SerializeField] private Button kickCancelButton;
 
         private LobbySession session;
         private LobbySocketClient lobbyClient;
         private bool isLoadingGame;
+        private string pendingKickClientId;
 
         private void Start()
         {
@@ -43,6 +51,7 @@ namespace TerrainCollapse
             lobbyClient.StateReceived += HandleState;
             lobbyClient.ErrorReceived += HandleError;
             lobbyClient.Started += HandleStarted;
+            lobbyClient.Kicked += HandleKicked;
             if (roomInfoText != null) roomInfoText.raycastTarget = false;
             if (statusText != null) statusText.raycastTarget = false;
             createRoomButton?.onClick.AddListener(CreateRoom);
@@ -53,7 +62,18 @@ namespace TerrainCollapse
             startGameButton?.onClick.AddListener(StartGame);
             copyRoomCodeButton?.onClick.AddListener(CopyRoomCode);
 
-            if (isRoomScene == false) return;
+            if (isRoomScene == false)
+            {
+                if (kickedNoticePopup != null) kickedNoticePopup.SetActive(false);
+                kickedNoticeCloseButton?.onClick.AddListener(HideKickedNotice);
+                ShowKickedNoticeIfNeeded();
+                return;
+            }
+
+            MoveKickPopupToForegroundCanvas();
+            if (kickConfirmPopup != null) kickConfirmPopup.SetActive(false);
+            kickCancelButton?.onClick.AddListener(HideKickConfirmation);
+            kickConfirmButton?.onClick.AddListener(ConfirmKick);
             if (session.HasRoom == false)
             {
                 SetStatus("참여 중인 방이 없습니다. 메인 메뉴로 돌아가세요.");
@@ -70,6 +90,7 @@ namespace TerrainCollapse
             lobbyClient.StateReceived -= HandleState;
             lobbyClient.ErrorReceived -= HandleError;
             lobbyClient.Started -= HandleStarted;
+            lobbyClient.Kicked -= HandleKicked;
         }
 
         private async void CreateRoom()
@@ -123,7 +144,12 @@ namespace TerrainCollapse
         {
             if (message?.Room == null) return;
             string nickName = nickNameInput?.text.Trim() ?? session.NickName;
-            session.Configure(serverUrl, nickName, message.Room.RoomCode, message.HostToken);
+            session.Configure(
+                serverUrl,
+                nickName,
+                message.Room.RoomCode,
+                message.Room.HostClientID,
+                message.HostToken);
             session.UpdatePlayers(message.Room.PlayerDetails);
             if (isRoomScene == false)
             {
@@ -132,7 +158,7 @@ namespace TerrainCollapse
             }
 
             roomInfoText.text = $"방 코드 : {message.Room.RoomCode}";
-            playerCountText.text = $"({message.Room.Players.Count}/{message.Room.MaxPlayers})";
+            playerCountText.text = $"({message.Room.PlayerDetails.Count(player => player.IsConnected)}/{message.Room.MaxPlayers})";
             SetStatus(session.IsHost
                 ? string.Empty
                 : "호스트가 게임을 시작할 때까지 기다리는 중입니다.");
@@ -151,13 +177,19 @@ namespace TerrainCollapse
             for (int i = 0; i < playerSlots.Length; i++)
             {
                 if (playerSlots[i] == null) continue;
+
                 if (players != null && i < players.Count)
+                {
+                    LobbyPlayerInfo player = players[i];
                     playerSlots[i].SetPlayer(
-                        players[i].NickName,
-                        players[i].ClientID == session.ClientId,
-                        i);
-                else
-                    playerSlots[i].SetEmpty();
+                        player.NickName,
+                        player.ClientID == session.ClientId,
+                        i,
+                        player.IsConnected,
+                        session.IsHost && i > 0,
+                        () => ShowKickConfirmation(player.ClientID, player.NickName));
+                }
+                else playerSlots[i].SetEmpty();
             }
         }
 
@@ -186,8 +218,45 @@ namespace TerrainCollapse
                 lobbyClient.ShowLocalSystemMessage("게임을 시작하려면 최소 2명의 플레이어가 필요합니다.");
                 return;
             }
-
+            if (error == "room.players_not_returned")
+            {
+                lobbyClient.ShowLocalSystemMessage("모든 기존 플레이어가 대기실로 돌아와야 게임을 시작할 수 있습니다.");
+                return;
+            }
             lobbyClient.ShowLocalSystemMessage($"요청 처리에 실패했습니다: {error}");
+        }
+
+        private void ShowKickConfirmation(string targetClientId, string nickName)
+        {
+            if (session.IsHost == false || string.IsNullOrWhiteSpace(targetClientId)) return;
+            if (kickConfirmPopup == null || kickConfirmMessage == null) return;
+
+            pendingKickClientId = targetClientId;
+            kickConfirmMessage.text = $"{nickName}님을 추방하시겠습니까?";
+            kickConfirmPopup.SetActive(true);
+        }
+
+        private void ConfirmKick()
+        {
+            if (session.IsHost && string.IsNullOrWhiteSpace(pendingKickClientId) == false)
+                lobbyClient.RequestKick(session.HostToken, pendingKickClientId);
+            HideKickConfirmation();
+        }
+
+        private void HideKickConfirmation()
+        {
+            pendingKickClientId = null;
+            if (kickConfirmPopup != null) kickConfirmPopup.SetActive(false);
+        }
+
+        private async void HandleKicked(LobbyKickedMessage _)
+        {
+            if (isLoadingGame) return;
+            isLoadingGame = true;
+            await lobbyClient.DisconnectAsync();
+            session.NotifyKicked();
+            session.ClearRoom();
+            SceneManager.LoadScene(mainMenuSceneName);
         }
 
         private bool TryReadNickName(out string nickName)
@@ -228,6 +297,52 @@ namespace TerrainCollapse
         private void SetStatus(string text)
         {
             if (statusText != null) statusText.text = text;
+        }
+
+        private void MoveKickPopupToForegroundCanvas()
+        {
+            if (kickConfirmPopup == null) return;
+
+            // 아바타 프리뷰는 SpriteRenderer이고, 로비 UI는 Screen Space - Camera다.
+            // 따라서 팝업만 Screen Space - Overlay 루트로 옮겨 항상 모든 프리뷰보다 앞에 그린다.
+            Canvas sourceCanvas = kickConfirmPopup.GetComponentInParent<Canvas>();
+            GameObject root = new("Lobby Modal Overlay", typeof(RectTransform), typeof(Canvas),
+                typeof(CanvasScaler), typeof(GraphicRaycaster));
+            Canvas canvas = root.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 1000;
+
+            CanvasScaler sourceScaler = sourceCanvas != null
+                ? sourceCanvas.GetComponent<CanvasScaler>()
+                : null;
+            CanvasScaler scaler = root.GetComponent<CanvasScaler>();
+            if (sourceScaler != null)
+            {
+                scaler.uiScaleMode = sourceScaler.uiScaleMode;
+                scaler.referenceResolution = sourceScaler.referenceResolution;
+                scaler.screenMatchMode = sourceScaler.screenMatchMode;
+                scaler.matchWidthOrHeight = sourceScaler.matchWidthOrHeight;
+                scaler.referencePixelsPerUnit = sourceScaler.referencePixelsPerUnit;
+            }
+
+            kickConfirmPopup.transform.SetParent(root.transform, false);
+        }
+
+        private void ShowKickedNoticeIfNeeded()
+        {
+            if (session.ConsumeKickedNotice() == false) return;
+            if (kickedNoticePopup == null)
+            {
+                Debug.LogWarning("[LobbyFlowController] Kicked Notice Popup is not assigned.", this);
+                return;
+            }
+            kickedNoticePopup.SetActive(true);
+        }
+
+        private void HideKickedNotice()
+        {
+            if (kickedNoticePopup != null) kickedNoticePopup.SetActive(false);
         }
     }
 }

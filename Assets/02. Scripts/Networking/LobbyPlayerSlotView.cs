@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 namespace TerrainCollapse
 {
@@ -9,6 +10,8 @@ namespace TerrainCollapse
     {
         private static readonly int NewColorId =
             Shader.PropertyToID("_ColorChangeNewCol");
+        private static readonly int AlphaId =
+            Shader.PropertyToID("_Alpha");
 
         private static readonly Color[] Colors =
         {
@@ -21,49 +24,71 @@ namespace TerrainCollapse
         public static Color GetColor(int colorIndex)
             => Colors[Mathf.Clamp(colorIndex, 0, Colors.Length - 1)];
 
-        public static void ApplyToSpriteRenderers(GameObject playerRoot, int colorIndex)
+        public static void ApplyToSpriteRenderers(GameObject playerRoot, int colorIndex, float alpha = 1f)
         {
             if (playerRoot == null) return;
 
             Color color = GetColor(colorIndex);
+            color.a *= Mathf.Clamp01(alpha);
             MaterialPropertyBlock properties = new();
             foreach (SpriteRenderer spriteRenderer in
                      playerRoot.GetComponentsInChildren<SpriteRenderer>(true))
             {
                 spriteRenderer.GetPropertyBlock(properties);
                 properties.SetColor(NewColorId, color);
+                // Player.mat의 AllIn1 Shader는 최종 alpha에 이 값을 사용한다.
+                properties.SetFloat(AlphaId, Mathf.Clamp01(alpha));
                 spriteRenderer.SetPropertyBlock(properties);
             }
         }
     }
 
     /// <summary>대기방의 고정 4인 슬롯 하나를 표시한다.</summary>
-    public sealed class LobbyPlayerSlotView : MonoBehaviour
+    public sealed class LobbyPlayerSlotView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
     {
         private const float PreviewScale = 75f;
+        private const int HoverOverlaySortingOrder = 900;
+        private static Canvas hoverOverlayCanvas;
 
         [SerializeField] private Image avatarImage;
         [SerializeField] private TMP_Text nickNameText;
         [SerializeField] private GameObject localPlayerPrefab;
         [SerializeField] private GameObject remotePlayerPrefab;
+        [SerializeField] private GameObject kickOverlay;
 
         private GameObject previewInstance;
         private GameObject currentPrefab;
+        private System.Action kickAction;
+        private RectTransform slotRect;
+        private RectTransform kickOverlayRect;
+        private Camera sourceCanvasCamera;
 
         private void Awake()
         {
+            slotRect = transform as RectTransform;
             if (avatarImage != null) avatarImage.enabled = false;
+            MoveKickOverlayToForegroundCanvas();
+            if (kickOverlay != null) kickOverlay.SetActive(false);
         }
 
-        public void SetPlayer(string nickName, bool isLocal, int colorIndex)
+        private void LateUpdate()
+        {
+            if (kickOverlay != null && kickOverlay.activeSelf)
+                RefreshKickOverlayRect();
+        }
+
+        public void SetPlayer(string nickName, bool isLocal, int colorIndex, bool isConnected,
+            bool canKick, System.Action onKick)
         {
             Color playerColor = PlayerColorPalette.GetColor(colorIndex);
-            ShowPrefab(isLocal ? localPlayerPrefab : remotePlayerPrefab, colorIndex);
+            ShowPrefab(isLocal ? localPlayerPrefab : remotePlayerPrefab, colorIndex, isConnected);
             if (nickNameText != null)
             {
                 nickNameText.text = nickName;
-                nickNameText.color = playerColor;
+                nickNameText.color = isConnected ? playerColor : new Color(playerColor.r, playerColor.g, playerColor.b, 0.35f);
             }
+            kickAction = canKick ? onKick : null;
+            if (kickOverlay != null) kickOverlay.SetActive(false);
         }
 
         public void SetEmpty()
@@ -74,9 +99,96 @@ namespace TerrainCollapse
                 nickNameText.text = "Waiting...";
                 nickNameText.color = new Color(1f, 1f, 1f, 0.4f);
             }
+            kickAction = null;
+            if (kickOverlay != null) kickOverlay.SetActive(false);
         }
 
-        private void ShowPrefab(GameObject prefab, int colorIndex)
+        public void OnPointerEnter(PointerEventData _)
+        {
+            if (kickAction == null || kickOverlay == null) return;
+            RefreshKickOverlayRect();
+            kickOverlay.SetActive(true);
+        }
+
+        public void OnPointerExit(PointerEventData _)
+        {
+            if (kickOverlay != null) kickOverlay.SetActive(false);
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            if (eventData.button != PointerEventData.InputButton.Left || kickAction == null) return;
+            kickAction.Invoke();
+        }
+
+        private void MoveKickOverlayToForegroundCanvas()
+        {
+            if (kickOverlay == null) return;
+
+            Canvas sourceCanvas = kickOverlay.GetComponentInParent<Canvas>();
+            if (sourceCanvas == null || slotRect == null) return;
+
+            sourceCanvasCamera = sourceCanvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null
+                : sourceCanvas.worldCamera;
+            Canvas canvas = GetOrCreateHoverOverlayCanvas(sourceCanvas);
+            if (canvas == null) return;
+
+            kickOverlay.transform.SetParent(canvas.transform, false);
+            kickOverlayRect = kickOverlay.transform as RectTransform;
+            kickOverlayRect.anchorMin = kickOverlayRect.anchorMax = new Vector2(0.5f, 0.5f);
+            kickOverlayRect.pivot = new Vector2(0.5f, 0.5f);
+            foreach (Graphic graphic in kickOverlay.GetComponentsInChildren<Graphic>(true))
+                graphic.raycastTarget = false;
+        }
+
+        private static Canvas GetOrCreateHoverOverlayCanvas(Canvas sourceCanvas)
+        {
+            if (hoverOverlayCanvas != null) return hoverOverlayCanvas;
+
+            GameObject root = new("Lobby Hover Overlay", typeof(RectTransform), typeof(Canvas),
+                typeof(CanvasScaler), typeof(GraphicRaycaster));
+            hoverOverlayCanvas = root.GetComponent<Canvas>();
+            hoverOverlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            hoverOverlayCanvas.overrideSorting = true;
+            hoverOverlayCanvas.sortingOrder = HoverOverlaySortingOrder;
+
+            CanvasScaler sourceScaler = sourceCanvas.GetComponent<CanvasScaler>();
+            CanvasScaler scaler = root.GetComponent<CanvasScaler>();
+            if (sourceScaler != null)
+            {
+                scaler.uiScaleMode = sourceScaler.uiScaleMode;
+                scaler.referenceResolution = sourceScaler.referenceResolution;
+                scaler.screenMatchMode = sourceScaler.screenMatchMode;
+                scaler.matchWidthOrHeight = sourceScaler.matchWidthOrHeight;
+                scaler.referencePixelsPerUnit = sourceScaler.referencePixelsPerUnit;
+            }
+            return hoverOverlayCanvas;
+        }
+
+        private void RefreshKickOverlayRect()
+        {
+            if (slotRect == null || kickOverlayRect == null || hoverOverlayCanvas == null) return;
+
+            Vector3[] corners = new Vector3[4];
+            slotRect.GetWorldCorners(corners);
+            RectTransform canvasRect = hoverOverlayCanvas.transform as RectTransform;
+            Vector2 min = new(float.MaxValue, float.MaxValue);
+            Vector2 max = new(float.MinValue, float.MinValue);
+            for (int i = 0; i < corners.Length; i++)
+            {
+                Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(sourceCanvasCamera, corners[i]);
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    canvasRect, screenPoint, null, out Vector2 localPoint);
+                min = Vector2.Min(min, localPoint);
+                max = Vector2.Max(max, localPoint);
+            }
+
+            kickOverlayRect.anchoredPosition = (min + max) * 0.5f;
+            kickOverlayRect.sizeDelta = max - min;
+        }
+
+        private void ShowPrefab(GameObject prefab, int colorIndex, bool isConnected)
         {
             if (avatarImage == null || prefab == null)
             {
@@ -97,12 +209,12 @@ namespace TerrainCollapse
                 previewInstance.name = $"{prefab.name} Preview";
                 DisableGameplayComponents(previewInstance);
                 avatarRoot.SetActive(wasActive);
-                ConfigureIdleAnimation(previewInstance);
                 currentPrefab = prefab;
             }
 
             previewInstance.SetActive(true);
-            PlayerColorPalette.ApplyToSpriteRenderers(previewInstance, colorIndex);
+            ConfigureIdleAnimation(previewInstance);
+            PlayerColorPalette.ApplyToSpriteRenderers(previewInstance, colorIndex, isConnected ? 1f : 0.35f);
             FitToAvatarRect();
         }
 
@@ -142,12 +254,14 @@ namespace TerrainCollapse
             if (animator == null) return;
 
             animator.enabled = true;
+            animator.Rebind();
             animator.SetFloat("Speed", 0f);
             animator.SetFloat("YVelocity", 0f);
             animator.SetBool("Grounded", true);
             animator.SetBool("Climbing", false);
             animator.SetBool("Dead", false);
             animator.Play("Idle", 0, 0f);
+            animator.Update(0f);
         }
 
     }
