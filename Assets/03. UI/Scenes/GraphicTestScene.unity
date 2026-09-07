@@ -1090,6 +1090,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Shop UI
       objectReference: {fileID: 0}
+    - target: {fileID: 8023338856328393803, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 373.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 8023338856328393803, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -37
+      objectReference: {fileID: 0}
     - target: {fileID: 8512695498862625950, guid: 26c377a8ded0b524bb3e8a1857cbe9fc, type: 3}
       propertyPath: m_text
       value: "\uACE8\uB4DC\uAC00 \uBAA8\uC790\uB78D\uB2C8\uB2E4."
