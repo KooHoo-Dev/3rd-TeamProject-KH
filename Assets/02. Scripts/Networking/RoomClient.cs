@@ -1090,7 +1090,13 @@ namespace TerrainCollapse
         private void HandlePlayerHealthChanged(PlayerHealthChangedMessage message)
         {
             PlayerHealthStateDto player = message?.Player;
-            if (player?.PlayerID == localPlayerId) ApplyLocalPlayerHealth(player, player.IsDead);
+            if (player?.PlayerID == localPlayerId)
+            {
+                int previousHp = localPlayerHp != null ? localPlayerHp.CurrentHp : player.CurrentHealth;
+                ApplyLocalPlayerHealth(player, player.IsDead);
+                if (localPlayerHp != null && previousHp - localPlayerHp.CurrentHp >= 3)
+                    GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerHurt);
+            }
             else if (player != null &&
                      remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
                 remote.SetDead(player.IsDead);
