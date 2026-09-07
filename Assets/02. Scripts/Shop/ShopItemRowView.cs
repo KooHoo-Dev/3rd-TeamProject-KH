@@ -47,7 +47,7 @@ namespace TerrainCollapse
             if (nameText != null) nameText.text = listing.Name;
 
             if (priceText != null)
-                priceText.text = isLocked ? "보유 곡괭이보다 채굴력이 낮음" : $"{listing.Price} Gold";
+                priceText.text = isLocked ? "보유 곡괭이보다 채굴력이 낮음" : $"{listing.Price} 골드";
 
             if (iconImage != null)
             {
