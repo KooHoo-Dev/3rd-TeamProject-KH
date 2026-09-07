@@ -23,6 +23,8 @@ namespace TerrainCollapse
 
             PlayerInventory inventory = GetComponent<PlayerInventory>();
             inventory.TryAdd(goldItem.ID, initialGold);
+            inventory.TryAdd(ItemIndex-2,100);
+            inventory.TryAdd(ItemIndex-1,100);
             inventory.TryAdd(ItemIndex,100);
         }
     }

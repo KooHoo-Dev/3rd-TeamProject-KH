@@ -20,6 +20,7 @@ namespace TerrainCollapse
         public string PrefabKey; // 프리팹 리소스 경로 키
         public string SpriteKey; // 스프라이트 리소스 경로 키
         public int Weight;
+        public float Cooldown;
 
         // 곡괭이 전용 데이터
         public float PickaxeRange;
@@ -44,6 +45,7 @@ namespace TerrainCollapse
         public Item Prefab { get; private set; } // 키 해석 완료된 실제 프리팹
         public Sprite Sprite { get; private set; }  // 키 해석 완료된 실제 스프라이트
         public int Weight { get; private set; }
+        public float Cooldown { get; private set; }
 
         // 타입에 따라 안전하게 제공되는 스탯 정보
         public PickaxeInfo? PickaxeData { get; private set; }
@@ -58,6 +60,7 @@ namespace TerrainCollapse
             Prefab = prefab; // 리소스를 직접 찾아와 매핑(Key Resolution)
             Sprite = sprite;
             Weight = dto.Weight;
+            Cooldown = dto.Cooldown;
 
             // 아이템 타입에 맞게 데이터 조립
             if (Type == ItemType.Pickaxe)

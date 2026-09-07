@@ -32,6 +32,10 @@ namespace TerrainCollapse
         // 우클릭을 눌러 액티브 아이템을 프리뷰하고 있는 중인지 여부
         private bool isPreviewingActiveItem;
 
+        // itemID -> 재사용 가능 시각(Time.time 기준). 인스턴스가 아니라 itemID에 귀속시켜
+        // 아이템을 교체/재장착해도(인스턴스가 새로 생성돼도) 쿨다운이 초기화되지 않게 한다.
+        private readonly System.Collections.Generic.Dictionary<int, float> itemReadyTime = new();
+
         public event Action<float> MineStarted;
 
         private bool isMining;
@@ -150,6 +154,52 @@ namespace TerrainCollapse
             isPreviewingActiveItem = false;
         }
 
+        /// <summary>
+        /// 해당 itemID가 현재 쿨다운 중인지 여부 (휠 UI 등에서 아이콘 표시용).
+        /// </summary>
+        public bool IsItemOnCooldown(int itemID)
+        {
+            if (DataManager.Instance.ItemTable.TryGet(itemID, out ItemDef def) == false)
+                return false;
+
+            return IsOnCooldown(def);
+        }
+
+        /// <summary>
+        /// 해당 itemID의 남은 쿨다운(초). 쿨다운 중이 아니면 0.
+        /// </summary>
+        public float GetItemCooldownRemaining(int itemID)
+        {
+            if (DataManager.Instance.ItemTable.TryGet(itemID, out ItemDef def) == false)
+                return 0f;
+
+            return GetRemainingCooldown(def);
+        }
+
+        /// <summary>
+        /// 해당 itemID의 쿨다운 총 지속시간(초). UI에서 remaining / duration으로
+        /// 라디얼 필 비율을 계산할 때 사용합니다.
+        /// </summary>
+        public float GetItemCooldownDuration(int itemID)
+        {
+            if (DataManager.Instance.ItemTable.TryGet(itemID, out ItemDef def) == false)
+                return 0f;
+
+            return def.Cooldown;
+        }
+
+        private bool IsOnCooldown(ItemDef def)
+            => def.Cooldown > 0f && itemReadyTime.TryGetValue(def.ID, out float readyTime) && Time.time < readyTime;
+
+        private float GetRemainingCooldown(ItemDef def)
+            => itemReadyTime.TryGetValue(def.ID, out float readyTime) ? Mathf.Max(0f, readyTime - Time.time) : 0f;
+
+        private void StartCooldown(ItemDef def)
+        {
+            if (def.Cooldown > 0f)
+                itemReadyTime[def.ID] = Time.time + def.Cooldown;
+        }
+
         private void Update()
         {
             if (pickaxeItem == null && activeItem == null) return;
@@ -190,8 +240,10 @@ namespace TerrainCollapse
             bool leftPressedThisFrame = mouse.leftButton.wasPressedThisFrame;
 
             // 액티브 아이템 프리뷰가 시작되면 그 동안 곡괭이 입력은 처리하지 않는다.
+            // 쿨다운 중인 아이템은 애초에 프리뷰(조준)조차 시작하지 않는다.
             if (isBuried == false &&
-                rightPressedThisFrame && activeItem != null && !isPreviewingActiveItem)
+                rightPressedThisFrame && activeItem != null && !isPreviewingActiveItem &&
+                !IsOnCooldown(activeItem.Def))
             {
                 isPreviewingActiveItem = true;
                 pickaxeItem?.OnClearPreview();
@@ -220,25 +272,26 @@ namespace TerrainCollapse
             activeItem.OnUpdatePreview(ownerPos, mouseWorldPos);
 
             // 우클릭을 뗀 시점에 실제 사용 실행
-            if (rightReleasedThisFrame)
+            if (rightReleasedThisFrame == false) return;
+            // 프리뷰 도중(다른 아이템 사용 등으로) 쿨다운이 걸렸을 수 있으니 사용 직전 한 번 더 확인
+            if (IsOnCooldown(activeItem.Def))
             {
-                if (RoomClient.Instance is { IsConnected: true } roomClient)
+                activeItem.OnClearPreview();
+                isPreviewingActiveItem = false;
+                return;
+            }
+
+            if (RoomClient.Instance is { IsConnected: true } roomClient)
+            {
+                if (activeItem is DynamiteItem)
                 {
-                    if (activeItem is DynamiteItem)
-                    {
-                        bool requested = roomClient.RequestDynamiteThrow(
-                            activeItem.Def.ID, ownerPos, mouseWorldPos);
+                    bool requested = roomClient.RequestDynamiteThrow(
+                        activeItem.Def.ID, ownerPos, mouseWorldPos);
 
-                        if (requested == false)
-                            Debug.LogWarning("[ItemController] 다이너마이트 서버 사용 요청을 보내지 못했습니다.", this);
-
-                        activeItem.OnClearPreview();
-                        isPreviewingActiveItem = false;
-
-                        return;
-                    }
-
-                    Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
+                    if (requested == false)
+                        Debug.LogWarning("[ItemController] 다이너마이트 서버 사용 요청을 보내지 못했습니다.", this);
+                    else
+                        StartCooldown(activeItem.Def);
 
                     activeItem.OnClearPreview();
                     isPreviewingActiveItem = false;
@@ -246,26 +299,34 @@ namespace TerrainCollapse
                     return;
                 }
 
-                int itemID = activeItem.Def.ID;
+                Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
 
-                // 프리뷰 도중 다른 경로(판매/드롭 등)로 소진됐을 수 있으니 사용 직전 한 번 더 확인
-                if (inventory != null && inventory.Has(itemID, 1) == false)
-                {
-                    ClearActiveItem();
-                    return;
-                }
-
-                bool wasUsed = activeItem.Use(ownerPos, mouseWorldPos);
-
-                // 실제로 사용에 성공했을 때만 인벤토리에서 소모
-                // (0개가 되면 HandleInventoryChanged에서 자동 해제됨)
-                if (wasUsed)
-                {
-                    inventory?.TryRemove(itemID, 1);
-                }
-
+                activeItem.OnClearPreview();
                 isPreviewingActiveItem = false;
+
+                return;
             }
+
+            int itemID = activeItem.Def.ID;
+
+            // 프리뷰 도중 다른 경로(판매/드롭 등)로 소진됐을 수 있으니 사용 직전 한 번 더 확인
+            if (inventory != null && inventory.Has(itemID, 1) == false)
+            {
+                ClearActiveItem();
+                return;
+            }
+
+            bool wasUsed = activeItem.Use(ownerPos, mouseWorldPos);
+
+            // 실제로 사용에 성공했을 때만 인벤토리에서 소모하고 쿨다운을 건다.
+            // (0개가 되면 HandleInventoryChanged에서 자동 해제됨)
+            if (wasUsed)
+            {
+                inventory?.TryRemove(itemID, 1);
+                StartCooldown(activeItem.Def);
+            }
+
+            isPreviewingActiveItem = false;
         }
 
         private void HandleUsableItemUsed(UsableItemUsedMessage message)

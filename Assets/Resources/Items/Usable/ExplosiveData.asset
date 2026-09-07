@@ -13,6 +13,6 @@ MonoBehaviour:
   m_Name: ExplosiveData
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ExplosiveData
   fuseTime: 5
-  power: 3
+  power: 6
   radius: 2.5
   throwSpeed: 10

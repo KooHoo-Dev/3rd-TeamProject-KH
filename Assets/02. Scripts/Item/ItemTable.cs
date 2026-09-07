@@ -52,6 +52,7 @@ namespace TerrainCollapse
                     itemDto.PickaxeRange = float.Parse(cells[7]);
                     itemDto.DigPower  = int.Parse(cells[8]);
                     itemDto.Weight = int.Parse(cells[9]);
+                    itemDto.Cooldown = int.Parse(cells[10]);
                     
                     rows.Add(itemDto);
                 }

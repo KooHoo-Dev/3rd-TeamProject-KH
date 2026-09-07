@@ -16,4 +16,4 @@ MonoBehaviour:
   detectionRadius: 1.5
   detectionInterval: 0.1
   power: 3
-  explosionRadius: 2.5
+  explosionRadius: 1.5

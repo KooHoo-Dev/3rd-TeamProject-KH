@@ -40,6 +40,10 @@ namespace TerrainCollapse
         private void Awake()
         {
             minimapView ??= FindFirstObjectByType<MinimapView>();
+
+            // 슬롯이 쿨다운 조회를 스스로 할 수 있도록 참조를 한 번만 흘려준다.
+            foreach (InventorySlotView slotView in slotViews)
+                slotView?.SetItemController(itemController);
         }
 
         private void Update()
