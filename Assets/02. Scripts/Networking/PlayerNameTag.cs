@@ -7,9 +7,11 @@ namespace TerrainCollapse.Networking
     public sealed class PlayerNameTag : MonoBehaviour
     {
         [SerializeField] private Vector3 localPosition = new(0f, 1f, -0.1f);
+        [SerializeField] private TMP_FontAsset fontAsset;
         [SerializeField, Min(0.1f)] private float fontSize = 30f;
         [SerializeField, Min(0.01f)] private float worldScale = 0.1f;
         [SerializeField] private int sortingOrder = 100;
+        [SerializeField, Min(0f)] private float visibleDistance = 4.5f;
 
         private TextMeshPro label;
         private string playerName;
@@ -19,6 +21,25 @@ namespace TerrainCollapse.Networking
         {
             EnsureLabel();
             Apply();
+        }
+
+        private void Update()
+        {
+            RoomClient roomClient = RoomClient.Instance;
+
+            if (roomClient == null)
+            {
+                label.enabled = false;
+                return;
+            }
+
+            Vector2 playerPosition = transform.position;
+            Vector2 offset = playerPosition - roomClient.LocalPlayerPosition;
+
+            bool isInSpawnArea = roomClient.IsInSpawnArea(playerPosition);
+            bool isWithinDistance = offset.sqrMagnitude <= visibleDistance * visibleDistance;
+
+            label.enabled = isInSpawnArea || isWithinDistance;
         }
 
         public void SetIdentity(string nickName, int colorIndex)
@@ -42,6 +63,7 @@ namespace TerrainCollapse.Networking
             label = labelObject.GetComponent<TextMeshPro>();
             label.rectTransform.sizeDelta = new Vector2(10f, 2f);
             label.alignment = TextAlignmentOptions.Center;
+            label.font = fontAsset;
             label.fontSize = fontSize;
             label.fontStyle = FontStyles.Bold;
             label.textWrappingMode = TextWrappingModes.NoWrap;

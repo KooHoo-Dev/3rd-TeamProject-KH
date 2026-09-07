@@ -193,6 +193,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.Networking.PlayerNameTag
   localPosition: {x: 0, y: 1, z: -0.1}
-  fontSize: 30
+  fontAsset: {fileID: 11400000, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}
+  fontSize: 28
   worldScale: 0.1
   sortingOrder: 100
+  visibleDistance: 4.5

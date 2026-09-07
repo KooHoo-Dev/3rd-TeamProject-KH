@@ -26,6 +26,7 @@ GameObject:
   - component: {fileID: 8844910528004389864}
   - component: {fileID: 4984966413924890664}
   - component: {fileID: 9100000000000000201}
+  - component: {fileID: 1299874328272229677}
   m_Layer: 0
   m_Name: LocalPlayer
   m_TagString: Untagged
@@ -322,6 +323,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PlayerInventoryDevelopmentInitializer
   initialGold: 500
+  ItemIndex: 0
 --- !u!114 &4984966413924890664
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -347,9 +349,26 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.Networking.PlayerNameTag
   localPosition: {x: 0, y: 1, z: -0.1}
-  fontSize: 30
+  fontAsset: {fileID: 11400000, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}
+  fontSize: 28
   worldScale: 0.1
   sortingOrder: 100
+  visibleDistance: 4.5
+--- !u!114 &1299874328272229677
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2805296468540921998}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a32fe02619697334287ac6291642bbc9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ShopAccessController
+  shopAreaMinimumY: 0
+  shopView: {fileID: 0}
+  toggleKey: 16
 --- !u!1 &4502014114268016359
 GameObject:
   m_ObjectHideFlags: 0

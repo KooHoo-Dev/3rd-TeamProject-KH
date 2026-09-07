@@ -50,6 +50,22 @@ namespace TerrainCollapse.Networking
         public string RequestId { get; set; }
     }
 
+    public static class ShopActions
+    {
+        public const string Begin = "begin";
+        public const string Purchase = "purchase";
+        public const string Undo = "undo";
+    }
+
+    [Serializable]
+    public sealed class ShopRequest
+    {
+        public string Type { get; set; } = NetworkMessageTypes.ShopRequest;
+        public string RequestId { get; set; }
+        public string Action { get; set; }
+        public int ItemID { get; set; }
+    }
+
     [Serializable]
     public sealed class WorldItemDropDto
     {
