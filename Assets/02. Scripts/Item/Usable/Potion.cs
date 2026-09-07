@@ -33,6 +33,12 @@ namespace TerrainCollapse
             SpawnHealEffects(ownerPos, playerHp.transform);
         }
 
+        public void PlayConfirmedEffect(Vector3 ownerPos)
+        {
+            PlayerHp playerHp = FindFirstObjectByType<PlayerHp>();
+            if (playerHp != null) SpawnHealEffects(ownerPos, playerHp.transform);
+        }
+
         private void SpawnHealEffects(Vector3 centerPos, Transform followTarget)
         {
             int effectCount = Random.Range(minEffectCount, maxEffectCount);
