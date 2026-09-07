@@ -21,6 +21,22 @@ namespace TerrainCollapse.Networking
     }
 
     [Serializable]
+    public sealed class GoldRankingPlayerDto
+    {
+        public string PlayerID { get; set; }
+        public string NickName { get; set; }
+        public long Gold { get; set; }
+        public long ExchangeValue { get; set; }
+    }
+
+    [Serializable]
+    public sealed class GoldRankingMessage
+    {
+        public string Type { get; set; }
+        public GoldRankingPlayerDto[] Players { get; set; } = Array.Empty<GoldRankingPlayerDto>();
+    }
+
+    [Serializable]
     public sealed class InventorySellRequest
     {
         public string Type { get; set; } = NetworkMessageTypes.InventorySell;

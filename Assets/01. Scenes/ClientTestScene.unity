@@ -1154,6 +1154,18 @@ PrefabInstance:
       propertyPath: itemController
       value: 
       objectReference: {fileID: 1971883702}
+    - target: {fileID: 7901159011794523301, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: roomClient
+      value: 
+      objectReference: {fileID: 1934651727}
+    - target: {fileID: 7901159011794523301, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: firstPlaceSizePercent
+      value: 120
+      objectReference: {fileID: 0}
+    - target: {fileID: 7901159011794523301, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: localPlayerSizePercent
+      value: 120
+      objectReference: {fileID: 0}
     - target: {fileID: 8854297275230104576, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: localPlayer
       value: 
@@ -1162,6 +1174,10 @@ PrefabInstance:
       propertyPath: terrainManager
       value: 
       objectReference: {fileID: 190307187}
+    - target: {fileID: 9100000000000000012, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 9163235760881349466, guid: ddf5eba6244651a4c9863ed1d0b91533, type: 3}
       propertyPath: roomClient
       value: 

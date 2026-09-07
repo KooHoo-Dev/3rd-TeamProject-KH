@@ -49,7 +49,9 @@ namespace TerrainCollapse
                 RoomClient roomClient = RoomClient.Instance;
                 if (roomClient != null && roomClient.IsConnected)
                 {
-                    if (roomClient.RequestInventorySell() == false)
+                    // 판매 위치를 서버가 직전 이동 좌표로 검증하지 않도록 move를 먼저 큐에 넣는다.
+                    if (roomClient.SendLocalPlayerStateNow() == false ||
+                        roomClient.RequestInventorySell() == false)
                         Debug.LogWarning("[Sell] 서버에 자동 판매 요청을 보내지 못했습니다.", this);
                 }
                 else
@@ -65,7 +67,7 @@ namespace TerrainCollapse
         private bool IsInSellArea()
         {
             RoomClient roomClient = RoomClient.Instance;
-            if (roomClient != null && roomClient.IsAuthoritativeTerrainMode)
+            if (roomClient?.IsAuthoritativeTerrainMode == true)
                 return roomClient.IsLocalPlayerInSpawnArea;
 
             // 로컬 테스트 맵은 기존 지상 진입 규칙을 유지
