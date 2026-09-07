@@ -165,24 +165,26 @@ namespace TerrainCollapse
         private void HandleSystemMessage(ChatSystemMessage message)
         {
             if (message == null) return;
-            string prefix = displayMode == ChatDisplayMode.Lobby
-                ? "[대기실] [시스템]"
-                : $"[{FormatTime(message.ElapsedSeconds)}] [시스템]";
 
-            Append($"{prefix} <color=#FFFFFF>{Escape(message.Text)}</color>");
+            Append($"[{FormatTime(message.ElapsedSeconds)}] [시스템] " + $"<color=#FFFFFF>{Escape(message.Text)}</color>");
         }
 
         private void HandleLobbyChatMessage(LobbyChatMessage message)
         {
             if (message == null) return;
+
             int index = LobbySession.Instance?.GetPlayerColorIndex(message.ClientID) ?? 0;
-            string color = ColorUtility.ToHtmlStringRGB(PlayerColorPalette.GetColor(index));
-            Append($"[대기실] <color=#{color}>{Escape(message.NickName)} : {Escape(message.Text)}</color>");
+            string color = ColorUtility.ToHtmlStringRGB(
+                PlayerColorPalette.GetColor(index));
+
+            Append($"<color=#{color}>{Escape(message.NickName)} : " + $"{Escape(message.Text)}</color>");
         }
 
         private void HandleLobbySystemMessage(LobbySystemMessage message)
         {
-            if (message != null) Append($"[대기실] [시스템] <color=#FFFFFF>{Escape(message.Text)}</color>");
+            if (message == null) return;
+
+            Append($"[시스템] <color=#FFFFFF>{Escape(message.Text)}</color>");
         }
 
         private void Append(string line)

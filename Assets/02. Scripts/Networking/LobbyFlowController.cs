@@ -56,10 +56,10 @@ namespace TerrainCollapse
             if (isRoomScene == false) return;
             if (session.HasRoom == false)
             {
-                SetStatus("No room session. Return to the main menu.");
+                SetStatus("참여 중인 방이 없습니다. 메인 메뉴로 돌아가세요.");
                 return;
             }
-            if (session.IsHost == false) SetStatus("Waiting for the host to start the game.");
+            if (session.IsHost == false) SetStatus("호스트가 게임을 시작할 때까지 기다리는 중입니다.");
             if (startGameButton != null) startGameButton.gameObject.SetActive(session.IsHost);
             ReturnToLobbyAsync();
         }
@@ -75,7 +75,7 @@ namespace TerrainCollapse
         private async void CreateRoom()
         {
             if (TryReadNickName(out string nickName) == false) return;
-            SetStatus("Creating room...");
+            SetStatus("방을 생성하는 중입니다...");
             await lobbyClient.ConnectCreateAsync(session.GetWebSocketBaseUrl(), nickName, session.ClientId);
         }
 
@@ -85,15 +85,16 @@ namespace TerrainCollapse
             string code = roomCodeInput?.text.Trim();
             if (code?.Length != 6)
             {
-                SetStatus("Room code must be 6 digits.");
+                SetStatus("방 코드는 숫자 6자리여야 합니다.");
                 return;
             }
-            SetStatus("Joining room...");
+            SetStatus("방에 참가하는 중입니다...");
             await lobbyClient.ConnectJoinAsync(session.GetWebSocketBaseUrl(), code, nickName, session.ClientId);
         }
 
         private void ShowJoinPopup()
         {
+            if (TryReadNickName(out _) == false) return;
             if (roomCodePopup == null) return;
             roomCodePopup.SetActive(true);
             roomCodeInput?.Select();
@@ -107,7 +108,7 @@ namespace TerrainCollapse
         private void StartGame()
         {
             if (session.IsHost == false || startGameButton?.interactable == false) return;
-            SetStatus("Starting game...");
+            SetStatus("게임을 시작하는 중입니다...");
             lobbyClient.RequestStart(session.HostToken);
         }
 
@@ -115,7 +116,7 @@ namespace TerrainCollapse
         {
             if (session?.HasRoom != true) return;
             GUIUtility.systemCopyBuffer = session.RoomCode;
-            SetStatus("Room code copied.");
+            lobbyClient.ShowLocalSystemMessage("방 코드가 복사되었습니다.");
         }
 
         private void HandleState(LobbyStateMessage message)
@@ -130,16 +131,16 @@ namespace TerrainCollapse
                 return;
             }
 
-            if (roomInfoText != null)
-                roomInfoText.text = message.Room.RoomCode;
-            if (playerCountText != null)
-                playerCountText.text = $"({message.Room.Players.Count}/{message.Room.MaxPlayers})";
+            roomInfoText.text = $"방 코드 : {message.Room.RoomCode}";
+            playerCountText.text = $"({message.Room.Players.Count}/{message.Room.MaxPlayers})";
+            SetStatus(session.IsHost
+                ? string.Empty
+                : "호스트가 게임을 시작할 때까지 기다리는 중입니다.");
             UpdatePlayerSlots(message.Room.PlayerDetails);
             if (startGameButton != null)
             {
                 startGameButton.gameObject.SetActive(session.IsHost);
-                startGameButton.interactable = session.IsHost && message.Room.Players.Count >= 2 &&
-                                               message.Room.Players.Count <= 4 && message.Room.IsStarted == false;
+                startGameButton.interactable = session.IsHost && message.Room.IsStarted == false;
             }
         }
 
@@ -166,6 +167,7 @@ namespace TerrainCollapse
 
             isLoadingGame = true;
 
+            SetStatus("메인 메뉴로 돌아가는 중입니다...");
             await lobbyClient.DisconnectAsync();
 
             session.ClearRoom();
@@ -177,15 +179,27 @@ namespace TerrainCollapse
             if (session.HasRoom && session.RoomCode == roomCode) LoadGame();
         }
 
-        private void HandleError(string error) => SetStatus($"Request failed: {error}");
+        private void HandleError(string error)
+        {
+            if (error == "room.not_enough_players")
+            {
+                lobbyClient.ShowLocalSystemMessage("게임을 시작하려면 최소 2명의 플레이어가 필요합니다.");
+                return;
+            }
+
+            lobbyClient.ShowLocalSystemMessage($"요청 처리에 실패했습니다: {error}");
+        }
 
         private bool TryReadNickName(out string nickName)
         {
             nickName = nickNameInput?.text.Trim();
-            if (nickName?.Length is >= 1 and <= 16) return true;
-            SetStatus("Nickname must be 1-16 characters.");
+            if (IsValidNickName(nickName)) return true;
+            SetStatus("닉네임은 1~16자로 입력해야 합니다.");
             return false;
         }
+
+        private static bool IsValidNickName(string nickName)
+            => nickName?.Length is >= 1 and <= 16;
 
         private async void LoadGame()
         {
@@ -203,7 +217,7 @@ namespace TerrainCollapse
                 return;
             }
 
-            SetStatus("Returning to room lobby...");
+            SetStatus("대기실로 돌아가는 중입니다...");
             await lobbyClient.ConnectReturnAsync(
                 session.GetWebSocketBaseUrl(),
                 session.RoomCode,

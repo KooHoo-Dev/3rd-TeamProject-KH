@@ -1307,10 +1307,24 @@ namespace TerrainCollapse
 
             if (message?.Code == "terrain.collapse_conflict")
             {
-                Debug.LogWarning("[RoomClient] 다른 클라이언트의 지형 확정을 기다립니다.", this);
+                const string text = "다른 클라이언트의 지형 확정을 기다리는 중입니다.";
+                Debug.LogWarning($"[RoomClient] {text}", this);
+                SystemMessageReceived?.Invoke(new ChatSystemMessage
+                {
+                    ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
+                    Text = text,
+                });
                 return;
             }
 
+            string errorText = string.IsNullOrWhiteSpace(message?.Message)
+                ? message?.Code ?? "알 수 없는 서버 오류"
+                : message.Message;
+            SystemMessageReceived?.Invoke(new ChatSystemMessage
+            {
+                ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
+                Text = $"요청 처리에 실패했습니다: {errorText}",
+            });
             Debug.LogError($"[RoomClient] Server error {message?.Code}: {message?.Message}", this);
         }
 

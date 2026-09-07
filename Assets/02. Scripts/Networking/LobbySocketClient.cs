@@ -65,6 +65,14 @@ namespace TerrainCollapse
             return Send(new LobbyChatSendMessage { Text = normalized });
         }
 
+        /// <summary>현재 클라이언트에만 표시할 로비 시스템 안내를 채팅 UI에 전달한다.</summary>
+        public void ShowLocalSystemMessage(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+            mainThreadActions.Enqueue(() => SystemMessageReceived?.Invoke(
+                new LobbySystemMessage { Text = text }));
+        }
+
         public async Task DisconnectAsync()
         {
             CancellationTokenSource source = cancellation;
