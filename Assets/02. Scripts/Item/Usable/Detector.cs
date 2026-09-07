@@ -7,12 +7,17 @@ namespace TerrainCollapse
     public class Detector : Item
     {
         [Header("탐지 설정")]
-        [SerializeField, Min(0.1f)] private float detectRadius = 6f;      // 탐지 반경 (월드 단위)
-        [SerializeField, Min(0.1f)] private float waveSpeed = 8f;         // 파동이 퍼져나가는 속도 (단위/초)
+        [SerializeField, Min(0.1f)] private float detectRadius = 8f;      // 탐지 반경 (월드 단위)
+        [SerializeField, Min(0.1f)] private float waveSpeed = 6f;         // 파동이 퍼져나가는 속도 (단위/초)
         [SerializeField] private GameObject resourceMarkerPrefab;         // 발견된 자원 위치 마커
         [SerializeField, Min(0.1f)] private float markerLifetime = 4f;    // 마커 유지 시간(초)
 
         private Coroutine waveCoroutine;
+
+        public override void OnUpdatePreview(Vector3 ownerPos, Vector3 targetPos)
+        {
+            
+        }
 
         public override void Use(Vector3 ownerPos, Vector3 targetPos)
         {

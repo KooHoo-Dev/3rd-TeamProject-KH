@@ -8,7 +8,7 @@ namespace TerrainCollapse
         [Header("Preview Settings")]
         [SerializeField] private LineRenderer trajectoryLine; // 투척 예상 경로선
         [SerializeField] private GameObject landingHighlight; // 착탄 지점 하이라이트
-        [SerializeField] private float lineThickness = 0.15f;
+        [SerializeField] private float lineThickness = 0.1f;
         [SerializeField, Min(2)] private int trajectorySegments = 20; // 경로선 정밀도
         [SerializeField] private Color highlightLineColor = Color.white;
 

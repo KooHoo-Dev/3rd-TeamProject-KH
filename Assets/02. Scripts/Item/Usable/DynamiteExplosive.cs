@@ -8,13 +8,11 @@ namespace TerrainCollapse
     /// <summary>
     /// DynamiteItem.Use()에 의해 투척되어 생성되는 실제 폭발물.
     /// 착탄 지점까지 이동 후 퓨즈 시간만큼 대기하다가 폭발한다.
+    /// 폭발 결과 처리(이펙트/지형 채굴/플레이어 피해)는 ExplosiveBase를 상속받아 재사용한다.
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
-    public class DynamiteExplosive : MonoBehaviour
+    public class DynamiteExplosive : ExplosiveBase
     {
-        [Header("Explosion Detection")]
-        [SerializeField] private LayerMask damageableLayerMask = ~0;
-
         [Header("Explosive Setting Asset")]
         [SerializeField] private ExplosiveData data; // SO 데이터 참조
 
@@ -25,9 +23,6 @@ namespace TerrainCollapse
         [SerializeField] private float maxBlinkInterval = 0.4f; // 퓨즈 시작 시점 깜빡임 간격
         [SerializeField] private float minBlinkInterval = 0.05f; // 폭발 직전 깜빡임 간격
         [SerializeField] private Color blinkColor = Color.red;   // 깜빡일 때 색상
-
-        [Header("Visual Feedback - Explosion")]
-        [SerializeField] private ExplosionEffect explosionEffectPrefab; // 폭발 이펙트 프리팹
 
         private string projectileID;
         private bool isLocalOwner;
@@ -154,7 +149,7 @@ namespace TerrainCollapse
                 rb.simulated = false;
             }
 
-            SpawnExplosionEffect(explosionRadius);
+            Detonate(explosionRadius, data.Power);
 
             Destroy(gameObject);
         }
@@ -205,86 +200,9 @@ namespace TerrainCollapse
 
         private void Explode()
         {
-            SpawnExplosionEffect(data.Radius);
-
-            TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
-
-            if (terrainManager != null &&
-                terrainManager.TryWorldToCell(transform.position, out Vector2Int centerCell))
-            {
-                DigTilesInRadius(terrainManager, centerCell, data.Radius, data.Power);
-            }
-
-            DamagePlayersInRadius(transform.position, data.Radius, data.Power);
+            Detonate(data.Radius, data.Power);
 
             Destroy(gameObject);
-        }
-
-        // 폭발 이펙트 프리팹을 착탄 지점에 생성
-        private void SpawnExplosionEffect(float radius)
-        {
-            if (explosionEffectPrefab == null)
-                return;
-
-            ExplosionEffect effect = Instantiate(
-                explosionEffectPrefab,
-                transform.position,
-                Quaternion.identity);
-            effect.SetExplosionRadius(radius);
-        }
-
-        // 자신이 있던 타일을 중심으로 폭발 반경 내 모든 타일에 채굴 명령 호출
-        private void DigTilesInRadius(TerrainManager manager, Vector2Int centerCell, float radius, int power)
-        {
-            int cellRadius = Mathf.CeilToInt(radius);
-            float radiusSqr = (radius + 0.01f) * (radius + 0.01f);
-
-            // 1. 폭발 반경 내 대상 타일 셀들을 수집
-            System.Collections.Generic.List<Vector2Int> targetCells = new System.Collections.Generic.List<Vector2Int>();
-
-            for (int dx = -cellRadius; dx <= cellRadius; dx++)
-            {
-                for (int dy = -cellRadius; dy <= cellRadius; dy++)
-                {
-                    Vector2Int offset = new Vector2Int(dx, dy);
-                    if (offset.sqrMagnitude > radiusSqr) continue;
-
-                    targetCells.Add(new Vector2Int(centerCell.x + dx, centerCell.y + dy));
-                }
-            }
-
-            // 2. 맨 위 타일부터 지우기 위해 Y좌표 내림차순(OrderById/Sort) 정렬
-            // (y값이 클수록 지형 그리드 상 높은 위치)
-            targetCells.Sort((a, b) => b.y.CompareTo(a.y));
-
-            // 3. 위쪽 타일부터 순서대로 채굴 처리
-            foreach (Vector2Int cell in targetCells)
-            {
-                for (int i = 0; i < power; i++)
-                {
-                    TerrainRemoveResult result = manager.RequestRemoveCell(cell);
-                    if (result == TerrainRemoveResult.NotMineable ||
-                        result == TerrainRemoveResult.EmptyCell ||
-                        result == TerrainRemoveResult.Removed)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        // 폭발 반경 내 모든 플레이어(IDamageable)에게 피해 API 호출
-        private void DamagePlayersInRadius(Vector3 center, float radius, int power)
-        {
-            Collider2D[] hits = Physics2D.OverlapCircleAll(center, radius, damageableLayerMask);
-
-            foreach (Collider2D hit in hits)
-            {
-                if (hit.TryGetComponent<IDamageable>(out IDamageable damageable) == false) continue;
-
-                // NOTE: DamageType에 Explosion 항목이 없다면 FallingChunk, Burial 옆에 추가 필요
-                damageable.TakeDamage(new DamageInfo(power, DamageType.Explosion, gameObject));
-            }
         }
     }
 }
