@@ -13,6 +13,7 @@ namespace TerrainCollapse
         private bool hasPendingDig;
         
         private GameObject highlightInstance;
+        private TerrainTileHitEffect hitEffect;
 
         public override void Init(ItemDef def)
         {
@@ -133,11 +134,18 @@ namespace TerrainCollapse
 
         private void ExecuteDigPower(TerrainManager manager, Vector2Int cell, int digPower)
         {
+            if (digPower <= 0) return;
+
+            // 파괴 전에 비주얼을 저장하고, 실제 적용/요청 성공 시에만 한 번 재생한다.
+            bool hasVisual = manager.TryGetTileVisual(cell, out Sprite sprite, out Color color);
+            manager.TryCellToWorldCenter(cell, out Vector3 center);
+            float cellSize = manager.CellSize;
             RoomClient roomClient = RoomClient.Instance;
             if (roomClient != null && roomClient.IsAuthoritativeTerrainMode)
             {
                 // 로컬 지형 변경은 서버의 terrain_batch를 받은 경우에만 적용한다.
-                roomClient.RequestExcavation(cell, Def.ID);
+                if (roomClient.RequestExcavation(cell, Def.ID) && hasVisual)
+                    PlayHitEffect(sprite, color, center, cellSize);
                 return;
             }
 
@@ -149,13 +157,31 @@ namespace TerrainCollapse
             }
 
             // RoomClient를 사용하지 않는 기존 오프라인 씬의 동작은 보존한다.
+            bool applied = false;
             for (int i = 0; i < digPower; i++)
             {
                 TerrainRemoveResult result = manager.RequestRemoveCell(cell);
+                applied |= result == TerrainRemoveResult.Damaged || result == TerrainRemoveResult.Removed;
                 if (result == TerrainRemoveResult.NotMineable ||
                     result == TerrainRemoveResult.EmptyCell ||
                     result == TerrainRemoveResult.Removed) break;
             }
+            if (applied && hasVisual)
+                PlayHitEffect(sprite, color, center, cellSize);
+        }
+
+        private void PlayHitEffect(Sprite sprite, Color color, Vector3 center, float cellSize)
+        {
+            if (hitEffect == null && TryGetComponent(out hitEffect) == false)
+                hitEffect = gameObject.AddComponent<TerrainTileHitEffect>();
+
+            hitEffect.Play(sprite, color, center, cellSize);
+        }
+
+        protected override void OnDisable()
+        {
+            if (hitEffect != null) hitEffect.Stop();
+            base.OnDisable();
         }
 
         private bool TryGetNearestTargetCell(TerrainManager manager, Vector2Int start, Vector2Int end, out Vector2Int snappedCell)

@@ -128,7 +128,7 @@ namespace TerrainCollapse
         {
             if (goldText == null) return;
 
-            goldText.text = $"{Mathf.Max(0, gold):N0} 골드";
+            goldText.text = $"{Mathf.Max(0, gold):N0}";
         }
 
         public void SetWeight(int currentWeight, int maxWeight)

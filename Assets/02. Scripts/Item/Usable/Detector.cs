@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TerrainCollapse.Networking;
 using UnityEngine;
 
 namespace TerrainCollapse
@@ -39,6 +40,19 @@ namespace TerrainCollapse
             if (waveCoroutine != null)
                 StopCoroutine(waveCoroutine);
 
+            waveCoroutine = StartCoroutine(RunDetectionWave(ownerPos, found));
+        }
+
+        public void ShowConfirmedResults(Vector3 ownerPos, GridCoord[] cells)
+        {
+            TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
+            if (terrainManager == null || cells == null) return;
+            List<(Vector3 worldPos, float distance)> found = new();
+            foreach (GridCoord cell in cells)
+                if (terrainManager.TryCellToWorldCenter(new Vector2Int(cell.X, cell.Y), out Vector3 worldPos))
+                    found.Add((worldPos, Vector3.Distance(ownerPos, worldPos)));
+            found.Sort((a, b) => a.distance.CompareTo(b.distance));
+            if (waveCoroutine != null) StopCoroutine(waveCoroutine);
             waveCoroutine = StartCoroutine(RunDetectionWave(ownerPos, found));
         }
 
