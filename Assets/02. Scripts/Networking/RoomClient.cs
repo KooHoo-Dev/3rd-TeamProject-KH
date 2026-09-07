@@ -145,6 +145,8 @@ namespace TerrainCollapse
         public event Action<GameStartedMessage> GameStarted;
         public event Action<ChatBroadcastMessage> ChatMessageReceived;
         public event Action<ChatSystemMessage> SystemMessageReceived;
+        public event Action<GoldRankingMessage> GoldRankingChanged;
+        public GoldRankingMessage CurrentGoldRanking { get; private set; }
 
         /// <summary>서버 스냅샷 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
         public bool IsInSpawnArea(Vector2 worldPosition)
@@ -243,42 +245,56 @@ namespace TerrainCollapse
                 localPlayer != null &&
                 Time.unscaledTime >= nextPositionSendTime)
             {
-                Vector2 position = localPlayer.Position;
-                Vector2 velocity = localPlayer.Velocity;
-                bool grounded = localPlayer.IsGrounded;
-                bool climbing = localPlayer.IsClimbing;
-                bool buried = localPlayer.IsBuried;
-
-                if (hasSentPosition == false ||
-                    (position - lastSentPosition).sqrMagnitude > 0.0001f ||
-                    (velocity - lastSentVelocity).sqrMagnitude > 0.0001f ||
-                    grounded != lastSentGrounded ||
-                    climbing != lastSentClimbing ||
-                    buried != lastSentBuried)
-                {
-                    if (Send(new
-                    {
-                        Type = NetworkMessageTypes.PlayerMove,
-                        X = position.x,
-                        Y = position.y,
-                        VelocityX = velocity.x,
-                        VelocityY = velocity.y,
-                        IsGrounded = grounded,
-                        IsClimbing = climbing,
-                        IsBuried = buried,
-                    }) == false)
-                        return;
-
-                    lastSentPosition = position;
-                    lastSentVelocity = velocity;
-                    lastSentGrounded = grounded;
-                    lastSentClimbing = climbing;
-                    lastSentBuried = buried;
-                    hasSentPosition = true;
-                }
+                if (TrySendLocalPlayerState(false) == false) return;
 
                 nextPositionSendTime = Time.unscaledTime + 1f / positionSendRate;
             }
+        }
+
+        /// <summary>
+        /// 위치를 검증하는 요청 바로 앞에 최신 이동 상태를 같은 송신 큐에 넣는다.
+        /// 서버는 이 패킷 뒤의 판매/획득 요청을 순서대로 처리한다.
+        /// </summary>
+        public bool SendLocalPlayerStateNow() => TrySendLocalPlayerState(true);
+
+        private bool TrySendLocalPlayerState(bool force)
+        {
+            if (IsMovementActive == false || localPlayer == null) return false;
+
+            Vector2 position = localPlayer.Position;
+            Vector2 velocity = localPlayer.Velocity;
+            bool grounded = localPlayer.IsGrounded;
+            bool climbing = localPlayer.IsClimbing;
+            bool buried = localPlayer.IsBuried;
+            bool hasChanged = hasSentPosition == false ||
+                              (position - lastSentPosition).sqrMagnitude > 0.0001f ||
+                              (velocity - lastSentVelocity).sqrMagnitude > 0.0001f ||
+                              grounded != lastSentGrounded ||
+                              climbing != lastSentClimbing ||
+                              buried != lastSentBuried;
+
+            if (force == false && hasChanged == false) return true;
+
+            if (Send(new
+            {
+                Type = NetworkMessageTypes.PlayerMove,
+                X = position.x,
+                Y = position.y,
+                VelocityX = velocity.x,
+                VelocityY = velocity.y,
+                IsGrounded = grounded,
+                IsClimbing = climbing,
+                IsBuried = buried,
+            }) == false)
+                return false;
+
+            lastSentPosition = position;
+            lastSentVelocity = velocity;
+            lastSentGrounded = grounded;
+            lastSentClimbing = climbing;
+            lastSentBuried = buried;
+            hasSentPosition = true;
+            return true;
         }
 
         private async void OnDestroy()
@@ -297,6 +313,7 @@ namespace TerrainCollapse
             outgoingJson.Clear();
             hasTerrainSnapshot = false;
             CurrentTerrainSnapshot = null;
+            CurrentGoldRanking = null;
             bufferedTerrainBatches.Clear();
             ClearRemotePlayers();
             ClearActiveDynamites();
@@ -349,6 +366,7 @@ namespace TerrainCollapse
             socket = null;
             hasTerrainSnapshot = false;
             CurrentTerrainSnapshot = null;
+            CurrentGoldRanking = null;
             bufferedTerrainBatches.Clear();
             hasSentPosition = false;
             handshakeComplete = false;
@@ -781,6 +799,9 @@ namespace TerrainCollapse
                         break;
                     case NetworkMessageTypes.InventorySnapshot:
                         EnqueueMessage<InventorySnapshotMessage>(json, HandleInventorySnapshot);
+                        break;
+                    case NetworkMessageTypes.InventoryGoldRanking:
+                        EnqueueMessage<GoldRankingMessage>(json, HandleGoldRanking);
                         break;
                     case NetworkMessageTypes.PlayerHealthSnapshot:
                         EnqueueMessage<PlayerHealthSnapshotMessage>(json, HandlePlayerHealthSnapshot);
@@ -1402,6 +1423,12 @@ namespace TerrainCollapse
                 quantities,
                 message.CurrentWeight,
                 message.MaxWeight);
+        }
+
+        private void HandleGoldRanking(GoldRankingMessage message)
+        {
+            CurrentGoldRanking = message;
+            GoldRankingChanged?.Invoke(message);
         }
 
         private void HandlePlacementProposed(TerrainPlacementProposal proposal)

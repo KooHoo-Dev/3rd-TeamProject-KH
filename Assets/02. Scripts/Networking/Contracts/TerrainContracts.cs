@@ -46,6 +46,7 @@ namespace TerrainCollapse.Networking
         public const string DynamiteExplodeRequest = "dynamite.explode_request";
         public const string DynamiteExploded = "dynamite.exploded";
         public const string InventorySnapshot = "inventory.snapshot";
+        public const string InventoryGoldRanking = "inventory.gold_ranking";
         public const string InventorySell = "inventory.sell";
         public const string InventoryDebugGold = "inventory.debug_gold";
     }

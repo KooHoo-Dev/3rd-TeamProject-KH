@@ -116,6 +116,7 @@ namespace TerrainCollapse
                 root.transform,
                 fullMapDimmer.gameObject,
                 out TerrainMinimapPresenter presenter);
+            CreateGoldRanking(root.transform, font);
 
             HudPrototypeDriver preview = root.AddComponent<HudPrototypeDriver>();
             SetBool(preview, "previewEnabled", false);
@@ -160,6 +161,27 @@ namespace TerrainCollapse
             SetObjectReference(view, "fillImage", fill);
             SetObjectReference(view, "valueText", valueText);
             return view;
+        }
+
+        private static void CreateGoldRanking(Transform parent, TMP_FontAsset font)
+        {
+            TextMeshProUGUI rankingText = CreateText(
+                "GoldRankingText",
+                parent,
+                font,
+                string.Empty,
+                22f,
+                FontStyles.Bold,
+                TextAlignmentOptions.TopLeft,
+                new Vector2(-30f, -385f),
+                new Vector2(340f, 130f),
+                Vector2.one,
+                Vector2.one,
+                Vector2.one);
+            rankingText.textWrappingMode = TextWrappingModes.NoWrap;
+
+            GoldRankingView view = rankingText.gameObject.AddComponent<GoldRankingView>();
+            SetObjectReference(view, "rankingText", rankingText);
         }
 
         private static InventoryView CreateInventory(Transform parent, TMP_FontAsset font)
