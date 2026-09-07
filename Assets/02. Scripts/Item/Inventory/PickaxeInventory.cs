@@ -24,6 +24,24 @@ namespace TerrainCollapse
 
         private IItemInventory inventory;
 
+        public void ApplyAuthoritativePickaxe(int itemID)
+        {
+            if (DataManager.Instance == null ||
+                DataManager.Instance.ItemTable.TryGet(itemID, out ItemDef def) == false ||
+                def.Type != ItemType.Pickaxe)
+            {
+                Debug.LogWarning($"[PickaxeInventory] 서버 장착 곡괭이 데이터가 올바르지 않습니다: item={itemID}", this);
+                return;
+            }
+
+            if (CurrentDef != null && CurrentDef.ID == itemID)
+                return;
+
+            CurrentDef = def;
+            Quantity = 1;
+            PickaxeChanged?.Invoke(CurrentDef);
+        }
+
         private void Awake()
         {
             inventory = GetComponent<IItemInventory>();
@@ -75,8 +93,7 @@ namespace TerrainCollapse
         {
             if (inventory.TryRemove(def.ID, addedQuantity) == false) return;
 
-            // 서버 인벤토리 Snapshot에는 장착 곡괭이가 계속 포함된다.
-            // 이미 장착한 동일 곡괭이를 다시 받은 경우 수량을 중복 누적하지 않는다.
+            // 같은 곡괭이가 일반 인벤토리에 다시 들어오면 수량만 회수한다.
             if (CurrentDef != null && CurrentDef.ID == def.ID)
                 return;
 

@@ -49,7 +49,7 @@ namespace TerrainCollapse
 
         private void UpdateCooldownVisual()
         {
-            if (ItemID < 0)
+            if (cooldownFillImage == null || itemController == null || ItemID < 0)
             {
                 SetCooldownFill(0f);
                 return;
@@ -69,6 +69,8 @@ namespace TerrainCollapse
 
         private void SetCooldownFill(float ratio)
         {
+            if (cooldownFillImage == null) return;
+
             cooldownFillImage.fillAmount = ratio;
             cooldownFillImage.enabled = ratio > 0f;
         }
