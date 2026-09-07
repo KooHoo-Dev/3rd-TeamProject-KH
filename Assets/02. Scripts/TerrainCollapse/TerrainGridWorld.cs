@@ -30,6 +30,15 @@ namespace TerrainCollapse
         
         private static readonly Vector2Int[] NoCells = new Vector2Int[0];
         private readonly Dictionary<Vector2Int, MeshFilter> chunkViews = new();
+        private sealed class ChunkVertexCache
+        {
+            public Vector3[] Vertices;
+            public readonly Dictionary<Vector2Int, int> CellVertices = new();
+        }
+
+        private readonly Dictionary<Vector2Int, ChunkVertexCache> chunkVertexCaches = new();
+        private readonly Dictionary<Vector2Int, Vector3> cellVisualOffsets = new();
+        private readonly HashSet<Vector2Int> visualDirtyChunks = new();
         private readonly HashSet<Vector2Int> dirtyChunks = new();
         private readonly List<GameObject> colliderSegments = new();
 #if UNITY_EDITOR
@@ -37,6 +46,8 @@ namespace TerrainCollapse
 #endif
         private TerrainGridData data;
         private TerrainResourceViewManager resourceViewManager;
+        private TerrainCrackOverlayManager crackOverlayManager;
+        private TerrainTileHitEffect hitEffect;
         private Material terrainMaterial;
         private bool colliderDirty;
 
@@ -100,6 +111,8 @@ namespace TerrainCollapse
         private void EnsureInitialized()
         {
             EnsureResourceViewManager();
+            if (crackOverlayManager == null && TryGetComponent(out crackOverlayManager) == false)
+                crackOverlayManager = gameObject.AddComponent<TerrainCrackOverlayManager>();
             gameObject.layer = TerrainPhysicsLayers.Terrain;
 
             Rigidbody2D body = GetComponent<Rigidbody2D>();
@@ -158,6 +171,7 @@ namespace TerrainCollapse
             BuildAllChunkMeshes();
             RebuildBoundaryCollider();
             resourceViewManager.RebuildAll(this);
+            crackOverlayManager.RebuildAll(this);
 #if UNITY_EDITOR
             RebuildDurabilityLabels();
 #endif
@@ -175,6 +189,7 @@ namespace TerrainCollapse
             BuildAllChunkMeshes();
             RebuildBoundaryCollider();
             resourceViewManager.RebuildAll(this);
+            crackOverlayManager.RebuildAll(this);
 #if UNITY_EDITOR
             RebuildDurabilityLabels();
 #endif
@@ -199,6 +214,7 @@ namespace TerrainCollapse
             {
                 MarkCellDirty(change.Coord);
                 resourceViewManager.RefreshCell(this, change.Coord);
+                RefreshCellFeedback(change.Coord);
 #if UNITY_EDITOR
                 RefreshDurabilityLabel(change.Coord);
 #endif
@@ -209,6 +225,8 @@ namespace TerrainCollapse
 
         private void ClearGeneratedObjects()
         {
+            ResetVisualFeedback();
+            crackOverlayManager?.Clear();
             resourceViewManager?.Clear();
 
             foreach (MeshFilter filter in chunkViews.Values)
@@ -220,6 +238,8 @@ namespace TerrainCollapse
             }
             
             chunkViews.Clear();
+            chunkVertexCaches.Clear();
+            visualDirtyChunks.Clear();
             dirtyChunks.Clear();
 
             foreach (GameObject segment in colliderSegments)
@@ -246,6 +266,8 @@ namespace TerrainCollapse
                 dirtyChunks.Clear();
             }
 
+            FlushVisualVertices();
+
             if (colliderDirty == false) return;
             
             RebuildBoundaryCollider();
@@ -254,6 +276,7 @@ namespace TerrainCollapse
 
         private void OnDestroy()
         {
+            hitEffect?.Stop();
             foreach (MeshFilter filter in chunkViews.Values)
                 if (filter != null && filter.sharedMesh != null) Destroy(filter.sharedMesh);
             
@@ -266,6 +289,93 @@ namespace TerrainCollapse
         public Vector2Int WorldToCell(Vector3 world) => data.WorldToCell(world);
         public Vector3 CellToWorldCenter(Vector2Int coord) => data.CellToWorldCenter(coord);
         public Vector3 CellToWorldCorner(Vector2Int coord) => data.CellToWorldCorner(coord);
+
+        public bool TryGetMaxDurability(Vector2Int coord, out int maxDurability)
+        {
+            TerrainCell cell = data?.GetCellOrNull(coord);
+            maxDurability = cell == null ? 0 : GetMaxDurability(cell.Type, cell.ResourceID);
+            return maxDurability > 0;
+        }
+
+        public Vector3 GetCellVisualOffset(Vector2Int coord)
+            => cellVisualOffsets.TryGetValue(coord, out Vector3 offset) ? offset : Vector3.zero;
+
+        /// <summary>셀의 렌더링 전용 XY 이동량. 데이터, dirtyChunks, Collider는 변경하지 않는다.</summary>
+        public bool TrySetCellVisualOffset(Vector2Int coord, Vector3 offset)
+        {
+            offset.z = 0f;
+            if (offset != Vector3.zero && IsOccupied(coord) == false) return false;
+            if (offset == Vector3.zero)
+            {
+                offset = Vector3.zero;
+                cellVisualOffsets.Remove(coord);
+            }
+            else cellVisualOffsets[coord] = offset;
+
+            Vector2Int chunk = ToChunkCoord(coord);
+            if (chunkVertexCaches.TryGetValue(chunk, out ChunkVertexCache cache) &&
+                cache.CellVertices.TryGetValue(coord, out int vertex))
+            {
+                WriteCellVertices(cache.Vertices, vertex, coord - chunk * RenderChunkSize, offset);
+                visualDirtyChunks.Add(chunk);
+            }
+            resourceViewManager?.RefreshPosition(this, coord);
+            crackOverlayManager?.RefreshPosition(this, coord);
+            return true;
+        }
+
+        public void PlayCellHit(Vector2Int coord)
+        {
+            TerrainCell cell = data?.GetCellOrNull(coord);
+            if (isActiveAndEnabled == false || cell == null || cell.CurrentDurability <= 0) return;
+            if (hitEffect == null && TryGetComponent(out hitEffect) == false)
+                hitEffect = gameObject.AddComponent<TerrainTileHitEffect>();
+            hitEffect.Play(this, coord);
+        }
+
+        private void RefreshCellFeedback(Vector2Int coord)
+        {
+            TerrainCell cell = data?.GetCellOrNull(coord);
+            if (cell == null || cell.CurrentDurability <= 0)
+            {
+                hitEffect?.StopCell(coord);
+                TrySetCellVisualOffset(coord, Vector3.zero);
+            }
+            crackOverlayManager.RefreshCell(this, coord);
+        }
+
+        private void ResetVisualFeedback()
+        {
+            hitEffect?.Stop();
+            foreach (Vector2Int coord in new List<Vector2Int>(cellVisualOffsets.Keys))
+                TrySetCellVisualOffset(coord, Vector3.zero);
+            FlushVisualVertices();
+        }
+
+        private void OnDisable() => ResetVisualFeedback();
+
+        private void FlushVisualVertices()
+        {
+            foreach (Vector2Int chunk in visualDirtyChunks)
+            {
+                if (chunkViews.TryGetValue(chunk, out MeshFilter filter) && filter != null &&
+                    filter.sharedMesh != null && chunkVertexCaches.TryGetValue(chunk, out ChunkVertexCache cache))
+                {
+                    filter.sharedMesh.vertices = cache.Vertices;
+                    filter.sharedMesh.RecalculateBounds();
+                }
+            }
+            visualDirtyChunks.Clear();
+        }
+
+        private void WriteCellVertices(Vector3[] vertices, int vertex, Vector2Int local, Vector3 offset)
+        {
+            Vector3 corner = new Vector3(local.x * cellSize, local.y * cellSize, 0f) + offset;
+            vertices[vertex] = corner;
+            vertices[vertex + 1] = corner + new Vector3(0f, cellSize, 0f);
+            vertices[vertex + 2] = corner + new Vector3(cellSize, cellSize, 0f);
+            vertices[vertex + 3] = corner + new Vector3(cellSize, 0f, 0f);
+        }
 
         public bool SetOccupied(Vector2Int coord) => SetCell(coord, TerrainTileType.Ground);
 
@@ -289,6 +399,7 @@ namespace TerrainCollapse
             
             MarkCellDirty(coord);
             resourceViewManager.RefreshCell(this, coord);
+            RefreshCellFeedback(coord);
 #if UNITY_EDITOR
             RefreshDurabilityLabel(coord);
 #endif
@@ -317,6 +428,7 @@ namespace TerrainCollapse
                 MarkCellDirty(coord);
                 resourceViewManager.RefreshCell(this, coord);
             }
+            RefreshCellFeedback(coord);
             
 #if UNITY_EDITOR
             RefreshDurabilityLabel(coord);
@@ -332,6 +444,7 @@ namespace TerrainCollapse
             
             MarkCellDirty(coord);
             resourceViewManager.RefreshCell(this, coord);
+            RefreshCellFeedback(coord);
 #if UNITY_EDITOR
             RefreshDurabilityLabel(coord);
 #endif
@@ -444,6 +557,7 @@ namespace TerrainCollapse
 
             if (cells.Count == 0)
             {
+                chunkVertexCaches.Remove(chunkCoord);
                 if (chunkViews.Remove(chunkCoord, out MeshFilter emptyFilter) && emptyFilter != null)
                 {
                     if (emptyFilter.sharedMesh != null) Destroy(emptyFilter.sharedMesh);
@@ -474,6 +588,8 @@ namespace TerrainCollapse
         private Mesh BuildMesh(IReadOnlyList<Vector2Int> cells, Vector2Int chunkCoord)
         {
             Vector3[] vertices = new Vector3[cells.Count * 4];
+            ChunkVertexCache cache = new() { Vertices = vertices };
+            chunkVertexCaches[chunkCoord] = cache;
             Vector2[] uv = new Vector2[cells.Count * 4];
             Color[] colors = new Color[cells.Count * 4];
             int[] triangles = new int[cells.Count * 6];
@@ -490,13 +606,9 @@ namespace TerrainCollapse
                 float uMax = textureRect.xMax / sprite.texture.width;
                 float vMin = textureRect.yMin / sprite.texture.height;
                 float vMax = textureRect.yMax / sprite.texture.height;
-                float x = local.x * cellSize;
-                float y = local.y * cellSize;
                 int vertex = i * 4;
-                vertices[vertex] = new Vector3(x, y);
-                vertices[vertex + 1] = new Vector3(x, y + cellSize);
-                vertices[vertex + 2] = new Vector3(x + cellSize, y + cellSize);
-                vertices[vertex + 3] = new Vector3(x + cellSize, y);
+                cache.CellVertices[cells[i]] = vertex;
+                WriteCellVertices(vertices, vertex, local, GetCellVisualOffset(cells[i]));
                 uv[vertex] = new Vector2(uMin, vMin);
                 uv[vertex + 1] = new Vector2(uMin, vMax);
                 uv[vertex + 2] = new Vector2(uMax, vMax);
