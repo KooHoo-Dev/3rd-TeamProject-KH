@@ -13,11 +13,13 @@ namespace TerrainCollapse
         public string ServerUrl { get; private set; }
         public string NickName { get; private set; }
         public string RoomCode { get; private set; }
+        public string HostClientId { get; private set; }
         public string HostToken { get; private set; }
         public string ClientId { get; private set; }
-        public bool IsHost => string.IsNullOrEmpty(HostToken) == false;
+        public bool IsHost => HostClientId == ClientId;
         public bool HasRoom => string.IsNullOrEmpty(RoomCode) == false;
         public LobbySocketClient LobbyClient { get; private set; }
+        private bool kickedNoticePending;
 
         private readonly List<string> orderedPlayerClientIds = new();
 
@@ -54,11 +56,13 @@ namespace TerrainCollapse
             ServerUrl = defaultServerUrl.TrimEnd('/');
         }
 
-        public void Configure(string serverUrl, string nickName, string roomCode, string hostToken)
+        public void Configure(string serverUrl, string nickName, string roomCode,
+            string hostClientId, string hostToken)
         {
             ServerUrl = serverUrl.TrimEnd('/');
             NickName = nickName.Trim();
             RoomCode = roomCode.Trim();
+            HostClientId = hostClientId;
             HostToken = hostToken;
         }
 
@@ -100,6 +104,26 @@ namespace TerrainCollapse
                 Instance.GetWebSocketBaseUrl(),
                 Instance.RoomCode,
                 Instance.NickName);
+        }
+
+        public void ClearRoom()
+        {
+            RoomCode = null;
+            HostClientId = null;
+            HostToken = null;
+            orderedPlayerClientIds.Clear();
+        }
+
+        public void NotifyKicked()
+        {
+            kickedNoticePending = true;
+        }
+
+        public bool ConsumeKickedNotice()
+        {
+            bool pending = kickedNoticePending;
+            kickedNoticePending = false;
+            return pending;
         }
     }
 }

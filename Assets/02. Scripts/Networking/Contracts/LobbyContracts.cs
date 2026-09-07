@@ -8,9 +8,14 @@ namespace TerrainCollapse.Networking
     [Serializable] public sealed class LobbyJoinMessage { public string Type = "lobby.join"; public string RoomCode; public string NickName; public string ClientID; }
     [Serializable] public sealed class LobbyReturnMessage { public string Type = "lobby.return"; public string RoomCode; public string NickName; public string ClientID; }
     [Serializable] public sealed class LobbyStartRequest { public string Type = "lobby.start"; public string HostToken; }
-    [Serializable] public sealed class LobbyStateMessage { public string Type; public LobbyRoomInfo Room; public string HostToken; }
+    [Serializable] public sealed class LobbyKickRequest { public string Type = "lobby.kick"; public string HostToken; public string TargetClientID; }
+    [Serializable] public sealed class LobbyKickedMessage { public string Type; public string Reason; }
+    [Serializable] public sealed class LobbyStateMessage { public string Type; public LobbyRoomInfo Room; public long Revision; public string HostToken; }
     [Serializable] public sealed class LobbyStartedMessage { public string Type; public string RoomCode; }
     [Serializable] public sealed class LobbyErrorMessage { public string Type; public string Code; }
-    [Serializable] public sealed class LobbyPlayerInfo { public string ClientID; public string NickName; }
+    [Serializable] public sealed class LobbyChatSendMessage { public string Type = "lobby.chat.send"; public string Text; }
+    [Serializable] public sealed class LobbyChatMessage { public string Type; public string ClientID; public string NickName; public string Text; }
+    [Serializable] public sealed class LobbySystemMessage { public string Type; public string Text; }
+    [Serializable] public sealed class LobbyPlayerInfo { public string ClientID; public string NickName; public bool IsConnected; }
     [Serializable] public sealed class LobbyRoomInfo { public string RoomCode; public string HostClientID; public bool IsStarted; public int MaxPlayers; public List<string> Players; public List<LobbyPlayerInfo> PlayerDetails; }
 }

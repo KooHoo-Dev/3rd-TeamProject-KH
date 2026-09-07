@@ -16,10 +16,15 @@ namespace TerrainCollapse
         private readonly ConcurrentQueue<Action> mainThreadActions = new();
         private ClientWebSocket socket;
         private CancellationTokenSource cancellation;
+        private bool expectedClose;
+        private long lastStateRevision;
 
         public event Action<LobbyStateMessage> StateReceived;
         public event Action<string> ErrorReceived;
         public event Action<string> Started;
+        public event Action<LobbyChatMessage> ChatMessageReceived;
+        public event Action<LobbySystemMessage> SystemMessageReceived;
+        public event Action<LobbyKickedMessage> Kicked;
 
         public bool IsConnected => socket?.State == WebSocketState.Open;
         public LobbyStateMessage LastState { get; private set; } // 씬 전환 중 놓칠 수 있는 가장 최근의 대기방 상태
@@ -55,9 +60,27 @@ namespace TerrainCollapse
             });
 
         public bool RequestStart(string hostToken) => Send(new LobbyStartRequest { HostToken = hostToken });
+        public bool RequestKick(string hostToken, string targetClientId) =>
+            Send(new LobbyKickRequest { HostToken = hostToken, TargetClientID = targetClientId });
+        public bool SendChat(string text)
+        {
+            string normalized = text?.Trim();
+            if (string.IsNullOrWhiteSpace(normalized)) return false;
+            if (normalized.Length > 200) normalized = normalized.Substring(0, 200);
+            return Send(new LobbyChatSendMessage { Text = normalized });
+        }
+
+        /// <summary>현재 클라이언트에만 표시할 로비 시스템 안내를 채팅 UI에 전달한다.</summary>
+        public void ShowLocalSystemMessage(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+            mainThreadActions.Enqueue(() => SystemMessageReceived?.Invoke(
+                new LobbySystemMessage { Text = text }));
+        }
 
         public async Task DisconnectAsync()
         {
+            expectedClose = true;
             CancellationTokenSource source = cancellation;
             ClientWebSocket current = socket;
             cancellation = null;
@@ -79,6 +102,8 @@ namespace TerrainCollapse
         private async Task ConnectAsync(string serverUrl, object firstMessage)
         {
             await DisconnectAsync();
+            expectedClose = false;
+            lastStateRevision = 0;
             cancellation = new CancellationTokenSource();
             socket = new ClientWebSocket();
             ClientWebSocket activeSocket = socket;
@@ -125,7 +150,8 @@ namespace TerrainCollapse
             catch (OperationCanceledException) { }
             catch (Exception exception)
             {
-                mainThreadActions.Enqueue(() => ErrorReceived?.Invoke(exception.Message));
+                if (expectedClose == false && socket == activeSocket)
+                    mainThreadActions.Enqueue(() => ErrorReceived?.Invoke(exception.Message));
             }
         }
 
@@ -138,6 +164,8 @@ namespace TerrainCollapse
                     LobbyStateMessage state = JsonConvert.DeserializeObject<LobbyStateMessage>(json);
                     mainThreadActions.Enqueue(() =>
                     {
+                        if (state.Revision < lastStateRevision) return;
+                        lastStateRevision = state.Revision;
                         LastState = state;
                         StateReceived?.Invoke(state);
                     });
@@ -149,6 +177,20 @@ namespace TerrainCollapse
                 case "lobby.error":
                     LobbyErrorMessage error = JsonConvert.DeserializeObject<LobbyErrorMessage>(json);
                     mainThreadActions.Enqueue(() => ErrorReceived?.Invoke(error.Code));
+                    break;
+                case "lobby.chat":
+                    LobbyChatMessage chat = JsonConvert.DeserializeObject<LobbyChatMessage>(json);
+                    mainThreadActions.Enqueue(() => ChatMessageReceived?.Invoke(chat));
+                    break;
+                case "lobby.system":
+                    LobbySystemMessage system = JsonConvert.DeserializeObject<LobbySystemMessage>(json);
+                    mainThreadActions.Enqueue(() => SystemMessageReceived?.Invoke(system));
+                    break;
+                case "lobby.kicked":
+                    LobbyKickedMessage kicked = JsonConvert.DeserializeObject<LobbyKickedMessage>(json);
+                    // 서버가 강퇴 알림 뒤 소켓을 닫는 것은 정상 흐름이다.
+                    expectedClose = true;
+                    mainThreadActions.Enqueue(() => Kicked?.Invoke(kicked));
                     break;
             }
         }

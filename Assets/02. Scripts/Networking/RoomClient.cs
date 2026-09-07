@@ -11,6 +11,7 @@ using Character;
 using Newtonsoft.Json;
 using TerrainCollapse.Networking;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace TerrainCollapse
 {
@@ -28,6 +29,7 @@ namespace TerrainCollapse
 
         [Header("Debug")]
         [SerializeField] private bool debugMode;
+        [SerializeField] private string mainMenuSceneName = "MainMenuScene";
 
         [Header("Scene References")]
         [SerializeField] private TerrainGridWorld terrainWorld;
@@ -828,6 +830,9 @@ namespace TerrainCollapse
                     case NetworkMessageTypes.PlayerRespawned:
                         EnqueueMessage<PlayerRespawnedMessage>(json, HandlePlayerRespawned);
                         break;
+                    case NetworkMessageTypes.PlayerKicked:
+                        EnqueueMessage<PlayerKickedMessage>(json, HandlePlayerKicked);
+                        break;
                     case NetworkMessageTypes.DynamiteThrown:
                         EnqueueMessage<DynamiteThrownMessage>(json, HandleDynamiteThrown);
                         break;
@@ -945,6 +950,18 @@ namespace TerrainCollapse
                 ? string.Empty
                 : string.Join(", ", message.WinnerPlayerIDs);
             Debug.Log($"[RoomClient] Game ended. reason={message?.Reason}, winners={winners}", this);
+        }
+
+        private void HandlePlayerKicked(PlayerKickedMessage message)
+        {
+            localPlayer?.SetWaitingForTerrainSnapshot(true);
+            LobbySession session = LobbySession.Ensure();
+            session.NotifyKicked();
+            session.ClearRoom();
+            // 서버가 강제 Close를 보낸 상태에서는 CloseAsync가 handshake를 기다릴 수 있다.
+            // 화면 전환은 해당 정리를 기다리지 않고 즉시 수행한다.
+            _ = DisconnectAsync();
+            SceneManager.LoadScene(mainMenuSceneName);
         }
 
         private void StartGameEndPresentation()
@@ -1307,10 +1324,24 @@ namespace TerrainCollapse
 
             if (message?.Code == "terrain.collapse_conflict")
             {
-                Debug.LogWarning("[RoomClient] 다른 클라이언트의 지형 확정을 기다립니다.", this);
+                const string text = "다른 클라이언트의 지형 확정을 기다리는 중입니다.";
+                Debug.LogWarning($"[RoomClient] {text}", this);
+                SystemMessageReceived?.Invoke(new ChatSystemMessage
+                {
+                    ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
+                    Text = text,
+                });
                 return;
             }
 
+            string errorText = string.IsNullOrWhiteSpace(message?.Message)
+                ? message?.Code ?? "알 수 없는 서버 오류"
+                : message.Message;
+            SystemMessageReceived?.Invoke(new ChatSystemMessage
+            {
+                ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
+                Text = $"요청 처리에 실패했습니다: {errorText}",
+            });
             Debug.LogError($"[RoomClient] Server error {message?.Code}: {message?.Message}", this);
         }
 

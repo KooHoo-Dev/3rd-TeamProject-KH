@@ -23,6 +23,7 @@ namespace TerrainCollapse.Networking
         public const string PlayerHealthChanged = "player.health_changed";
         public const string PlayerDied = "player.died";
         public const string PlayerRespawned = "player.respawned";
+        public const string PlayerKicked = "player.kicked";
         public const string PlayerDamage = "player.damage";
         public const string PlayerHeal = "player.heal";
         public const string PlayerRespawnRequest = "player.respawn_request";
@@ -84,6 +85,13 @@ namespace TerrainCollapse.Networking
     public sealed class PlayerReadyMessage
     {
         public string Type { get; set; } = NetworkMessageTypes.PlayerReady;
+    }
+
+    [Serializable]
+    public sealed class PlayerKickedMessage
+    {
+        public string Type { get; set; }
+        public string Reason { get; set; }
     }
 
     [Serializable]
