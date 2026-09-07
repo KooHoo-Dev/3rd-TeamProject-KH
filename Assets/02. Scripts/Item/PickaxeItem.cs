@@ -80,7 +80,7 @@ namespace TerrainCollapse
             lineRenderer.enabled = false;
         }
 
-        public override void Use(Vector3 ownerPos, Vector3 targetPos)
+        public override bool Use(Vector3 ownerPos, Vector3 targetPos)
         {
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
 
@@ -89,6 +89,8 @@ namespace TerrainCollapse
             {
                 ExecuteDigPower(terrainManager, targetCell, Def.PickaxeData.Value.DigPower);
             }
+
+            return true;
         }
 
         /// <summary>

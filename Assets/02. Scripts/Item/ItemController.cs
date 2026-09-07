@@ -206,7 +206,7 @@ namespace TerrainCollapse
             UpdatePickaxe(ownerPos, mouseWorldPos);
         }
 
-        // 우클릭 홀드 중 매 프레임 처리: 좌클릭이면 취소, 우클릭을 떼면 실제 사용
+         // 우클릭 홀드 중 매 프레임 처리: 좌클릭이면 취소, 우클릭을 떼면 실제 사용
         private void UpdateActiveItemPreview(Vector3 ownerPos, Vector3 mouseWorldPos, bool leftPressedThisFrame, bool rightReleasedThisFrame)
         {
             // 프리뷰 도중 좌클릭 -> 사용 취소 (곡괭이도 발동하지 않음)
@@ -238,8 +238,7 @@ namespace TerrainCollapse
                         return;
                     }
 
-                    if (roomClient.RequestUsableItemUse(activeItem.Def.ID) == false)
-                        Debug.LogWarning("[ItemController] 서버 아이템 사용 요청을 보내지 못했습니다.", this);
+                    Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
 
                     activeItem.OnClearPreview();
                     isPreviewingActiveItem = false;
@@ -256,10 +255,14 @@ namespace TerrainCollapse
                     return;
                 }
 
-                activeItem.Use(ownerPos, mouseWorldPos);
+                bool wasUsed = activeItem.Use(ownerPos, mouseWorldPos);
 
-                // 사용한 만큼 인벤토리에서 소모 (0개가 되면 HandleInventoryChanged에서 자동 해제됨)
-                inventory?.TryRemove(itemID, 1);
+                // 실제로 사용에 성공했을 때만 인벤토리에서 소모
+                // (0개가 되면 HandleInventoryChanged에서 자동 해제됨)
+                if (wasUsed)
+                {
+                    inventory?.TryRemove(itemID, 1);
+                }
 
                 isPreviewingActiveItem = false;
             }

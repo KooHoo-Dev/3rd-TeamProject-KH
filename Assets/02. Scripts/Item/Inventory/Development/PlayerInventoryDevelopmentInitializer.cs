@@ -8,6 +8,7 @@ namespace TerrainCollapse
     public sealed class PlayerInventoryDevelopmentInitializer : MonoBehaviour
     {
         [SerializeField, Min(0)] private int initialGold = 500;
+        [SerializeField] private int ItemIndex;
 
         private void Start()
         {
@@ -22,7 +23,7 @@ namespace TerrainCollapse
 
             PlayerInventory inventory = GetComponent<PlayerInventory>();
             inventory.TryAdd(goldItem.ID, initialGold);
-            inventory.TryAdd(52,100);
+            inventory.TryAdd(ItemIndex,100);
         }
     }
 }

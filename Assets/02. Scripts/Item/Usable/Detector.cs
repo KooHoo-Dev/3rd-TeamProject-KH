@@ -15,25 +15,15 @@ namespace TerrainCollapse
 
         private Coroutine waveCoroutine;
 
-        public override void OnUpdatePreview(Vector3 ownerPos, Vector3 targetPos)
-        {
-            
-        }
-
-        public override void Use(Vector3 ownerPos, Vector3 targetPos)
+        public override bool Use(Vector3 ownerPos, Vector3 targetPos)
         {
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
-            if (terrainManager == null || terrainManager.IsReady == false)
-            {
-                Debug.LogWarning("[Detector] TerrainManager가 준비되지 않아 사용할 수 없습니다.");
-                return;
-            }
 
             float cellSize = terrainManager.CellSize;
-            if (cellSize <= 0f) return;
+            if (cellSize <= 0f) return false;
 
             if (terrainManager.TryWorldToCell(ownerPos, out Vector2Int centerCell) == false)
-                return;
+                return false;
 
             List<(Vector3 worldPos, float distance)> found = ScanResources(terrainManager, ownerPos, centerCell, cellSize);
 
@@ -41,6 +31,8 @@ namespace TerrainCollapse
                 StopCoroutine(waveCoroutine);
 
             waveCoroutine = StartCoroutine(RunDetectionWave(ownerPos, found));
+            
+            return true;
         }
 
         public void ShowConfirmedResults(Vector3 ownerPos, GridCoord[] cells)

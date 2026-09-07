@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TerrainCollapse
@@ -9,6 +10,7 @@ namespace TerrainCollapse
     /// 설치 후 armDelay(감지 비활성 유예 시간) 동안은 아무것도 감지하지 않다가,
     /// 그 이후 감지가 활성화되면 감지 반경 안에 플레이어가 들어오는 순간 폭발한다.
     /// 실제 폭발 결과 처리(이펙트/지형 채굴/플레이어 피해)는 ExplosiveBase를 상속받아 재사용한다.
+    /// 같은 타일 셀에는 중복 설치가 불가능하도록 셀 점유 상태를 정적으로 관리한다.
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
     public class MineExplosive : ExplosiveBase
@@ -24,9 +26,17 @@ namespace TerrainCollapse
         [SerializeField] private Color armedBlinkColor = Color.red;
         [SerializeField] private Color disarmedColor = Color.white; // 유예 시간 동안(안전) 표시 색
 
+        // 어떤 타일 셀에 지뢰가 설치돼 있는지 전역으로 추적 (중복 설치 방지용)
+        private static readonly Dictionary<Vector2Int, MineExplosive> occupiedCells = new();
+
         private SpriteRenderer spriteRenderer;
         private Color originalColor;
         private bool isDetectionActive;
+        private bool hasCell;
+        private Vector2Int placedCell;
+
+        /// <summary>주어진 셀에 이미 지뢰가 설치돼 있는지 여부.</summary>
+        public static bool IsCellOccupied(Vector2Int cell) => occupiedCells.ContainsKey(cell);
 
         private void Awake()
         {
@@ -35,16 +45,35 @@ namespace TerrainCollapse
         }
 
         /// <summary>
-        /// MineItem.Use()에서 설치 직후 호출. 위치 세팅 및 유예시간 코루틴 시작.
+        /// MineItem.Use()에서 설치 직후 호출. 위치/셀 세팅 및 유예시간 코루틴 시작.
+        /// cell을 알 수 없는 경우(지형 정보 없음 등)에는 hasCell을 false로 두고,
+        /// 이 지뢰는 중복 설치 판정에서 제외된다.
         /// </summary>
-        public void Place(Vector3 position)
+        public void Place(Vector3 position, Vector2Int? cell = null)
         {
             transform.position = position;
             isDetectionActive = false;
 
+            if (cell.HasValue)
+            {
+                hasCell = true;
+                placedCell = cell.Value;
+                occupiedCells[placedCell] = this;
+            }
+
             spriteRenderer.color = disarmedColor;
 
             StartCoroutine(ArmRoutine());
+        }
+
+        private void OnDestroy()
+        {
+            if (hasCell == false)
+                return;
+
+            // 이 지뢰가 그 셀의 마지막 등록자일 때만 제거 (혹시 모를 재설치 경합 대비)
+            if (occupiedCells.TryGetValue(placedCell, out MineExplosive registered) && registered == this)
+                occupiedCells.Remove(placedCell);
         }
 
         // 설치자가 대피할 수 있도록 armDelay 동안 감지를 비활성 상태로 유지하다가 활성화

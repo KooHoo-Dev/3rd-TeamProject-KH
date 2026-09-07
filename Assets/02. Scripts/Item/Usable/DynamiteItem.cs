@@ -112,12 +112,12 @@ namespace TerrainCollapse
         }
 
         // 좌클릭 시 ItemController에 의해 호출됨 -> 실제 투척 실행
-        public override void Use(Vector3 ownerPos, Vector3 targetPos)
+        public override bool Use(Vector3 ownerPos, Vector3 targetPos)
         {
             if (explosivePrefab == null)
             {
                 Debug.LogWarning("[DynamiteItem] explosivePrefab이 설정되지 않아 투척할 수 없습니다.");
-                return;
+                return false;
             }
 
             // 마우스 위치 - 플레이어 위치 (방향 벡터)
@@ -128,6 +128,8 @@ namespace TerrainCollapse
             thrown.Launch(ownerPos, throwDirection);
 
             OnClearPreview();
+            
+            return true;
         }
         
     }

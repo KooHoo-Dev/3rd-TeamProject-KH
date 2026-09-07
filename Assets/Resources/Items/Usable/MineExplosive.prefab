@@ -110,7 +110,7 @@ MonoBehaviour:
   explosionEffectPrefab: {fileID: -1500941181670288636, guid: 0ba5990786daf4e409b3fd2cf9ad95be, type: 3}
   playerLayerMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 256
   data: {fileID: 11400000, guid: 34d04cb6a9ea91c48a95f225d4847a36, type: 2}
   armedBlinkInterval: 0.25
   armedBlinkColor: {r: 1, g: 0, b: 0, a: 1}

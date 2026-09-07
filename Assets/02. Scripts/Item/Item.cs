@@ -11,8 +11,9 @@ namespace TerrainCollapse
             Def = def;
         }
 
-        // 아이템 실제 사용 (클릭 시)
-        public abstract void Use(Vector3 ownerPos, Vector3 targetPos);
+        // 아이템 실제 사용 (클릭 시). 실제로 사용(소모)되었는지를 bool로 반환한다.
+        // false를 반환하면 호출 측(ItemController)에서 인벤토리 소모를 하지 않는다.
+        public abstract bool Use(Vector3 ownerPos, Vector3 targetPos);
 
         // 매 프레임 조준/스냅 위치 업데이트 및 하이라이트 표시
         public virtual void OnUpdatePreview(Vector3 ownerPos, Vector3 targetPos) { }

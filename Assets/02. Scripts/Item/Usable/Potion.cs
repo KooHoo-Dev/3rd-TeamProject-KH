@@ -17,20 +17,22 @@ namespace TerrainCollapse
         [SerializeField] private float floatSpeed = 0.8f;
         [SerializeField] private float maxSpawnStagger = 0.15f;
 
-        public override void Use(Vector3 ownerPos, Vector3 targetPos)
+        public override bool Use(Vector3 ownerPos, Vector3 targetPos)
         {
             PlayerHp playerHp = FindFirstObjectByType<PlayerHp>();
             if (playerHp == null)
             {
                 Debug.LogWarning("[Potion] PlayerHp를 찾을 수 없어 사용할 수 없습니다.");
-                return;
+                return false;
             }
 
             if (playerHp.IsDead)
-                return;
+                return false;
 
             playerHp.RestoreHp(healAmount);
             SpawnHealEffects(ownerPos, playerHp.transform);
+            
+            return true;
         }
 
         public void PlayConfirmedEffect(Vector3 ownerPos)
