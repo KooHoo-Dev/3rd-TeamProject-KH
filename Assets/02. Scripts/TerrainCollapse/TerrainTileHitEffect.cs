@@ -1,10 +1,10 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace TerrainCollapse
 {
-    /// <summary>곡괭이당 오버레이 하나를 재사용하는 클라이언트 전용 타격 효과.</summary>
+    /// <summary>지형별 셀 Tween 관리. DOTween은 렌더링 Offset만 생성한다.</summary>
     [DisallowMultipleComponent]
     public sealed class TerrainTileHitEffect : MonoBehaviour
     {
@@ -14,51 +14,38 @@ namespace TerrainCollapse
         [SerializeField, Min(1)] private int shakeVibrato = 8;
         [SerializeField, Range(0f, 180f)] private float shakeRandomness = 20f;
 
-        private SpriteRenderer visual;
-        private Vector3 origin;
+        private readonly Dictionary<Vector2Int, Tween> activeShakes = new();
 
-        public void Play(Sprite sprite, Color color, Vector3 center, float cellSize)
+        public void Play(TerrainGridWorld world, Vector2Int cell)
         {
-            Stop();
-            if (isActiveAndEnabled == false || sprite == null || cellSize <= 0f) return;
-            Vector3 size = sprite.bounds.size;
-            if (size.x <= 0f || size.y <= 0f) return;
+            if (isActiveAndEnabled == false || world == null || world.gameObject != gameObject ||
+                world.IsOccupied(cell) == false) return;
+            StopCell(cell);
+            world.TrySetCellVisualOffset(cell, Vector3.zero);
 
-            if (visual == null)
-            {
-                // 플레이어의 이동/회전/크기를 상속하지 않는 별도 루트. Collider는 없다.
-                GameObject overlay = new("Dig Tile Hit Visual", typeof(SpriteRenderer));
-                SceneManager.MoveGameObjectToScene(overlay, gameObject.scene);
-                overlay.layer = gameObject.layer;
-                visual = overlay.GetComponent<SpriteRenderer>();
-                // RenderChunk는 Default/0. 자원 및 하이라이트와 별개인 지형 복제층.
-                visual.sortingOrder = 1;
-            }
-
-            visual.sprite = sprite;
-            visual.color = color;
-            Vector3 scale = new(cellSize / size.x, cellSize / size.y, 1f);
-            visual.transform.localScale = scale;
-            // Sprite의 PPU와 중앙이 아닌 Pivot도 한 셀의 중심/크기에 맞춘다.
-            origin = center - Vector3.Scale(sprite.bounds.center, scale);
-            visual.transform.position = origin;
-            visual.gameObject.SetActive(true);
-
-            // Shake의 난수 소비가 다른 게임 시스템의 Unity Random 상태를 바꾸지 않는다.
             Random.State randomState = Random.state;
             try
             {
-                float strength = Mathf.Clamp(shakeStrength, 0f, 0.1f) * cellSize;
-                visual.transform.DOShakePosition(
+                float strength = Mathf.Clamp(shakeStrength, 0f, 0.1f) * world.CellSize;
+                Tween tween = DOTween.Shake(
+                        () => Vector3.zero,
+                        offset => world.TrySetCellVisualOffset(cell, offset),
                         Mathf.Max(0.01f, shakeDuration),
                         new Vector3(strength, strength, 0f),
                         Mathf.Max(1, shakeVibrato),
                         Mathf.Clamp(shakeRandomness, 0f, 180f))
+                    .SetTarget(this)
                     .SetUpdate(true)
-                    .SetLink(visual.gameObject, LinkBehaviour.KillOnDisable)
-                    .OnKill(ResetVisual)
-                    .OnComplete(ResetVisual)
-                    .ForceInit();
+                    .SetAutoKill(true)
+                    .SetRecyclable(false)
+                    .SetLink(gameObject, LinkBehaviour.KillOnDisable)
+                    .OnKill(() =>
+                    {
+                        activeShakes.Remove(cell);
+                        if (world != null) world.TrySetCellVisualOffset(cell, Vector3.zero);
+                    });
+                activeShakes[cell] = tween;
+                tween.ForceInit();
             }
             finally
             {
@@ -66,27 +53,19 @@ namespace TerrainCollapse
             }
         }
 
-        public void Stop()
+        public void StopCell(Vector2Int cell)
         {
-            if (visual == null) return;
-            visual.transform.DOKill();
-            ResetVisual();
+            if (activeShakes.TryGetValue(cell, out Tween tween)) tween.Kill();
         }
 
-        private void ResetVisual()
+        public void Stop()
         {
-            if (visual == null) return;
-            visual.transform.position = origin;
-            visual.sprite = null;
-            visual.gameObject.SetActive(false);
+            // OnKill에서 Dictionary를 변경하므로 활성 Tween만 복사한다.
+            foreach (Tween tween in new List<Tween>(activeShakes.Values)) tween.Kill();
+            activeShakes.Clear();
         }
 
         private void OnDisable() => Stop();
-
-        private void OnDestroy()
-        {
-            Stop();
-            if (visual != null) Destroy(visual.gameObject);
-        }
+        private void OnDestroy() => Stop();
     }
 }
