@@ -13,7 +13,6 @@ namespace TerrainCollapse
         private bool hasPendingDig;
         
         private GameObject highlightInstance;
-        private TerrainTileHitEffect hitEffect;
 
         public override void Init(ItemDef def)
         {
@@ -138,16 +137,12 @@ namespace TerrainCollapse
         {
             if (digPower <= 0) return;
 
-            // 파괴 전에 비주얼을 저장하고, 실제 적용/요청 성공 시에만 한 번 재생한다.
-            bool hasVisual = manager.TryGetTileVisual(cell, out Sprite sprite, out Color color);
-            manager.TryCellToWorldCenter(cell, out Vector3 center);
-            float cellSize = manager.CellSize;
             RoomClient roomClient = RoomClient.Instance;
             if (roomClient != null && roomClient.IsAuthoritativeTerrainMode)
             {
                 // 로컬 지형 변경은 서버의 terrain_batch를 받은 경우에만 적용한다.
-                if (roomClient.RequestExcavation(cell, Def.ID) && hasVisual)
-                    PlayHitEffect(sprite, color, center, cellSize);
+                if (roomClient.RequestExcavation(cell, Def.ID))
+                    manager.PlayTileHit(cell);
                 return;
             }
 
@@ -168,22 +163,8 @@ namespace TerrainCollapse
                     result == TerrainRemoveResult.EmptyCell ||
                     result == TerrainRemoveResult.Removed) break;
             }
-            if (applied && hasVisual)
-                PlayHitEffect(sprite, color, center, cellSize);
-        }
-
-        private void PlayHitEffect(Sprite sprite, Color color, Vector3 center, float cellSize)
-        {
-            if (hitEffect == null && TryGetComponent(out hitEffect) == false)
-                hitEffect = gameObject.AddComponent<TerrainTileHitEffect>();
-
-            hitEffect.Play(sprite, color, center, cellSize);
-        }
-
-        protected override void OnDisable()
-        {
-            if (hitEffect != null) hitEffect.Stop();
-            base.OnDisable();
+            if (applied)
+                manager.PlayTileHit(cell);
         }
 
         private bool TryGetNearestTargetCell(TerrainManager manager, Vector2Int start, Vector2Int end, out Vector2Int snappedCell)
