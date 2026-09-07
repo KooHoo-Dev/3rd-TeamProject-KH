@@ -98,7 +98,7 @@ namespace TerrainCollapse
         {
             if (rankingText == null) return;
 
-            StringBuilder builder = new("RESULT\n\n");
+            StringBuilder builder = new("");
             GameResultPlayerDto[] players = message?.Players ?? Array.Empty<GameResultPlayerDto>();
             int rank = 0;
             int previousGold = int.MinValue;
