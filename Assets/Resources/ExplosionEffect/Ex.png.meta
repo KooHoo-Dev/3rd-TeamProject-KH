@@ -68,57 +68,6 @@ TextureImporter:
   - first:
       213: 7965789391403469448
     second: Ex_21
-  - first:
-      213: -1871086902056457132
-    second: Ex_22
-  - first:
-      213: -2342981713655658136
-    second: Ex_23
-  - first:
-      213: -5046649039707835070
-    second: Ex_24
-  - first:
-      213: -5705186051112996067
-    second: Ex_25
-  - first:
-      213: -5592657461911605478
-    second: Ex_26
-  - first:
-      213: 1126113300117942834
-    second: Ex_27
-  - first:
-      213: -8179304880825650653
-    second: Ex_28
-  - first:
-      213: -7279796939468748225
-    second: Ex_29
-  - first:
-      213: 7539213706905923021
-    second: Ex_30
-  - first:
-      213: -7305100312701294021
-    second: Ex_31
-  - first:
-      213: -7526246438328958935
-    second: Ex_32
-  - first:
-      213: -6771927154140129398
-    second: Ex_33
-  - first:
-      213: -6354195167300813036
-    second: Ex_34
-  - first:
-      213: 6598301869006609735
-    second: Ex_35
-  - first:
-      213: 4665174644787962778
-    second: Ex_36
-  - first:
-      213: -6375453620387564986
-    second: Ex_37
-  - first:
-      213: 3408553539850121379
-    second: Ex_38
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -151,7 +100,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -189,7 +138,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -230,12 +179,12 @@ TextureImporter:
       name: Ex_0
       rect:
         serializedVersion: 2
-        x: 517
-        y: 88
-        width: 175
-        height: 168
-      alignment: 9
-      pivot: {x: 0.5146017, y: 0.42901993}
+        x: 18
+        y: 23
+        width: 42
+        height: 36
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -249,15 +198,37 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
+      name: Ex_1
+      rect:
+        serializedVersion: 2
+        x: 68
+        y: 11
+        width: 58
+        height: 60
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06012289870452720800000000000000
+      internalID: 2820731628310106208
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
       name: Ex_2
       rect:
         serializedVersion: 2
-        x: 788
-        y: 70
-        width: 198
-        height: 216
-      alignment: 9
-      pivot: {x: 0.51290584, y: 0.4132462}
+        x: 134
+        y: 12
+        width: 61
+        height: 62
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -271,15 +242,37 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
+      name: Ex_3
+      rect:
+        serializedVersion: 2
+        x: 209
+        y: 7
+        width: 64
+        height: 71
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e52aedd900ee8f280800000000000000
+      internalID: -9009189368138653090
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
       name: Ex_4
       rect:
         serializedVersion: 2
-        x: 1078
-        y: 43
-        width: 243
-        height: 258
-      alignment: 9
-      pivot: {x: 0.5, y: 0.48349282}
+        x: 293
+        y: 10
+        width: 63
+        height: 71
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -296,12 +289,12 @@ TextureImporter:
       name: Ex_5
       rect:
         serializedVersion: 2
-        x: 1409
-        y: 78
-        width: 213
-        height: 191
-      alignment: 9
-      pivot: {x: 0.5039991, y: 0.5133787}
+        x: 379
+        y: 14
+        width: 63
+        height: 68
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
@@ -315,67 +308,23 @@ TextureImporter:
       edges: []
       weights: []
     - serializedVersion: 2
-      name: Ex_8
+      name: Ex_6
       rect:
         serializedVersion: 2
-        x: 280
-        y: 90
-        width: 146
-        height: 142
-      alignment: 9
-      pivot: {x: 0.5408382, y: 0.4220221}
+        x: 448
+        y: 18
+        width: 58
+        height: 60
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 0e519998f572ca770800000000000000
-      internalID: 8623310677791544800
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Ex_20
-      rect:
-        serializedVersion: 2
-        x: 97
-        y: 114
-        width: 86
-        height: 82
-      alignment: 9
-      pivot: {x: 0.589138, y: 0.468838}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: 0e1badc6f6e2f9350800000000000000
-      internalID: 6025585882547532256
-      vertices: []
-      indices: 
-      edges: []
-      weights: []
-    - serializedVersion: 2
-      name: Ex_29
-      rect:
-        serializedVersion: 2
-        x: 1663
-        y: 76
-        width: 210
-        height: 205
-      alignment: 9
-      pivot: {x: 0.5040568, y: 0.47507048}
-      border: {x: 0, y: 0, z: 0, w: 0}
-      customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
-      bones: []
-      spriteID: f3a4df9e047f8fa90800000000000000
-      internalID: -7279796939468748225
+      spriteID: 5a1c6b8b652f4f630800000000000000
+      internalID: 3960056426645602725
       vertices: []
       indices: 
       edges: []
@@ -384,7 +333,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 6019f16314e75d74ab0ae17a1d180df6
+    spriteID: b7836a9b8d991c947a20e0f7e66e4d54
     internalID: 0
     vertices: []
     indices: 
@@ -409,24 +358,7 @@ TextureImporter:
       Ex_2: 2284559326657569742
       Ex_20: 6025585882547532256
       Ex_21: 7965789391403469448
-      Ex_22: -1871086902056457132
-      Ex_23: -2342981713655658136
-      Ex_24: -5046649039707835070
-      Ex_25: -5705186051112996067
-      Ex_26: -5592657461911605478
-      Ex_27: 1126113300117942834
-      Ex_28: -8179304880825650653
-      Ex_29: -7279796939468748225
       Ex_3: -9009189368138653090
-      Ex_30: 7539213706905923021
-      Ex_31: -7305100312701294021
-      Ex_32: -7526246438328958935
-      Ex_33: -6771927154140129398
-      Ex_34: -6354195167300813036
-      Ex_35: 6598301869006609735
-      Ex_36: 4665174644787962778
-      Ex_37: -6375453620387564986
-      Ex_38: 3408553539850121379
       Ex_4: -8470201471652547783
       Ex_5: 6182894492045038828
       Ex_6: 3960056426645602725
