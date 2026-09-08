@@ -15,9 +15,25 @@ namespace TerrainCollapse
         [SerializeField] private PickaxeInventory pickaxeInventory;
         [SerializeField] private Image iconImage;
 
+        public int ItemID => pickaxeInventory?.CurrentDef?.ID ?? -1;
+
         private void Awake()
         {
             pickaxeInventory ??= FindFirstObjectByType<PickaxeInventory>();
+            EnsureIconTooltipTrigger();
+        }
+
+        private void EnsureIconTooltipTrigger()
+        {
+            if (iconImage == null) return;
+
+            if (iconImage.TryGetComponent<TooltipTrigger>(out _) == false)
+                iconImage.gameObject.AddComponent<TooltipTrigger>();
+
+            // 이전 씬에 슬롯 루트로 추가된 Trigger가 있어도 아이콘 호버만 사용한다.
+            TooltipTrigger slotTrigger = GetComponent<TooltipTrigger>();
+            if (slotTrigger != null && slotTrigger.gameObject != iconImage.gameObject)
+                slotTrigger.enabled = false;
         }
 
         private void OnEnable()
