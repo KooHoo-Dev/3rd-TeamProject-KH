@@ -113,7 +113,7 @@ MonoBehaviour:
     m_Bits: 4294967295
   explosionEffectPrefab: {fileID: -1500941181670288636, guid: 0ba5990786daf4e409b3fd2cf9ad95be, type: 3}
   data: {fileID: 11400000, guid: 945a3699b52c8f242ae2e06b0b0e2392, type: 2}
-  launchClearance: 0.05
+  launchClearance: 0.01
   maxBlinkInterval: 0.4
   minBlinkInterval: 0.021
   blinkColor: {r: 1, g: 0, b: 0, a: 1}
