@@ -279,41 +279,29 @@ namespace TerrainCollapse
 
             pendingTerrainManager = null;
         }
-        
+
         private bool IsPreparedTargetStillValid(Vector3 currentOwnerPos)
         {
             if (pendingTerrainManager == null)
                 return false;
 
-            if (pendingTerrainManager.HasTerrain(pendingTargetCell) == false)
+            // pendingTargetCell의 월드 좌표를 다시 얻어서, 그 방향으로
+            // "지금 이 순간" TryGetTargetCell을 다시 돌려본다.
+            if (!pendingTerrainManager.TryCellToWorldCenter(pendingTargetCell, out Vector3 targetWorldPos))
                 return false;
 
-            if (pendingTerrainManager.IsCellMineable(pendingTargetCell) == false)
-                return false;
-
-            if (!pendingTerrainManager.TryCellToWorldCenter(
-                    pendingTargetCell,
-                    out Vector3 targetWorldPos))
+            if (!TryGetTargetCell(
+                    pendingTerrainManager,
+                    currentOwnerPos,
+                    targetWorldPos,
+                    out Vector2Int currentTargetCell,
+                    out _))
             {
                 return false;
             }
 
-            float cellSize = pendingTerrainManager.CellSize;
-
-            if (cellSize <= 0f)
-                return false;
-
-            Bounds targetBounds = new Bounds(
-                targetWorldPos,
-                new Vector3(cellSize, cellSize, 0f));
-
-            Vector3 closestPoint =
-                targetBounds.ClosestPoint(currentOwnerPos);
-
-            float distance =
-                Vector2.Distance(currentOwnerPos, closestPoint);
-
-            return distance <= Def.PickaxeData.Value.Range;
+            // 지금 다시 계산해도 같은 셀이 나와야만 유효
+            return currentTargetCell == pendingTargetCell;
         }
 
         public void CancelPreparedUse()
