@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 5087780210282194615}
   - component: {fileID: 6984389615976079043}
   m_Layer: 0
-  m_Name: TorchItem
+  m_Name: Torch
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -44,4 +44,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e040ade4217749caafdb001a8d751a51, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.TorchItem
-  prefab: {fileID: 6710349094472658063, guid: 0a52594fbe3bae64bb1a7f9b1f200082, type: 3}
+  torchPrefab: {fileID: 6710349094472658063, guid: 0a52594fbe3bae64bb1a7f9b1f200082, type: 3}

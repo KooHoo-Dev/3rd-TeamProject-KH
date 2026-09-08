@@ -4,7 +4,7 @@ namespace TerrainCollapse
 {
     public class ExplosionEffect : MonoBehaviour
     {
-        private const float EXPLOSION_BASE_SCALE = 1.58f;
+        private const float EXPLOSION_BASE_SCALE = 3.95f;
         private const float EXPLOSION_DURATION = 0.5f;
         private float liveTime;
 
