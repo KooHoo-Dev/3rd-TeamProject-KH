@@ -127,7 +127,7 @@ namespace TerrainCollapse
                 return;
             }
             
-            Shader spriteShader = Shader.Find("Sprites/Default");
+            Shader spriteShader = Shader.Find($"Universal Render Pipeline/2D/Sprite-Lit-Default");
             terrainMaterial = new Material(spriteShader) { mainTexture = terrainSprite.texture };
         }
 

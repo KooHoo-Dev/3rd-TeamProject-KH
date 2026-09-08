@@ -7549,7 +7549,6 @@ GameObject:
   - component: {fileID: 86869696809733250}
   - component: {fileID: 9079839440895910968}
   - component: {fileID: 7585120178026098731}
-  - component: {fileID: 7000095282351396467}
   - component: {fileID: 7759439780009878833}
   m_Layer: 5
   m_Name: Pickaxe Slot
@@ -7632,20 +7631,6 @@ MonoBehaviour:
   m_EffectColor: {r: 0.2, g: 0.27, b: 0.35, a: 0.9}
   m_EffectDistance: {x: 1, y: -1}
   m_UseGraphicAlpha: 1
---- !u!114 &7000095282351396467
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8121915778416061950}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dad26dc8ae4e47f7bb9dd980898d914c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.PickaxeSlotView
-  pickaxeInventory: {fileID: 0}
-  iconImage: {fileID: 5127223286958861709}
 --- !u!114 &7759439780009878833
 MonoBehaviour:
   m_ObjectHideFlags: 0

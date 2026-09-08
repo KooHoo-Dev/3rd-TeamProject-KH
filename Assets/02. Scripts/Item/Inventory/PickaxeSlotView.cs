@@ -15,8 +15,20 @@ namespace TerrainCollapse
         [SerializeField] private PickaxeInventory pickaxeInventory;
         [SerializeField] private Image iconImage;
 
+        private void Awake()
+        {
+            pickaxeInventory ??= FindFirstObjectByType<PickaxeInventory>();
+        }
+
         private void OnEnable()
         {
+            if (pickaxeInventory == null)
+            {
+                Debug.LogWarning("[PickaxeSlotView] PickaxeInventory를 찾지 못했습니다.", this);
+                SetIcon(null);
+                return;
+            }
+
             pickaxeInventory.PickaxeChanged += HandlePickaxeChanged;
 
             Refresh();
@@ -34,6 +46,12 @@ namespace TerrainCollapse
 
         private void Refresh()
         {
+            if (pickaxeInventory == null)
+            {
+                SetIcon(null);
+                return;
+            }
+
             if (pickaxeInventory.CurrentDef == null)
             {
                 SetIcon(null);

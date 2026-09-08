@@ -15,14 +15,17 @@ namespace TerrainCollapse
 
         [Header("Visual Settings")]
         [SerializeField, Min(0)] private int visionRadius;
+        [SerializeField, Min(0)] private int currentVisionFogRadius = 6;
 
         private ExplorationMapData explorationData;
+        private readonly HashSet<Vector2Int> currentObservedCells = new();
         private bool initialized;
         private bool hasLastExplorationCell;
         private bool needsVisionRefresh;
         private Vector2Int lastExplorationCell;
 
         public ExplorationMapData ExplorationData => explorationData;
+        public IReadOnlyCollection<Vector2Int> CurrentObservedCells => currentObservedCells;
 
         public event Action<IReadOnlyList<Vector2Int>> CellsExplored;
         public event Action<IReadOnlyList<Vector2Int>> CellsObserved;
@@ -92,6 +95,7 @@ namespace TerrainCollapse
                 return;
 
             explorationData = new ExplorationMapData(mapWidth, mapHeight);
+            currentObservedCells.Clear();
             initialized = true;
             hasLastExplorationCell = false;
             needsVisionRefresh = true;
@@ -160,32 +164,88 @@ namespace TerrainCollapse
         private void ExploreVisionRadius(Vector2Int centerCell)
         {
             List<Vector2Int> newlyExploredCells = new();
-            List<Vector2Int> observedCells = new();
+            List<Vector2Int> currentVisionCells = new();
 
-            int radiusSquared = visionRadius * visionRadius;
+            int explorationRadiusSquared = visionRadius * visionRadius;
 
             for (int y = -visionRadius; y <= visionRadius; y++)
             {
                 for (int x = -visionRadius; x <= visionRadius; x++)
                 {
-                    if (x * x + y * y > radiusSquared) continue;
+                    int distanceSquared = x * x + y * y;
+                    if (distanceSquared > explorationRadiusSquared) continue;
 
                     Vector2Int cell = centerCell + new Vector2Int(x, y);
 
                     if (explorationData.IsInside(cell) == false) continue;
                     if (HasLineOfSight(centerCell, cell) == false) continue;
 
-                    observedCells.Add(cell);
-
-                    if (explorationData.TryExplore(cell)) newlyExploredCells.Add(cell);
+                    if (explorationData.TryExplore(cell))
+                    {
+                        newlyExploredCells.Add(cell);
+                    }
                 }
             }
+
+            CollectCurrentVisionCells(centerCell, currentVisionCells);
 
             if (newlyExploredCells.Count > 0)
                 CellsExplored?.Invoke(newlyExploredCells);
 
-            if (observedCells.Count > 0)
-                CellsObserved?.Invoke(observedCells);
+            currentObservedCells.Clear();
+            currentObservedCells.UnionWith(currentVisionCells);
+
+            if (currentVisionCells.Count > 0)
+                CellsObserved?.Invoke(currentVisionCells);
+        }
+
+        private void CollectCurrentVisionCells(
+            Vector2Int centerCell,
+            List<Vector2Int> cells)
+        {
+            HashSet<Vector2Int> visibleCells = new() { centerCell };
+
+            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.up, 2, visibleCells);
+            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.down, 2, visibleCells);
+            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.left, 2, visibleCells);
+            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.right, 2, visibleCells);
+
+            cells.AddRange(visibleCells);
+        }
+
+        private void AddCurrentVisionRay(
+            Vector2Int centerCell,
+            Vector2Int origin,
+            Vector2Int direction,
+            int remainingTurns,
+            HashSet<Vector2Int> visibleCells)
+        {
+            for (int distance = 1; distance <= currentVisionFogRadius; distance++)
+            {
+                Vector2Int cell = origin + direction * distance;
+                if (explorationData.IsInside(cell) == false) return;
+                if (Mathf.Abs(cell.x - centerCell.x) > currentVisionFogRadius ||
+                    Mathf.Abs(cell.y - centerCell.y) > currentVisionFogRadius)
+                {
+                    return;
+                }
+
+                visibleCells.Add(cell);
+                if (terrainManager.HasTerrain(cell)) return;
+                if (remainingTurns == 0) continue;
+
+                Vector2Int firstTurnDirection =
+                    new Vector2Int(-direction.y, direction.x);
+                Vector2Int secondTurnDirection =
+                    new Vector2Int(direction.y, -direction.x);
+
+                AddCurrentVisionRay(
+                    centerCell, cell, firstTurnDirection,
+                    remainingTurns - 1, visibleCells);
+                AddCurrentVisionRay(
+                    centerCell, cell, secondTurnDirection,
+                    remainingTurns - 1, visibleCells);
+            }
         }
 
         private bool HasLineOfSight(Vector2Int origin, Vector2Int target)
