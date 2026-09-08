@@ -9,6 +9,13 @@ namespace TerrainCollapse.Networking
         [SerializeField] private PlayerNameTag nameTag;
 
         private Vector2 targetPosition;
+        private bool hasMovementState;
+        private bool wasGrounded;
+        private float airborneSince = -1f;
+        private float nextFootstepTime;
+        private bool hasHealthState;
+        private int currentHealth;
+        private bool healthIsDead;
 
         public string PlayerId { get; private set; }
         public int ColorIndex { get; private set; }
@@ -43,6 +50,7 @@ namespace TerrainCollapse.Networking
         {
             if (state == null) return;
             targetPosition = new Vector2(state.X, state.Y);
+            UpdateMovementSounds(state);
             animationView?.ApplyState(state);
         }
 
@@ -53,7 +61,57 @@ namespace TerrainCollapse.Networking
             transform.position = new Vector3(position.x, position.y, current.z);
         }
 
-        public void SetDead(bool isDead) => animationView?.SetDead(isDead);
+        public void ApplyHealthSnapshot(PlayerHealthStateDto state)
+        {
+            if (state == null) return;
+            hasHealthState = true;
+            currentHealth = state.CurrentHealth;
+            healthIsDead = state.IsDead;
+            animationView?.SetDead(state.IsDead);
+        }
+
+        public void ApplyHealthChanged(PlayerHealthStateDto state)
+        {
+            if (state == null) return;
+
+            Vector3 soundPosition = transform.position;
+            if (hasHealthState && currentHealth - state.CurrentHealth >= 3)
+                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerHurt, soundPosition);
+            if (healthIsDead == false && state.IsDead)
+                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath, soundPosition);
+
+            hasHealthState = true;
+            currentHealth = state.CurrentHealth;
+            healthIsDead = state.IsDead;
+            animationView?.SetDead(state.IsDead);
+        }
+
+        public void ApplyDeath(PlayerHealthStateDto state)
+        {
+            if (healthIsDead == false)
+                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath, transform.position);
+
+            if (state != null)
+            {
+                hasHealthState = true;
+                currentHealth = state.CurrentHealth;
+            }
+            healthIsDead = true;
+            animationView?.SetDead(true);
+        }
+
+        public void ApplyRespawn(PlayerHealthStateDto state)
+        {
+            if (state != null)
+            {
+                hasHealthState = true;
+                currentHealth = state.CurrentHealth;
+            }
+            healthIsDead = false;
+            ResetMovementSounds();
+            animationView?.SetDead(false);
+        }
+
         public void PlayMine(float directionX) => animationView?.PlayMine(directionX);
 
         public void SetColorIndex(int colorIndex)
@@ -78,6 +136,60 @@ namespace TerrainCollapse.Networking
                 targetPosition,
                 t);
             transform.position = new Vector3(next.x, next.y, current.z);
+        }
+
+        private void UpdateMovementSounds(PlayerStateDto state)
+        {
+            bool canPlayMovement = state.IsDead == false &&
+                                   state.IsBuried == false &&
+                                   state.IsClimbing == false;
+            if (hasMovementState == false)
+            {
+                hasMovementState = true;
+                wasGrounded = state.IsGrounded;
+                if (canPlayMovement && state.IsGrounded == false)
+                    airborneSince = Time.time;
+                return;
+            }
+
+            if (canPlayMovement == false)
+            {
+                wasGrounded = state.IsGrounded;
+                airborneSince = -1f;
+                return;
+            }
+
+            Vector2 soundPosition = new(state.X, state.Y);
+            if (state.IsGrounded)
+            {
+                if (wasGrounded == false && airborneSince >= 0f &&
+                    Time.time - airborneSince >= 0.1f)
+                {
+                    GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerLand, soundPosition);
+                    nextFootstepTime = Time.time + 0.3f;
+                }
+
+                airborneSince = -1f;
+                if (Mathf.Abs(state.VelocityX) > 0.01f && Time.time >= nextFootstepTime)
+                {
+                    GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerRun, soundPosition);
+                    nextFootstepTime = Time.time + 0.3f;
+                }
+            }
+            else if (wasGrounded || airborneSince < 0f)
+            {
+                airborneSince = Time.time;
+            }
+
+            wasGrounded = state.IsGrounded;
+        }
+
+        private void ResetMovementSounds()
+        {
+            hasMovementState = false;
+            wasGrounded = false;
+            airborneSince = -1f;
+            nextFootstepTime = 0f;
         }
     }
 }

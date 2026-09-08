@@ -55,14 +55,14 @@ namespace Character
                 this);
 
             if (previousHp - currentHp >= 3)
-                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerHurt);
+                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerHurt, transform.position);
             DamageTaken?.Invoke(damageInfo);
             HpChanged?.Invoke(currentHp, maxHp);
 
             if (currentHp > 0) return;
 
             isDead = true;
-            GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath);
+            GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath, transform.position);
             Died?.Invoke();
         }
 
@@ -151,7 +151,7 @@ namespace Character
 
             if (notifyDeath && wasDead == false && isDead)
             {
-                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath);
+                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath, transform.position);
                 Died?.Invoke();
             }
         }

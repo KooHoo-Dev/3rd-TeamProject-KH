@@ -116,7 +116,9 @@ namespace TerrainCollapse
         {
             if (IsReady == false) return;
             terrainWorld.PlayCellHit(cell);
-            GameAudio.GameSound.Play(GameAudio.SoundCue.Dig);
+            GameAudio.GameSound.Play(
+                GameAudio.SoundCue.Dig,
+                terrainWorld.CellToWorldCenter(cell));
         }
 
         public bool TryGetDurability(Vector2Int cell, out int durability)

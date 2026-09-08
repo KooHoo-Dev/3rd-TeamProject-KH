@@ -1088,7 +1088,7 @@ namespace TerrainCollapse
                     ApplyLocalPlayerHealth(player, false);
                 else if (player != null &&
                          remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
-                    remote.SetDead(player.IsDead);
+                    remote.ApplyHealthSnapshot(player);
             }
         }
 
@@ -1100,11 +1100,13 @@ namespace TerrainCollapse
                 int previousHp = localPlayerHp != null ? localPlayerHp.CurrentHp : player.CurrentHealth;
                 ApplyLocalPlayerHealth(player, player.IsDead);
                 if (localPlayerHp != null && previousHp - localPlayerHp.CurrentHp >= 3)
-                    GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerHurt);
+                    GameAudio.GameSound.Play(
+                        GameAudio.SoundCue.PlayerHurt,
+                        localPlayerHp.transform.position);
             }
             else if (player != null &&
                      remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
-                remote.SetDead(player.IsDead);
+                remote.ApplyHealthChanged(player);
         }
 
         private void HandlePlayerDied(PlayerDiedMessage message)
@@ -1116,7 +1118,7 @@ namespace TerrainCollapse
             }
             else if (player != null &&
                      remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
-                remote.SetDead(true);
+                remote.ApplyDeath(player);
         }
 
         private void HandlePlayerRespawned(PlayerRespawnedMessage message)
@@ -1130,7 +1132,7 @@ namespace TerrainCollapse
                      remotePlayers.TryGetValue(message.Player.PlayerID, out RemotePlayerView remote))
             {
                 remote.Teleport(new Vector2(message.X, message.Y));
-                remote.SetDead(false);
+                remote.ApplyRespawn(message.Player);
             }
             ApplyLocalPlayerHealth(message?.Player, false);
         }
