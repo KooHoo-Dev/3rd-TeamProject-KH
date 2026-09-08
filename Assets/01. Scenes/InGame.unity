@@ -1032,7 +1032,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ShopNpcInteractable
   shopAccess: {fileID: 7527009593963667744}
-  hoverOutlinePixelWidth: 4
+  hoverOutlinePixelWidth: 2
+  hoverOutlineMaterialTemplate: {fileID: 2100000, guid: b4f7a49f04ad4ecf8c313b376f226804, type: 2}
 --- !u!61 &638690674
 BoxCollider2D:
   m_ObjectHideFlags: 0

@@ -15,6 +15,7 @@ namespace TerrainCollapse
     {
         [SerializeField] private ShopAccessController shopAccess; // 플레이어의 상점 접근/UI 컨트롤러
         [SerializeField, Range(1, 8)] private int hoverOutlinePixelWidth = 2;
+        [SerializeField] private Material hoverOutlineMaterialTemplate;
 
         private Collider2D npcCollider;
         private SpriteRenderer spriteRenderer;
@@ -78,19 +79,13 @@ namespace TerrainCollapse
 
         private Material CreateHoverOutlineMaterial()
         {
-            Shader outlineShader = Shader.Find("AllIn1SpriteShader/AllIn1SpriteShaderSRPBatch") ??
-                Shader.Find("AllIn1SpriteShader/AllIn1Urp2dRenderer");
-            if (outlineShader == null)
+            if (hoverOutlineMaterialTemplate == null)
             {
-                Debug.LogWarning("[Shop] 외곽선 지원 스프라이트 셰이더를 찾지 못했습니다.", this);
+                Debug.LogWarning("[Shop] 외곽선 머티리얼이 연결되지 않았습니다.", this);
                 return null;
             }
 
-            // 상점의 기본 Sprite-Unlit-Default에는 외곽선 속성이 없으므로,
-            // 호버 중에만 외곽선 지원 셰이더의 런타임 머티리얼을 사용한다.
-            Material material = new(outlineShader) { name = "Shop Hover Outline" };
-            material.EnableKeyword("OUTBASE_ON");
-            material.EnableKeyword("OUTBASE8DIR_ON");
+            Material material = new(hoverOutlineMaterialTemplate) { name = "Shop Hover Outline" };
             material.SetColor(OutlineColorId, Color.white);
             material.SetFloat(OutlineAlphaId, 1f);
             material.SetInt(OutlinePixelWidthId, Mathf.Clamp(hoverOutlinePixelWidth, 1, 8));

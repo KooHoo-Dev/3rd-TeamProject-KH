@@ -39,6 +39,7 @@ namespace TerrainCollapse
         private Vector2 normalMapFrameAnchorMin;
         private Vector2 normalMapFrameAnchorMax;
         private Vector2 normalMapFramePivot;
+        private RectMask2D mapFrameMask;
         private RectTransform mapRect;
         private Vector2 normalMapAnchorMin;
         private Vector2 normalMapAnchorMax;
@@ -71,8 +72,9 @@ namespace TerrainCollapse
                 normalMapFrameAnchorMin = mapFrame.anchorMin;
                 normalMapFrameAnchorMax = mapFrame.anchorMax;
                 normalMapFramePivot = mapFrame.pivot;
-                if (mapFrame.GetComponent<RectMask2D>() == null)
-                    mapFrame.gameObject.AddComponent<RectMask2D>();
+                mapFrameMask = mapFrame.GetComponent<RectMask2D>();
+                if (mapFrameMask == null)
+                    mapFrameMask = mapFrame.gameObject.AddComponent<RectMask2D>();
             }
 
             if (mapRect != null)
@@ -256,6 +258,7 @@ namespace TerrainCollapse
                 mapFrame.pivot = new Vector2(0.5f, 0.5f);
                 mapFrame.anchoredPosition = Vector2.zero;
                 mapFrame.sizeDelta = fullMapSize;
+                SetMapFrameMaskPadding(fullMapFramePadding);
 
                 ApplyFullMapTransform();
                 mapFrame.SetAsLastSibling();
@@ -267,6 +270,7 @@ namespace TerrainCollapse
                 mapFrame.pivot = normalMapFramePivot;
                 mapFrame.anchoredPosition = normalMapFrameAnchoredPosition;
                 mapFrame.sizeDelta = normalMapFrameSize;
+                SetMapFrameMaskPadding(0f);
 
                 RestoreMinimapTransform();
             }
@@ -385,6 +389,12 @@ namespace TerrainCollapse
             float contentWidth = Mathf.Max(1f, fullMapSize.x - fullMapFramePadding * 2f);
             float contentHeight = Mathf.Max(1f, fullMapSize.y - fullMapFramePadding * 2f);
             return new Vector2(contentWidth, contentHeight);
+        }
+
+        private void SetMapFrameMaskPadding(float padding)
+        {
+            if (mapFrameMask == null) return;
+            mapFrameMask.padding = new Vector4(padding, padding, padding, padding);
         }
 
         private void UpdateViewUvRect()

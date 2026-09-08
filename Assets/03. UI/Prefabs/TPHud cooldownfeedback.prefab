@@ -2383,7 +2383,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
   m_AnchoredPosition: {x: 462.5, y: 150}
-  m_SizeDelta: {x: 780, y: 22}
+  m_SizeDelta: {x: 760, y: 22}
   m_Pivot: {x: 1, y: 0.5}
 --- !u!222 &384240097331011768
 CanvasRenderer:
@@ -4793,7 +4793,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 100
+  m_text: '1,000
+
+'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}
   m_sharedMaterial: {fileID: -8736176697884498249, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}
@@ -5202,7 +5204,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -400, y: 0.0000015013}
+  m_AnchoredPosition: {x: -390, y: 0.0000015013}
   m_SizeDelta: {x: 44.1182, y: 44.1182}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3142422612417975008
@@ -7916,7 +7918,7 @@ MonoBehaviour:
   mapFrame: {fileID: 5516691609297010817}
   fullMapDimmer: {fileID: 8400899570133709510}
   fullMapSize: {x: 900, y: 900}
-  fullMapFramePadding: 65
+  fullMapFramePadding: 54
   fullMapZoomStep: 0.2
   minFullMapZoom: 1
   maxFullMapZoom: 3
@@ -10554,7 +10556,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54d88d5c071142e4ac99339553fb9ba3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ChatPanelFader
-  visibleDuration: 3
+  visibleDuration: 5
   fadeDuration: 1
 --- !u!114 &6560473425994233777
 MonoBehaviour:

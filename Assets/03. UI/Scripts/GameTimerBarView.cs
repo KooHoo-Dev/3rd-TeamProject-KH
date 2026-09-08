@@ -97,7 +97,7 @@ namespace TerrainCollapse
         private void HandleGameEnded(GameEndedMessage message)
         {
             isEnded = true;
-            Render(0f, "제한 시간 종료");
+            Render(0f, "게임 종료");
             RenderRanking(message);
             if (resultPanel != null) resultPanel.SetActive(true);
         }

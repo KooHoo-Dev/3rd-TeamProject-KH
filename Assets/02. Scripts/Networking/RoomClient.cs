@@ -1372,6 +1372,11 @@ namespace TerrainCollapse
                 message?.RequestId,
                 pendingShopRequestId,
                 StringComparison.Ordinal);
+            bool isDebugRequest = string.Equals(
+                message?.RequestId,
+                pendingDebugGoldRequestId,
+                StringComparison.Ordinal) ||
+                message?.Code?.Contains(".debug_", StringComparison.Ordinal) == true;
 
             // 어느 요청의 답인지로만 푼다.
             //
@@ -1413,16 +1418,40 @@ namespace TerrainCollapse
                 return;
             }
 
+            if (isDebugRequest)
+            {
+#if UNITY_EDITOR
+                Debug.LogWarning($"[Debug] Server request failed: {message?.Code}: {errorText}", this);
+#endif
+                return;
+            }
+
             bool isHealthFull = message?.Code == "player.health_full";
             SystemMessageReceived?.Invoke(new ChatSystemMessage
             {
                 ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
-                Text = isHealthFull ? errorText : $"요청 처리에 실패했습니다: {errorText}",
+                Text = isHealthFull || ShouldDisplayErrorWithoutPrefix(message?.Code)
+                    ? errorText
+                    : $"요청 처리에 실패했습니다: {errorText}",
             });
             if (isHealthFull)
                 Debug.Log($"[RoomClient] {errorText}", this);
             else
                 Debug.LogError($"[RoomClient] Server error {message?.Code}: {message?.Message}", this);
+        }
+
+        private static bool ShouldDisplayErrorWithoutPrefix(string errorCode)
+        {
+            return errorCode is
+                "mine.arming" or
+                "mine.no_target" or
+                "mine.cell_occupied" or
+                "torch.cell_occupied" or
+                "inventory.insufficient" or
+                "inventory.overweight" or
+                "item.spawn_restricted" or
+                "inventory.sell_outside_spawn" or
+                "player.dead";
         }
 
         private void HandleWorldItemSnapshot(WorldItemSnapshotMessage message)
