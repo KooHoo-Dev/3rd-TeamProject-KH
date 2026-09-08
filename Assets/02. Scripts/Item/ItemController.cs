@@ -305,7 +305,7 @@ namespace TerrainCollapse
             bool? requested = item switch
             {
                 DynamiteItem => roomClient.RequestDynamiteThrow(item.Def.ID, ownerPos, mouseWorldPos),
-                MineItem => roomClient.RequestMinePlacement(item.Def.ID, ownerPos),
+                MineItem or TorchItem => roomClient.RequestPlaceablePlacement(item.Def.ID, ownerPos),
                 Potion or Detector => roomClient.RequestUsableItemUse(item.Def.ID),
                 _ => (bool?)null
             };

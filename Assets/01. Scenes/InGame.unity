@@ -1575,6 +1575,8 @@ MonoBehaviour:
   dynamiteRoot: {fileID: 801389962}
   mineExplosivePrefab: {fileID: -6401447820368030561, guid: 5b3dc3a9273b1414b852f523924b436b, type: 3}
   mineRoot: {fileID: 453277454}
+  torchLightPrefab: {fileID: 0}
+  torchRoot: {fileID: 0}
   gameEndTimeScale: 0.08
   gameEndSlowMotionSeconds: 1.5
 --- !u!4 &1934651728
@@ -1616,6 +1618,10 @@ PrefabInstance:
       propertyPath: explorationController
       value: 
       objectReference: {fileID: 1873007157}
+    - target: {fileID: 2697366713966521815, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2722227639670937280, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: playerHp
       value: 
@@ -1624,6 +1630,18 @@ PrefabInstance:
       propertyPath: playerHp
       value: 
       objectReference: {fileID: 1971883706}
+    - target: {fileID: 5147519694784009753, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -219
+      objectReference: {fileID: 0}
+    - target: {fileID: 5147519694784009753, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -692
+      objectReference: {fileID: 0}
+    - target: {fileID: 5151110163558213557, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5456538461327803673, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: roomClient
       value: 
