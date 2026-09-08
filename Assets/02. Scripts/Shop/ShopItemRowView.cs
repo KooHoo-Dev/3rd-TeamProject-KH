@@ -20,6 +20,9 @@ namespace TerrainCollapse
 
         private ShopListing listing;
         private Action<ShopListing> onBuyClicked;
+        private bool hasListing;
+
+        public int ItemID => hasListing ? listing.ItemID : -1;
 
         // ShopUIBuilder 등 화면 생성 코드가 자식 참조를 넘겨줄 때 사용 (에디터 타임 배선용)
         public void Configure(Image icon, TMP_Text name, TMP_Text price, Button buy, CanvasGroup group)
@@ -40,6 +43,7 @@ namespace TerrainCollapse
         public void Bind(ShopListing shopListing, Action<ShopListing> buyCallback, bool isLocked = false)
         {
             listing = shopListing;
+            hasListing = true;
             onBuyClicked = buyCallback;
 
             if (nameText != null) nameText.text = listing.Name;
@@ -51,6 +55,10 @@ namespace TerrainCollapse
             {
                 iconImage.sprite = listing.Icon;
                 iconImage.enabled = listing.Icon != null;
+
+                // 상점 카드 전체가 아닌 아이콘 위에서만 Tooltip을 표시한다.
+                if (iconImage.TryGetComponent<TooltipTrigger>(out _) == false)
+                    iconImage.gameObject.AddComponent<TooltipTrigger>();
             }
 
             if (canvasGroup != null)

@@ -24,6 +24,7 @@ namespace TerrainCollapse
         [SerializeField] private Color terrainColor = Color.white;
         [SerializeField] private TerrainTileCatalog tileCatalog;
         [SerializeField] private bool isDebugTileColorEnabled;
+        [SerializeField] private Color undergroundBedrockColor = new(0.68f, 0.7f, 0.74f, 1f);
 #if UNITY_EDITOR
         [SerializeField] private bool isDurabilityTextEnabled;
 #endif
@@ -69,13 +70,14 @@ namespace TerrainCollapse
         public Color GetTileColor(TerrainTileType type)
         {
             if (type == TerrainTileType.DeathLoot) return Color.red;
+            if (type == TerrainTileType.Bedrock) return undergroundBedrockColor;
 
             TerrainTileDefinition definition = tileCatalog?.Get(type);
             
             if (definition != null) return definition.Color;
             if (isDebugTileColorEnabled) return GetDebugTileColor(type);
             
-            return type == TerrainTileType.Bedrock ? Color.black : terrainColor;
+            return terrainColor;
         }
 
         private static Color GetDebugTileColor(TerrainTileType type)
@@ -127,7 +129,7 @@ namespace TerrainCollapse
                 return;
             }
             
-            Shader spriteShader = Shader.Find("Sprites/Default");
+            Shader spriteShader = Shader.Find($"Universal Render Pipeline/2D/Sprite-Lit-Default");
             terrainMaterial = new Material(spriteShader) { mainTexture = terrainSprite.texture };
         }
 
@@ -539,6 +541,9 @@ namespace TerrainCollapse
             foreach (Vector2Int chunkCoord in chunks) RebuildChunkMesh(chunkCoord);
         }
 
+        private bool IsUndergroundCell(Vector2Int coord)
+            => transform.position.y + (coord.y + 0.5f) * cellSize <= 0f;
+
         private void RebuildChunkMesh(Vector2Int chunkCoord)
         {
             List<Vector2Int> cells = new();
@@ -550,8 +555,11 @@ namespace TerrainCollapse
                 for (int x = minX; x < minX + RenderChunkSize; x++)
                 {
                     Vector2Int coord = new(x, y);
-                    
-                    if (data.IsOccupied(coord)) cells.Add(coord);
+                    TerrainCell cell = data.GetCellOrNull(coord);
+                    if (cell == null) continue;
+
+                    if (cell.Type != TerrainTileType.Bedrock || IsUndergroundCell(coord))
+                        cells.Add(coord);
                 }
             }
 

@@ -79,12 +79,9 @@ namespace TerrainCollapse
                 float fadeStart = Mathf.Max(popDuration, duration - fadeOutDuration);
                 float fadeT = Mathf.Clamp01((elapsed - fadeStart) / (duration - fadeStart));
 
-                if (sprite != null)
-                {
-                    Color c = sprite.color;
-                    c.a = Mathf.Lerp(1f, 0f, fadeT);
-                    sprite.color = c;
-                }
+                Color c = sprite.color;
+                c.a = Mathf.Lerp(1f, 0f, fadeT);
+                sprite.color = c;
             }
 
             if (elapsed >= duration)

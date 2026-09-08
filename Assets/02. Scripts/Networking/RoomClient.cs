@@ -77,6 +77,7 @@ namespace TerrainCollapse
         private readonly Dictionary<string, MineExplosive> activeMines = new();
         private readonly Dictionary<string, float> nextDamageRequestTimes = new();
         private float nextAnyDamageRequestTime;
+        private PickaxeInventory localPickaxeInventory;
 
         private readonly SortedDictionary<uint, TerrainChangeBatchMessage> bufferedTerrainBatches = new();
         private readonly Dictionary<string, RemotePlayerView> remotePlayers = new();
@@ -198,6 +199,10 @@ namespace TerrainCollapse
                 localPlayer = FindFirstObjectByType<PlayerController>();
             if (playerInventory == null && localPlayer != null)
                 playerInventory = localPlayer.GetComponent<PlayerInventory>();
+            if (localPlayer != null)
+                localPickaxeInventory = localPlayer.GetComponent<PickaxeInventory>();
+            if (localPickaxeInventory == null && playerInventory != null)
+                localPickaxeInventory = playerInventory.GetComponent<PickaxeInventory>();
             if (localPlayerHp == null && localPlayer != null)
                 localPlayerHp = localPlayer.GetComponent<PlayerHp>();
             if (remotePlayerRoot == null)
@@ -1592,6 +1597,14 @@ namespace TerrainCollapse
                 quantities,
                 message.CurrentWeight,
                 message.MaxWeight);
+            if (localPickaxeInventory == null)
+            {
+                Debug.LogError("[RoomClient] LocalPlayer의 PickaxeInventory를 찾지 못해 장착 곡괭이를 적용하지 못했습니다.", this);
+                return;
+            }
+
+            localPickaxeInventory.ApplyAuthoritativePickaxe(message.EquippedPickaxeItemID);
+            Debug.Log($"[RoomClient] 장착 곡괭이 Snapshot 적용: item={message.EquippedPickaxeItemID}", this);
         }
 
         private void HandleGoldRanking(GoldRankingMessage message)

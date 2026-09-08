@@ -7,10 +7,11 @@ namespace TerrainCollapse
 
     [RequireComponent(typeof(SpriteRenderer))]
     [RequireComponent(typeof(Rigidbody2D))]
-    [RequireComponent(typeof(CircleCollider2D))]
+    [RequireComponent(typeof(BoxCollider2D))]
     public sealed class WorldItemDrop : MonoBehaviour, IFallingTerrainEscapeTarget
     {
-        private const float ColliderRadius = 0.45f;
+        private const float ColliderRow = 0.3f;
+        private const float ColliderCalum = 0.22f;
         private const float CollisionSkin = 0.02f;
 
         [SerializeField] private SpriteRenderer spriteRenderer;
@@ -23,7 +24,7 @@ namespace TerrainCollapse
 
         private TerrainManager terrainManager;
         private Rigidbody2D body;
-        private CircleCollider2D itemCollider;
+        private BoxCollider2D itemCollider;
         private Vector2 escapeTargetPosition;
         private Vector2 escapeVelocity;
         private bool isEscaping;
@@ -52,11 +53,11 @@ namespace TerrainCollapse
             body.constraints = RigidbodyConstraints2D.FreezeRotation;
             body.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
-            itemCollider = GetComponent<CircleCollider2D>();
+            itemCollider = GetComponent<BoxCollider2D>();
             if (itemCollider == null)
-                itemCollider = gameObject.AddComponent<CircleCollider2D>();
+                itemCollider = gameObject.AddComponent<BoxCollider2D>();
 
-            itemCollider.radius = ColliderRadius;
+            itemCollider.size = new Vector2(ColliderRow, ColliderCalum);
             terrainManager = FindFirstObjectByType<TerrainManager>();
         }
 

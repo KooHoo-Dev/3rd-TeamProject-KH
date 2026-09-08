@@ -27,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 3122698268581467381}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.088, y: 2.075, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 0.05, y: 0.05, z: 0.05}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -45,12 +45,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e6bfab9fbcef4936be1677706e4586cd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.HealPopupEffect
-  sprite: {fileID: 0}
+  sprite: {fileID: 4421661184571806228}
   popOvershootMultiplier: 1.2
   settledMultiplier: 1
   fadeOutDuration: 0.35
   spinSpeedDegrees: 360
-  logRotationDebug: 0
 --- !u!212 &4421661184571806228
 SpriteRenderer:
   serializedVersion: 2
