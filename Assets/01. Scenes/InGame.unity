@@ -2506,10 +2506,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 3496014761874485655, guid: ca2943f7899b24f63aca13dcc6048a74, type: 3}
-      propertyPath: m_PointLightOuterRadius
-      value: 5.5
-      objectReference: {fileID: 0}
     - target: {fileID: 3963904154076371158, guid: ca2943f7899b24f63aca13dcc6048a74, type: 3}
       propertyPath: terrainManager
       value: 
