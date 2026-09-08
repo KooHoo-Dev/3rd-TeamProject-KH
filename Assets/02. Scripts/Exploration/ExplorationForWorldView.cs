@@ -120,7 +120,7 @@ namespace TerrainCollapse
             GameObject currentVisionRoot = new("CurrentVisionFogRoot");
             currentVisionFogRoot = currentVisionRoot.transform;
             currentVisionFogRoot.SetParent(transform, false);
-            currentVisionFogRoot.position = mapOrigin;
+            currentVisionFogRoot.position = new Vector3(mapOrigin.x, mapOrigin.y, -1f);
 
             observedCells.Clear();
             observedCells.UnionWith(explorationController.CurrentObservedCells);
