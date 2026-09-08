@@ -166,7 +166,7 @@ MonoBehaviour:
   isRoomScene: 0
   serverUrl: ws://34.50.63.204:5002
   roomSceneName: RoomLobbyScene
-  gameSceneName: ClientTestScene
+  gameSceneName: InGame
   nickNameInput: {fileID: 1430635149}
   roomCodeInput: {fileID: 1682784655}
   createRoomButton: {fileID: 1031677188}

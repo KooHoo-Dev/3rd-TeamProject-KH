@@ -21,6 +21,24 @@ namespace TerrainCollapse
 
         public int ItemID { get; private set; } = -1;
 
+        private void Awake()
+        {
+            EnsureIconTooltipTrigger();
+        }
+
+        private void EnsureIconTooltipTrigger()
+        {
+            if (iconImage == null) return;
+
+            // 아이콘 위에서만 Tooltip을 띄운다. 빈 슬롯의 비활성 아이콘은 Raycast도 받지 않는다.
+            if (iconImage.TryGetComponent<TooltipTrigger>(out _) == false)
+                iconImage.gameObject.AddComponent<TooltipTrigger>();
+
+            TooltipTrigger slotTrigger = GetComponent<TooltipTrigger>();
+            if (slotTrigger != null && slotTrigger.gameObject != iconImage.gameObject)
+                slotTrigger.enabled = false;
+        }
+
         public void SetItemController(ItemController controller) => itemController = controller;
 
         public void Render(InventorySlotDisplayData data)
