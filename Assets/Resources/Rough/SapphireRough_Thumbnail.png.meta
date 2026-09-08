@@ -3,8 +3,8 @@ guid: 2dfa3c6429d35974fae31c4ceb5ae07a
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 447926653892412510
-    second: Icon33_0
+      213: -7252916415307437806
+    second: SapphireRough_Thumbnail_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Icon33_0
+      name: SapphireRough_Thumbnail_0
       rect:
         serializedVersion: 2
         x: 2
-        y: 6
-        width: 28
-        height: 19
+        y: 0
+        width: 42
+        height: 35
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: e54cfa22bea573600800000000000000
-      internalID: 447926653892412510
+      spriteID: 2192008a2f6785b90800000000000000
+      internalID: -7252916415307437806
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Icon33_0: 447926653892412510
+      SapphireRough_Thumbnail_0: -7252916415307437806
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

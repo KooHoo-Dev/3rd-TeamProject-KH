@@ -3,8 +3,8 @@ guid: 16d6af0abafdc4946818fbe2e7ae0fff
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 2005674868671660012
-    second: Icon32_0
+      213: 4141123206530955820
+    second: BronzeOre_Thumbnail_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Icon32_0
+      name: BronzeOre_Thumbnail_0
       rect:
         serializedVersion: 2
-        x: 2
-        y: 9
-        width: 28
-        height: 15
+        x: 1
+        y: 0
+        width: 30
+        height: 22
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: cef3a12aaa695db10800000000000000
-      internalID: 2005674868671660012
+      spriteID: c2a7760ad99387930800000000000000
+      internalID: 4141123206530955820
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Icon32_0: 2005674868671660012
+      BronzeOre_Thumbnail_0: 4141123206530955820
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

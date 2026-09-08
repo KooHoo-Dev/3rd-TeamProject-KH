@@ -3,8 +3,8 @@ guid: e32ea20d809c82340b3ef8594f37c0c4
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -2281458042351831758
-    second: Icon4_0
+      213: -8638523777739649981
+    second: Coal_Thumbnail_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Icon4_0
+      name: Coal_Thumbnail_0
       rect:
         serializedVersion: 2
-        x: 4
-        y: 1
-        width: 24
-        height: 29
+        x: 1
+        y: 0
+        width: 30
+        height: 22
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 23539a78ff1a650e0800000000000000
-      internalID: -2281458042351831758
+      spriteID: 34c001c946ccd1880800000000000000
+      internalID: -8638523777739649981
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Icon4_0: -2281458042351831758
+      Coal_Thumbnail_0: -8638523777739649981
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

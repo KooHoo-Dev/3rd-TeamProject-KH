@@ -3,8 +3,8 @@ guid: 259a70be21eb39640a2b9c499b7037ff
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 1709949885966279493
-    second: Icon27_0
+      213: -3292025729597617572
+    second: GoldOre_Thumbnail_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Icon27_0
+      name: GoldOre_Thumbnail_0
       rect:
         serializedVersion: 2
         x: 1
-        y: 2
-        width: 29
-        height: 28
+        y: 0
+        width: 30
+        height: 22
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5436db09c56fab710800000000000000
-      internalID: 1709949885966279493
+      spriteID: c5a43e37a006052d0800000000000000
+      internalID: -3292025729597617572
       vertices: []
       indices: 
       edges: []
@@ -161,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Icon27_0: 1709949885966279493
+      GoldOre_Thumbnail_0: -3292025729597617572
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
