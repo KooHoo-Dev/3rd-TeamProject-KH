@@ -3,8 +3,8 @@ guid: 703a40e31a03ab94e8b838c04852ef5c
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 7693362801341128142
-    second: PickAxe_0
+      213: 8651210436992107599
+    second: BronzePickaxe_Thumbnail_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -109,17 +109,30 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: PickAxe_0
+      name: BronzePickaxe_Thumbnail_0
       rect:
         serializedVersion: 2
-        x: 476
-        y: 155
-        width: 947
-        height: 1095
+        x: 1
+        y: 0
+        width: 47
+        height: 48
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: ecd5426e4b054ca60800000000000000
-      internalID: 7693362801341128142
+      spriteID: f44011e6e064f0870800000000000000
+      internalID: 8651210436992107599
       vertices: []
       indices: 
       edges: []
@@ -148,7 +161,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      PickAxe_0: 7693362801341128142
+      BronzePickaxe_Thumbnail_0: 8651210436992107599
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
