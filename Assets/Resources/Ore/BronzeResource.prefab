@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 21200000}
   - component: {fileID: 11400000}
   m_Layer: 0
-  m_Name: IronResource
+  m_Name: BronzeResource
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

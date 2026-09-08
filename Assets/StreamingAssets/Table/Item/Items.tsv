@@ -10,7 +10,7 @@ ID	Name	Description	Price	ItemType	PrefabKey	SpriteKey	PickaxeRange	DigPower	Wei
 99	DebugPickAxe	개발자용 곡괭이.	0	Pickaxe	Items/Pickaxe/Pickaxe	Items/Pickaxe/Pickaxe_Thumbnail	100	100	0	0
 100	Gold	골드	0	Gold	Gold	Gold_Thumbnail	0	0	0	0
 101	Coal	석탄	5	Exchange	Ore/CoalItem	Ore/Coal_Thumbnail	0	0	1	0
-102	IronOre	철광석	10	Exchange	Ore/IronOreItem	Ore/IronOre_Thumbnail	0	0	2	0
+102	BronzeOre	황동	10	Exchange	Ore/BronzeOreItem	Ore/BronzeOre_Thumbnail	0	0	2	0
 103	SilverOre	은광석	20	Exchange	Ore/SilverOreItem	Ore/SilverOre_Thumbnail	0	0	2	0
 104	GoldOre	금광석	30	Exchange	Ore/GoldOreItem	Ore/GoldOre_Thumbnail	0	0	2	0
 150	SapphireRough	사파이어 원석	40	Exchange	Rough/SapphireRoughItem	Rough/SapphireRough_Thumbnail	0	0	2	0
