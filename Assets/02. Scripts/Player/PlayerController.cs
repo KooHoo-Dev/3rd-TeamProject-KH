@@ -39,6 +39,7 @@ namespace TerrainCollapse
         private PlayerLifeCycle lifeCycle;
         private bool isWaitingForTerrainSnapshot;
         private Vector2 terrainSnapshotWaitingPosition;
+        private bool isInVillage;
 
 
         public bool IsBuried => terrainState.IsBuried;
@@ -54,6 +55,7 @@ namespace TerrainCollapse
         public LayerMask CollisionMask => collisionMask;
         public IItemInventory Inventory => inventory;
         public event Action<bool> ClimbStateChanged;
+        public bool IsInVillage => isInVillage;
 
         private void Awake()
         {
@@ -76,15 +78,16 @@ namespace TerrainCollapse
             terrainState = new PlayerTerrainState();
             lifeCycle = new PlayerLifeCycle();
             if (GetComponent<PlayerHp>().IsDead) lifeCycle.EnterDead(false, false);
+
+            // 시작 시점의 y좌표로 마을 여부 초기 판별
+            isInVillage = body.position.y >= 0f;
         }
 
         private void Update()
         {
             inputReader.Tick();
-            if (isWaitingForTerrainSnapshot || lifeCycle.IsDead ||
-                terrainState.IsInteractionLocked || terrainState.IsEscaping)
-                return;
-            if (inputReader.CurrentInput.ClimbTogglePressed) ToggleClimbState();
+            if (lifeCycle.IsDead || terrainState.IsInteractionLocked || terrainState.IsEscaping) return;
+            if (inputReader.CurrentInput.ClimbTogglePressed && !isInVillage) ToggleClimbState();
         }
 
         private void FixedUpdate()
@@ -99,12 +102,32 @@ namespace TerrainCollapse
             if (terrainState.IsInteractionLocked) { SetPosition(terrainState.LockedPosition); return; }
             if (terrainState.IsEscaping) { TickEscapeMovement(); return; }
 
+            UpdateVillageState();
+
             // Cast 전에 Static Terrain의 미세 침투를 해소해 영구 끼임 방지
             Vector2 position = penetrationResolver.Resolve(body.position);
-            movement.UpdateVelocity(inputReader.CurrentInput, terrainState.IsClimbing, collisionMove.IsGrounded, Time.fixedDeltaTime);
+            movement.UpdateVelocity(inputReader.CurrentInput, terrainState.IsClimbing, collisionMove.IsGrounded, Time.fixedDeltaTime, !isInVillage);
             CollisionMoveResult result = collisionMove.Move(position, movement.Velocity, Time.fixedDeltaTime);
             body.MovePosition(result.Position);
             movement.SetVelocity(result.Velocity);
+        }
+
+        /// <summary>마을(지상) 진입/이탈 판정. 마을에서는 중력이 적용되지 않으며 등반도 불가능하다</summary>
+        private void UpdateVillageState()
+        {
+            if (isInVillage)
+            {
+                PlayerInputData currentInput = inputReader.CurrentInput;
+                bool pressedVerticalKey = !Mathf.Approximately(currentInput.MoveY, 0f) || currentInput.JumpPressed;
+                if (!pressedVerticalKey) return;
+
+                isInVillage = false;
+                // 점프로 튀어오르지 않고 그대로 낙하하도록 접지 상태를 초기화
+                collisionMove.ClearGrounded();
+                return;
+            }
+
+            if (body.position.y >= 0f) isInVillage = true;
         }
 
         public void EnterDeadState(bool isPositionLocked = false)
@@ -144,9 +167,6 @@ namespace TerrainCollapse
         public void Respawn(Vector2 spawnPosition)
         {
             body.position = spawnPosition;
-
-            if (isWaitingForTerrainSnapshot) terrainSnapshotWaitingPosition = spawnPosition;
-
             body.linearVelocity = Vector2.zero;
             body.angularVelocity = 0f;
             Physics2D.SyncTransforms();
@@ -156,11 +176,13 @@ namespace TerrainCollapse
             fallingTerrainInteraction.ResetState();
             fallingTerrainInteraction.enabled = true;
             lifeCycle.Respawn();
+            isInVillage = true;
             Debug.Log("[Terrain Collapse] Player respawned", this);
         }
 
         public void ToggleClimbState()
         {
+            if (isInVillage && !terrainState.IsClimbing) return;
             if (terrainState.IsClimbing) terrainState.StopClimbing(); else terrainState.StartClimbing();
             movement.Stop();
             ClimbStateChanged?.Invoke(terrainState.IsClimbing);

@@ -81,6 +81,7 @@ namespace TerrainCollapse
         public bool IsClimbing => isClimbing;
         public bool IsDead => isDead;
         public bool IsGrounded => grounded;
+        public bool IsInVillage { get; }
         public Vector2 Velocity => velocity;
 
         public Vector2 CurrentPosition => body.position;
