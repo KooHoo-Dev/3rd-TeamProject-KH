@@ -43,7 +43,8 @@ namespace TerrainCollapse
         bool IsClimbing { get; }
         bool IsDead { get; }
         bool IsGrounded { get; }
-        bool IsInVillage { get; }
+        bool IsInSpawnArea { get; }
+        bool IsDroppingThroughSpawnPlatform { get; }
         Vector2 Velocity { get; }
         Vector2 CurrentPosition { get; }
         TerrainManager TerrainManager { get; }

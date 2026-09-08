@@ -21,6 +21,7 @@ namespace TerrainCollapse
         [SerializeField] private RectTransform mapFrame;
         [SerializeField] private GameObject fullMapDimmer;
         [SerializeField] private Vector2 fullMapSize = new(900f, 900f);
+        [SerializeField, Min(0f)] private float fullMapFramePadding = 24f;
         [SerializeField, Min(0.1f)] private float fullMapZoomStep = 0.25f;
         [SerializeField, Min(1f)] private float minFullMapZoom = 1f;
         [SerializeField, Min(1f)] private float maxFullMapZoom = 5f;
@@ -55,8 +56,13 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            mapFrame ??= transform.parent as RectTransform;
             mapRect = mapImage != null ? mapImage.rectTransform : null;
+            mapFrame ??= transform.parent as RectTransform;
+
+            // Map Frame에 MapImage 자신이 잘못 연결되면, 전체 지도 확대가 프레임
+            // 확대처럼 보인다. 지도 이미지의 부모를 최소 프레임으로 강제한다.
+            if (mapRect != null && mapFrame == mapRect)
+                mapFrame = mapRect.parent as RectTransform;
 
             if (mapFrame != null)
             {
@@ -374,7 +380,11 @@ namespace TerrainCollapse
 
         private Vector2 GetFullMapContentSize()
         {
-            return fullMapSize + normalMapSize;
+            // 전체 지도에서는 미니맵의 기존 inset 값에 의존하지 않는다.
+            // 프레임 안쪽 여백을 고정해 지도 이미지가 테두리를 덮지 않게 한다.
+            float contentWidth = Mathf.Max(1f, fullMapSize.x - fullMapFramePadding * 2f);
+            float contentHeight = Mathf.Max(1f, fullMapSize.y - fullMapFramePadding * 2f);
+            return new Vector2(contentWidth, contentHeight);
         }
 
         private void UpdateViewUvRect()

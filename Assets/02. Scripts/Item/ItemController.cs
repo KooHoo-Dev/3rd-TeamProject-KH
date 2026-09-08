@@ -212,9 +212,9 @@ namespace TerrainCollapse
             bool isTyping = ChatInputState.IsTyping;
             bool isGameplayInactive = RoomClient.Instance != null && RoomClient.Instance.IsGameplayActive == false;
             bool isDead = playerController != null && playerController.IsDead;
-            bool isInVillage = playerController != null && playerController.IsInVillage;
+            bool isInSpawnArea = playerController != null && playerController.IsInSpawnArea;
 
-            if (isTyping == false && isGameplayInactive == false && isDead == false && isInVillage == false)
+            if (isTyping == false && isGameplayInactive == false && isDead == false && isInSpawnArea == false)
                 return false;
 
             CancelCurrentUse();

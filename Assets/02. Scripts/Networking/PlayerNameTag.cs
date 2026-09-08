@@ -73,6 +73,16 @@ namespace TerrainCollapse.Networking
             label.sortingOrder = sortingOrder;
         }
 
+        private void LateUpdate()
+        {
+            if (label == null) return;
+
+            // 플레이어 루트는 콜라이더까지 함께 반전하기 위해 X 스케일을 바꾼다.
+            // 네임태그는 그 반전을 한 번 되돌려 항상 읽을 수 있게 유지한다.
+            float xScale = transform.localScale.x < 0f ? -worldScale : worldScale;
+            label.transform.localScale = new Vector3(xScale, worldScale, worldScale);
+        }
+
         private void Apply()
         {
             if (label == null) return;

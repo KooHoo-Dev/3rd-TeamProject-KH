@@ -142,7 +142,11 @@ namespace TerrainCollapse
         {
             List<string> lines = new() { $"무게: {itemDef.Weight}" };
 
-            if (itemDef.Type == ItemType.Pickaxe && itemDef.PickaxeData.HasValue)
+            if (itemDef.Type == ItemType.Exchange)
+            {
+                lines.Add($"판매 가격: {itemDef.Price:N0}G");
+            }
+            else if (itemDef.Type == ItemType.Pickaxe && itemDef.PickaxeData.HasValue)
             {
                 PickaxeInfo pickaxe = itemDef.PickaxeData.Value;
                 lines.Add($"채굴력: {pickaxe.DigPower}");

@@ -14,6 +14,7 @@ namespace TerrainCollapse
         [SerializeField] private RoomClient roomClient;
         [SerializeField] private Image fillImage;
         [SerializeField] private TMP_Text valueText;
+        [SerializeField] private TMP_Text goalGoldText;
 
         [Header("Game Result")]
         [SerializeField] private GameObject resultPanel;
@@ -28,6 +29,8 @@ namespace TerrainCollapse
         private void Awake()
         {
             if (roomClient == null) roomClient = FindFirstObjectByType<RoomClient>();
+            if (goalGoldText == null)
+                goalGoldText = transform.Find("GoalGold")?.GetComponent<TMP_Text>();
         }
 
         private void OnEnable()
@@ -42,10 +45,11 @@ namespace TerrainCollapse
         private void Start()
         {
             if (resultPanel != null) resultPanel.SetActive(false);
+            RenderGoalGold();
             if (roomClient != null && roomClient.GameStartedAtUnixMilliseconds > 0)
                 BeginTimer();
             else
-                Render(1f, "WAITING");
+                Render(1f, "게임 시작 대기중");
         }
 
         private void OnDisable()
@@ -78,7 +82,11 @@ namespace TerrainCollapse
             Render(Mathf.Clamp01((float)(elapsedSeconds / duration)), FormatTime(elapsedSeconds));
         }
 
-        private void HandleGameStarted(GameStartedMessage message) => BeginTimer();
+        private void HandleGameStarted(GameStartedMessage message)
+        {
+            RenderGoalGold();
+            BeginTimer();
+        }
 
         private void BeginTimer()
         {
@@ -89,7 +97,7 @@ namespace TerrainCollapse
         private void HandleGameEnded(GameEndedMessage message)
         {
             isEnded = true;
-            Render(0f, IsLocalWinner(message) ? "VICTORY" : "GAME OVER");
+            Render(0f, "제한 시간 종료");
             RenderRanking(message);
             if (resultPanel != null) resultPanel.SetActive(true);
         }
@@ -151,6 +159,12 @@ namespace TerrainCollapse
         {
             if (fillImage != null) fillImage.fillAmount = fillAmount;
             if (valueText != null) valueText.text = text;
+        }
+
+        private void RenderGoalGold()
+        {
+            if (goalGoldText == null) return;
+            goalGoldText.text = (roomClient?.VictoryGold ?? 0).ToString("N0");
         }
 
         private static string FormatTime(double seconds)

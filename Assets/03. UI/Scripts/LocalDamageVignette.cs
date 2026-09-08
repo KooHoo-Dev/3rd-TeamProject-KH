@@ -19,11 +19,11 @@ namespace TerrainCollapse
 
         private Coroutine vignetteRoutine;
         private int lastHp;
+        private bool isBound;
 
         private void Awake()
         {
             vignetteImage ??= GetComponent<Image>();
-            playerHp ??= FindFirstObjectByType<PlayerHp>();
 
             if (vignetteImage != null)
             {
@@ -34,22 +34,39 @@ namespace TerrainCollapse
 
         private void OnEnable()
         {
-            if (playerHp == null) return;
+            TryBindPlayerHp();
+        }
 
-            lastHp = playerHp.CurrentHp;
-            playerHp.HpChanged += HandleHpChanged;
+        private void Update()
+        {
+            if (isBound == false)
+                TryBindPlayerHp();
         }
 
         private void OnDisable()
         {
-            if (playerHp != null)
+            if (isBound)
                 playerHp.HpChanged -= HandleHpChanged;
+
+            isBound = false;
 
             if (vignetteRoutine != null)
                 StopCoroutine(vignetteRoutine);
 
             vignetteRoutine = null;
             SetAlpha(0f);
+        }
+
+        private void TryBindPlayerHp()
+        {
+            if (isBound) return;
+
+            playerHp ??= FindFirstObjectByType<PlayerHp>();
+            if (playerHp == null) return;
+
+            lastHp = playerHp.CurrentHp;
+            playerHp.HpChanged += HandleHpChanged;
+            isBound = true;
         }
 
         private void HandleHpChanged(int currentHp, int _)
@@ -99,7 +116,13 @@ namespace TerrainCollapse
 
         private void SetAlpha(float alpha)
         {
+            alpha = Mathf.Clamp01(alpha);
+
             if (vignetteImage == null) return;
+
+            // 0 알파 상태는 렌더러도 끈다. 프리팹에 저장된 기본 Image 색상이
+            // 남아 있어 비네트가 상시 표시되는 경우를 막는다.
+            vignetteImage.enabled = alpha > 0.001f;
 
             Color color = damageColor;
             color.a = alpha;

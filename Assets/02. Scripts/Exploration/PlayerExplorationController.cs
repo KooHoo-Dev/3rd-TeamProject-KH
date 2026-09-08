@@ -16,6 +16,7 @@ namespace TerrainCollapse
         [Header("Visual Settings")]
         [SerializeField, Min(0)] private int visionRadius;
         [SerializeField, Min(0)] private int currentVisionFogRadius = 6;
+        [SerializeField, Min(0)] private int torchVisionRadius = 4;
 
         private ExplorationMapData explorationData;
         private readonly HashSet<Vector2Int> currentObservedCells = new();
@@ -63,6 +64,7 @@ namespace TerrainCollapse
                 terrainManager.TerrainChanged += HandleTerrainChanged;
             if (roomClient != null)
                 roomClient.TerrainSnapshotLoaded += HandleTerrainSnapshotLoaded;
+            TorchLight.TorchesChanged += HandleTorchesChanged;
 
             needsVisionRefresh = true;
             TryInitialize();
@@ -74,6 +76,7 @@ namespace TerrainCollapse
                 terrainManager.TerrainChanged -= HandleTerrainChanged;
             if (roomClient != null)
                 roomClient.TerrainSnapshotLoaded -= HandleTerrainSnapshotLoaded;
+            TorchLight.TorchesChanged -= HandleTorchesChanged;
         }
 
         private bool CanInitialize()
@@ -161,6 +164,11 @@ namespace TerrainCollapse
             needsVisionRefresh = true;
         }
 
+        private void HandleTorchesChanged()
+        {
+            needsVisionRefresh = true;
+        }
+
         private void ExploreVisionRadius(Vector2Int centerCell)
         {
             List<Vector2Int> newlyExploredCells = new();
@@ -204,28 +212,43 @@ namespace TerrainCollapse
             List<Vector2Int> cells)
         {
             HashSet<Vector2Int> visibleCells = new() { centerCell };
+            AddCurrentVisionArea(centerCell, currentVisionFogRadius, visibleCells);
 
-            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.up, 2, visibleCells);
-            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.down, 2, visibleCells);
-            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.left, 2, visibleCells);
-            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.right, 2, visibleCells);
+            foreach (TorchLight torch in TorchLight.ActiveTorches)
+            {
+                if (torch.TryGetPlacedCell(out Vector2Int torchCell) == false) continue;
+                AddCurrentVisionArea(torchCell, torchVisionRadius, visibleCells);
+            }
 
             cells.AddRange(visibleCells);
+        }
+
+        private void AddCurrentVisionArea(
+            Vector2Int centerCell,
+            int radius,
+            HashSet<Vector2Int> visibleCells)
+        {
+            visibleCells.Add(centerCell);
+            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.up, radius, 2, visibleCells);
+            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.down, radius, 2, visibleCells);
+            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.left, radius, 2, visibleCells);
+            AddCurrentVisionRay(centerCell, centerCell, Vector2Int.right, radius, 2, visibleCells);
         }
 
         private void AddCurrentVisionRay(
             Vector2Int centerCell,
             Vector2Int origin,
             Vector2Int direction,
+            int radius,
             int remainingTurns,
             HashSet<Vector2Int> visibleCells)
         {
-            for (int distance = 1; distance <= currentVisionFogRadius; distance++)
+            for (int distance = 1; distance <= radius; distance++)
             {
                 Vector2Int cell = origin + direction * distance;
                 if (explorationData.IsInside(cell) == false) return;
-                if (Mathf.Abs(cell.x - centerCell.x) > currentVisionFogRadius ||
-                    Mathf.Abs(cell.y - centerCell.y) > currentVisionFogRadius)
+                if (Mathf.Abs(cell.x - centerCell.x) > radius ||
+                    Mathf.Abs(cell.y - centerCell.y) > radius)
                 {
                     return;
                 }
@@ -241,10 +264,10 @@ namespace TerrainCollapse
 
                 AddCurrentVisionRay(
                     centerCell, cell, firstTurnDirection,
-                    remainingTurns - 1, visibleCells);
+                    radius, remainingTurns - 1, visibleCells);
                 AddCurrentVisionRay(
                     centerCell, cell, secondTurnDirection,
-                    remainingTurns - 1, visibleCells);
+                    radius, remainingTurns - 1, visibleCells);
             }
         }
 

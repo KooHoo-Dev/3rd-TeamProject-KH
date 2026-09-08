@@ -20,7 +20,7 @@ namespace TerrainCollapse
             this.gravity = gravity;
         }
 
-        public void UpdateVelocity(PlayerInputData input, bool isClimbing, bool isGrounded, float deltaTime, bool applyGravity = true)
+        public void UpdateVelocity(PlayerInputData input, bool isClimbing, bool isGrounded, float deltaTime)
         {
             if (isClimbing)
             {
@@ -30,9 +30,7 @@ namespace TerrainCollapse
 
             Velocity = new Vector2(input.MoveX * moveSpeed, Velocity.y);
             if (input.JumpPressed && isGrounded) Velocity = new Vector2(Velocity.x, jumpSpeed);
-            Velocity = applyGravity
-                ? new Vector2(Velocity.x, Velocity.y - gravity * deltaTime)
-                : new Vector2(Velocity.x, 0f);
+            Velocity = new Vector2(Velocity.x, Velocity.y - gravity * deltaTime);
         }
 
         public void ApplyGravity(float deltaTime) => Velocity = new Vector2(Velocity.x, Velocity.y - gravity * deltaTime);

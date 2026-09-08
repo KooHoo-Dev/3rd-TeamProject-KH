@@ -421,7 +421,7 @@ SpriteRenderer:
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 4a6debef8931f0d4caff73c5c62ff13f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_FlipX: 0
+  m_FlipX: 1
   m_FlipY: 0
   m_DrawMode: 0
   m_Size: {x: 36.958332, y: 18.479166}
@@ -618,6 +618,7 @@ MonoBehaviour:
   terrainSprite: {fileID: 2891247693787962197, guid: b259a0243e064a54ca9fca74c76ef0ff, type: 3}
   terrainColor: {r: 1, g: 1, b: 1, a: 1}
   tileCatalog: {fileID: 0}
+  spawnPlatformMaterial: {fileID: 2100000, guid: bb732559349d34267a9248147b09b655, type: 2}
   isDebugTileColorEnabled: 1
   undergroundBedrockColor: {r: 0, g: 0, b: 0, a: 1}
   isDurabilityTextEnabled: 1
@@ -902,7 +903,7 @@ SpriteRenderer:
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 4a6debef8931f0d4caff73c5c62ff13f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_FlipX: 0
+  m_FlipX: 1
   m_FlipY: 0
   m_DrawMode: 0
   m_Size: {x: 36.958332, y: 18.479166}
@@ -1012,7 +1013,7 @@ Transform:
   m_GameObject: {fileID: 638690670}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2, z: 0}
+  m_LocalPosition: {x: 0, y: 1.6, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -1031,6 +1032,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ShopNpcInteractable
   shopAccess: {fileID: 7527009593963667744}
+  hoverOutlinePixelWidth: 4
 --- !u!61 &638690674
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1252,11 +1254,7 @@ MonoBehaviour:
   - {fileID: 165606781}
   - {fileID: 2011681764}
   - {fileID: 548791510}
-  leftFence: {fileID: 0}
-  rightFence: {fileID: 0}
-  upperFence: {fileID: 0}
   platformDeck: {fileID: 0}
-  surfaceLight: {fileID: 0}
   panoramaWidth: 36
 --- !u!4 &1335487769
 Transform:
@@ -1267,7 +1265,7 @@ Transform:
   m_GameObject: {fileID: 1335487767}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1491,7 +1489,8 @@ MonoBehaviour:
   roomClient: {fileID: 0}
   localPlayer: {fileID: 1971883701}
   visionRadius: 4
-  currentVisionFogRadius: 10
+  currentVisionFogRadius: 14
+  torchVisionRadius: 4
 --- !u!4 &1873007158
 Transform:
   m_ObjectHideFlags: 0
@@ -1742,6 +1741,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7616313222136142199, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_Alpha
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7657603729463489102, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: pickaxeInventory
       value: 
@@ -1749,6 +1752,10 @@ PrefabInstance:
     - target: {fileID: 7947304127095425168, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: m_Name
       value: TPHud cooldownfeedback
+      objectReference: {fileID: 0}
+    - target: {fileID: 7947304127095425168, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8165458758175099427, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: playerHp
@@ -2233,6 +2240,10 @@ PrefabInstance:
       propertyPath: terrainManager
       value: 
       objectReference: {fileID: 190307187}
+    - target: {fileID: 931067925999194679, guid: ca2943f7899b24f63aca13dcc6048a74, type: 3}
+      propertyPath: spawnPlatformDropSpeed
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 1299874328272229677, guid: ca2943f7899b24f63aca13dcc6048a74, type: 3}
       propertyPath: shopView
       value: 

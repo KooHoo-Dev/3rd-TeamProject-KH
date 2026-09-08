@@ -1,33 +1,23 @@
 using TerrainCollapse;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
 
 namespace WorldEnvironment
 {
-    /// <summary>확정된 스폰 구역에 배경과 울타리 표현만 맞춘다. 충돌은 기존 지형이 소유한다.</summary>
+    /// <summary>확정된 스폰 구역에 배경과 플랫폼 덱 표현만 맞춘다. 충돌은 기존 지형이 소유한다.</summary>
     public sealed class MiningVillageBackdrop : MonoBehaviour
     {
         [SerializeField] private RoomClient roomClient;
         [SerializeField] private SpriteRenderer[] panoramaPanels;
-        [SerializeField] private SpriteRenderer leftFence;
-        [SerializeField] private SpriteRenderer rightFence;
-        [SerializeField] private SpriteRenderer upperFence;
         [SerializeField] private SpriteRenderer platformDeck;
-        [SerializeField] private Light2D surfaceLight;
         [SerializeField, Min(1f)] private float panoramaWidth = 28f;
 
         public void Configure(RoomClient source, SpriteRenderer[] panels,
-            SpriteRenderer left, SpriteRenderer right, SpriteRenderer upper,
-            SpriteRenderer deck, Light2D daylight)
+            SpriteRenderer deck)
         {
             Unsubscribe();
             roomClient = source;
             panoramaPanels = panels;
-            leftFence = left;
-            rightFence = right;
-            upperFence = upper;
             platformDeck = deck;
-            surfaceLight = daylight;
             if (Application.isPlaying && isActiveAndEnabled) Subscribe();
         }
 
@@ -62,7 +52,7 @@ namespace WorldEnvironment
             RectInt area = snapshot.SpawnArea;
             if (area.width < 3 || area.height < 2)
             {
-                SetFencesVisible(false);
+                if (platformDeck != null) platformDeck.enabled = false;
                 return;
             }
 
@@ -70,7 +60,6 @@ namespace WorldEnvironment
             float left = snapshot.Origin.x + area.xMin * cell;
             float bottom = snapshot.Origin.y + area.yMin * cell;
             float width = area.width * cell;
-            float height = area.height * cell;
             float center = left + width * 0.5f;
 
             if (panoramaPanels != null)
@@ -84,29 +73,13 @@ namespace WorldEnvironment
                     float panelWidth = panoramaWidth * cell;
                     float panelHeight = panelWidth * panel.sprite.bounds.size.y / panel.sprite.bounds.size.x;
                     panel.transform.position = new Vector3(center + (i - 1) * panelWidth,
-                        bottom + panelHeight * 0.5f, 0f);
+                        bottom - cell + panelHeight * 0.5f, 0f);
                     panel.transform.localScale = new Vector3(panelWidth / panel.sprite.bounds.size.x,
                         panelHeight / panel.sprite.bounds.size.y, 1f);
                 }
             }
 
-            PlaceFence(leftFence, new Vector2(left + cell * 0.5f, bottom + (height - cell) * 0.5f),
-                new Vector2(cell, height - cell), false);
-            PlaceFence(rightFence, new Vector2(left + width - cell * 0.5f, bottom + (height - cell) * 0.5f),
-                new Vector2(cell, height - cell), false);
-            PlaceFence(upperFence, new Vector2(center, bottom + height - cell * 0.5f),
-                new Vector2(cell, width), true);
-            SetFencesVisible(true);
             PlacePlatform(snapshot);
-            if (surfaceLight != null)
-            {
-                surfaceLight.transform.position = new Vector3(center, bottom, 0f);
-                surfaceLight.SetShapePath(new[]
-                {
-                    new Vector3(-width * 0.5f, 0f), new Vector3(width * 0.5f, 0f),
-                    new Vector3(width * 0.5f, height), new Vector3(-width * 0.5f, height)
-                });
-            }
         }
 
         private void PlacePlatform(TerrainSnapshot snapshot)
@@ -116,7 +89,7 @@ namespace WorldEnvironment
             int maxX = int.MinValue;
             foreach (TerrainCellChange cell in snapshot.Cells)
             {
-                if (cell.Coord.y != snapshot.SpawnArea.yMin || cell.Type != TerrainTileType.SpawnPlatform) continue;
+                if (cell.Coord.y != snapshot.SpawnArea.yMin - 1 || cell.Type != TerrainTileType.SpawnPlatform) continue;
                 minX = Mathf.Min(minX, cell.Coord.x);
                 maxX = Mathf.Max(maxX, cell.Coord.x);
             }
@@ -124,7 +97,7 @@ namespace WorldEnvironment
             if (platformDeck.enabled == false) return;
             float size = snapshot.CellSize;
             PlaceFence(platformDeck, snapshot.Origin + new Vector2((minX + maxX + 1) * 0.5f * size,
-                (snapshot.SpawnArea.yMin + 0.5f) * size), new Vector2(size, (maxX - minX + 1) * size), true);
+                (snapshot.SpawnArea.yMin - 0.5f) * size), new Vector2(size, (maxX - minX + 1) * size), true);
         }
 
         private static void PlaceFence(SpriteRenderer renderer, Vector2 center, Vector2 size, bool horizontal)
@@ -138,13 +111,5 @@ namespace WorldEnvironment
             renderer.size = size;
         }
 
-        private void SetFencesVisible(bool visible)
-        {
-            if (leftFence != null) leftFence.enabled = visible;
-            if (rightFence != null) rightFence.enabled = visible;
-            if (upperFence != null) upperFence.enabled = visible;
-            if (visible == false && platformDeck != null) platformDeck.enabled = false;
-            if (surfaceLight != null) surfaceLight.enabled = visible;
-        }
     }
 }

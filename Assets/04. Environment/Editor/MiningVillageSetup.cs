@@ -6,7 +6,6 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.Rendering.Universal;
 using Object = UnityEngine.Object;
 
 namespace WorldEnvironment.Editor
@@ -50,11 +49,8 @@ namespace WorldEnvironment.Editor
             SpriteRenderer[] panels = new SpriteRenderer[3];
             for (int i = 0; i < panels.Length; i++)
                 panels[i] = CreateRenderer(root.transform, $"Distant Village {i + 1}", panorama, -30);
-            SpriteRenderer left = CreateRenderer(root.transform, "Left Boundary Fence", fence, 1);
-            SpriteRenderer right = CreateRenderer(root.transform, "Right Boundary Fence", fence, 1);
-            SpriteRenderer upper = CreateRenderer(root.transform, "Upper Boundary Timber", fence, 1);
             MiningVillageBackdrop backdrop = root.AddComponent<MiningVillageBackdrop>();
-            ConfigureSurface(backdrop, panels, left, right, upper);
+            ConfigureSurface(backdrop, panels, fence);
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
             Selection.activeGameObject = root;
@@ -118,10 +114,9 @@ namespace WorldEnvironment.Editor
             SpriteRenderer[] panels = new SpriteRenderer[3];
             for (int i = 0; i < panels.Length; i++)
                 panels[i] = backdrop.transform.Find($"Distant Village {i + 1}").GetComponent<SpriteRenderer>();
-            ConfigureSurface(backdrop, panels,
-                backdrop.transform.Find("Left Boundary Fence").GetComponent<SpriteRenderer>(),
-                backdrop.transform.Find("Right Boundary Fence").GetComponent<SpriteRenderer>(),
-                backdrop.transform.Find("Upper Boundary Timber").GetComponent<SpriteRenderer>());
+            Texture2D fenceTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(FencePath);
+            if (fenceTexture == null) throw new InvalidOperationException("Fence texture has not been imported.");
+            ConfigureSurface(backdrop, panels, ImportSprite(FencePath, fenceTexture.width));
             foreach (SpriteRenderer renderer in backdrop.GetComponentsInChildren<SpriteRenderer>())
             {
                 Undo.RecordObject(renderer, "Set outdoor environment material");
@@ -132,29 +127,16 @@ namespace WorldEnvironment.Editor
         }
 
         private static void ConfigureSurface(MiningVillageBackdrop backdrop, SpriteRenderer[] panels,
-            SpriteRenderer left, SpriteRenderer right, SpriteRenderer upper)
+            Sprite deckSprite)
         {
             SerializedObject backdropSettings = new(backdrop);
             backdropSettings.FindProperty("panoramaWidth").floatValue = 28f;
             backdropSettings.ApplyModifiedPropertiesWithoutUndo();
             Transform deckTransform = backdrop.transform.Find("Spawn Platform Deck");
             SpriteRenderer deck = deckTransform != null ? deckTransform.GetComponent<SpriteRenderer>() :
-                CreateRenderer(backdrop.transform, "Spawn Platform Deck", left.sprite, 1);
-            Transform lightTransform = backdrop.transform.Find("Surface Daylight");
-            Light2D daylight;
-            if (lightTransform == null)
-            {
-                GameObject lightObject = new("Surface Daylight", typeof(Light2D));
-                lightObject.transform.SetParent(backdrop.transform, false);
-                daylight = lightObject.GetComponent<Light2D>();
-            }
-            else daylight = lightTransform.GetComponent<Light2D>();
-            daylight.lightType = Light2D.LightType.Freeform;
-            daylight.intensity = 0.85f;
-            daylight.color = new Color(1f, 0.94f, 0.84f);
-            daylight.shapeLightFalloffSize = 0.1f;
+                CreateRenderer(backdrop.transform, "Spawn Platform Deck", deckSprite, 1);
             RoomClient room = Object.FindFirstObjectByType<RoomClient>(FindObjectsInactive.Include);
-            backdrop.Configure(room, panels, left, right, upper, deck, daylight);
+            backdrop.Configure(room, panels, deck);
             TerrainSnapshot layout = CreateLayoutSnapshot();
             backdrop.ApplySnapshot(layout);
             GameObject shop = GameObject.Find("Shop Sprite");

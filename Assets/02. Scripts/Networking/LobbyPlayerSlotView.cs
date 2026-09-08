@@ -46,7 +46,9 @@ namespace TerrainCollapse
     /// <summary>대기방의 고정 4인 슬롯 하나를 표시한다.</summary>
     public sealed class LobbyPlayerSlotView : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
     {
-        private const float PreviewScale = 75f;
+        private const float PreviewScale = 135f;
+        private const int PreviewSortingOrder = 1;
+        private static readonly Vector3 PreviewLocalPosition = new(35f, -5f, 0f);
         private const int HoverOverlaySortingOrder = 900;
         private static Canvas hoverOverlayCanvas;
 
@@ -215,23 +217,25 @@ namespace TerrainCollapse
             previewInstance.SetActive(true);
             ConfigureIdleAnimation(previewInstance);
             PlayerColorPalette.ApplyToSpriteRenderers(previewInstance, colorIndex, isConnected ? 1f : 0.35f);
-            FitToAvatarRect();
+            SetPreviewSortingOrder();
+            ApplyPreviewTransform();
         }
 
-        private void FitToAvatarRect()
+        private void ApplyPreviewTransform()
         {
-            SpriteRenderer[] renderers =
-                previewInstance.GetComponentsInChildren<SpriteRenderer>(true);
-            if (renderers.Length == 0) return;
+            if (previewInstance == null) return;
 
-            previewInstance.transform.localPosition = Vector3.zero;
-            RectTransform avatarRect = avatarImage.rectTransform;
+            previewInstance.transform.localPosition = PreviewLocalPosition;
             previewInstance.transform.localScale = Vector3.one * PreviewScale;
+        }
 
-            Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
-            Vector3 offset = avatarRect.position - bounds.center;
-            previewInstance.transform.position += new Vector3(offset.x, offset.y, -0.1f);
+        private void SetPreviewSortingOrder()
+        {
+            if (previewInstance == null) return;
+
+            foreach (SpriteRenderer spriteRenderer in
+                     previewInstance.GetComponentsInChildren<SpriteRenderer>(true))
+                spriteRenderer.sortingOrder = PreviewSortingOrder;
         }
 
         private static void DisableGameplayComponents(GameObject root)
