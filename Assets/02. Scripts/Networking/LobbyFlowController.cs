@@ -1,6 +1,7 @@
 using TMPro;
 using TerrainCollapse.Networking;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using System.Collections.Generic;
@@ -21,6 +22,9 @@ namespace TerrainCollapse
         [SerializeField] private Button createRoomButton;
         [SerializeField] private Button joinRoomButton;
         [SerializeField] private Button exitButton;
+        [SerializeField] private Button settingButton;
+        [SerializeField] private GameObject settingPopup;
+        [SerializeField] private Button settingCloseButton;
         [SerializeField] private GameObject roomCodePopup;
         [SerializeField] private Button confirmJoinButton;
         [SerializeField] private Button cancelJoinButton;
@@ -75,7 +79,13 @@ namespace TerrainCollapse
             {
                 // 메인 메뉴에 직접 배치한 버튼을 인스펙터 연결 없이도 인식한다.
                 exitButton ??= GameObject.Find("ExitButton")?.GetComponent<Button>();
+                settingButton ??= GameObject.Find("SettingButton")?.GetComponent<Button>();
+                settingPopup ??= FindSceneObject("Setting UI");
+                settingCloseButton ??= FindButton(settingPopup, "CloseButton");
                 exitButton?.onClick.AddListener(QuitGame);
+                settingButton?.onClick.AddListener(ShowSettingPopup);
+                settingCloseButton?.onClick.AddListener(HideSettingPopup);
+                settingPopup?.SetActive(false);
                 MovePopupToForegroundCanvas(roomCodePopup);
                 MovePopupToForegroundCanvas(kickedNoticePopup);
                 joinPopupDimmer = CreateModalDimmer(roomCodePopup, "Join Room Dimmer");
@@ -118,6 +128,29 @@ namespace TerrainCollapse
 #endif
         }
 
+        private static Button FindButton(GameObject root, string buttonName)
+        {
+            if (root == null) return null;
+
+            foreach (Button button in root.GetComponentsInChildren<Button>(true))
+                if (button.name == buttonName) return button;
+
+            return null;
+        }
+
+        private static GameObject FindSceneObject(string objectName)
+        {
+            foreach (Transform candidate in FindObjectsByType<Transform>(
+                         FindObjectsInactive.Include,
+                         FindObjectsSortMode.None))
+            {
+                if (candidate.gameObject.scene.IsValid() && candidate.name == objectName)
+                    return candidate.gameObject;
+            }
+
+            return null;
+        }
+
         private void OnDestroy()
         {
             if (lobbyClient == null) return;
@@ -125,6 +158,15 @@ namespace TerrainCollapse
             lobbyClient.ErrorReceived -= HandleError;
             lobbyClient.Started -= HandleStarted;
             lobbyClient.Kicked -= HandleKicked;
+        }
+
+        private void Update()
+        {
+            if (isRoomScene || settingPopup == null || settingPopup.activeSelf == false)
+                return;
+
+            if (Keyboard.current?[Key.Escape].wasPressedThisFrame == true)
+                settingPopup.SetActive(false);
         }
 
         private async void CreateRoom()
@@ -158,6 +200,16 @@ namespace TerrainCollapse
         private void HideJoinPopup()
         {
             SetModalVisible(roomCodePopup, joinPopupDimmer, false);
+        }
+
+        private void ShowSettingPopup()
+        {
+            settingPopup?.SetActive(true);
+        }
+
+        private void HideSettingPopup()
+        {
+            settingPopup?.SetActive(false);
         }
 
         private void StartGame()

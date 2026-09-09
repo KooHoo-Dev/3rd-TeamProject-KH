@@ -19,6 +19,7 @@ namespace TerrainCollapse
 
         public bool IsShopAccessible { get; private set; }
         public bool IsShopOpen { get; private set; }
+        public bool IsClosingWithEscapeThisFrame { get; private set; }
 
         private void Awake()
         {
@@ -41,6 +42,9 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            IsClosingWithEscapeThisFrame = false;
+            if (PauseMenuController.IsGameplayInputBlocked) return;
+
             bool wasAccessible = IsShopAccessible;
             IsShopAccessible = playerController.IsDead == false && IsInShopArea();
 
@@ -52,9 +56,12 @@ namespace TerrainCollapse
             if (ChatInputState.IsTyping) return;
 
             Keyboard keyboard = Keyboard.current;
+            IsClosingWithEscapeThisFrame = keyboard != null &&
+                                           IsShopOpen &&
+                                           keyboard[Key.Escape].wasPressedThisFrame;
             if (keyboard != null &&
                 (keyboard[toggleKey].wasPressedThisFrame ||
-                 (IsShopOpen && keyboard[Key.Escape].wasPressedThisFrame)))
+                 IsClosingWithEscapeThisFrame))
                 ToggleShop();
         }
 

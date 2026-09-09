@@ -218,6 +218,12 @@ namespace TerrainCollapse
         {
             ClearExpiredPendingCooldowns();
 
+            if (PauseMenuController.IsGameplayInputBlocked)
+            {
+                CancelCurrentUse();
+                return;
+            }
+
             bool isBuried = playerController?.IsBuried == true;
             if (isBuried)
             {
@@ -507,8 +513,12 @@ namespace TerrainCollapse
 
         public void ExecuteMineImpact()
         {
-            if (!isMining)
+            if (!isMining || PauseMenuController.IsGameplayInputBlocked)
+            {
+                if (PauseMenuController.IsGameplayInputBlocked)
+                    CancelMine();
                 return;
+            }
 
             if (activePickaxe == null)
                 return;

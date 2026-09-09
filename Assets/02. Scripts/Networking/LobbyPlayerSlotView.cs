@@ -48,6 +48,7 @@ namespace TerrainCollapse
     {
         private const float PreviewScale = 135f;
         private const int PreviewSortingOrder = 1;
+        private const int TutorialOverlayPreviewSortingOrder = -100;
         private static readonly Vector3 PreviewLocalPosition = Vector3.zero;
         private const int HoverOverlaySortingOrder = 900;
         private static Canvas hoverOverlayCanvas;
@@ -61,6 +62,7 @@ namespace TerrainCollapse
         private GameObject previewInstance;
         private GameObject currentPrefab;
         private System.Action kickAction;
+        private bool isTutorialOverlayVisible;
         private RectTransform slotRect;
         private RectTransform kickOverlayRect;
         private Camera sourceCanvasCamera;
@@ -103,6 +105,15 @@ namespace TerrainCollapse
             }
             kickAction = null;
             if (kickOverlay != null) kickOverlay.SetActive(false);
+        }
+
+        /// <summary>튜토리얼 표시 중에는 캐릭터 프리뷰를 UI 오버레이 뒤로 보낸다.</summary>
+        public void SetTutorialOverlayVisible(bool isVisible)
+        {
+            if (isTutorialOverlayVisible == isVisible) return;
+
+            isTutorialOverlayVisible = isVisible;
+            SetPreviewSortingOrder();
         }
 
         public void OnPointerEnter(PointerEventData _)
@@ -235,7 +246,9 @@ namespace TerrainCollapse
 
             foreach (SpriteRenderer spriteRenderer in
                      previewInstance.GetComponentsInChildren<SpriteRenderer>(true))
-                spriteRenderer.sortingOrder = PreviewSortingOrder;
+                spriteRenderer.sortingOrder = isTutorialOverlayVisible
+                    ? TutorialOverlayPreviewSortingOrder
+                    : PreviewSortingOrder;
         }
 
         private static void DisableGameplayComponents(GameObject root)

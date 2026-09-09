@@ -36,6 +36,12 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            if (PauseMenuController.IsGameplayInputBlocked)
+            {
+                SetHoverOutlineVisible(false);
+                return;
+            }
+
             bool isHovered = shopAccess != null && shopAccess.IsShopAccessible && IsPointerOverNpc();
             SetHoverOutlineVisible(isHovered);
             if (isHovered == false) return;

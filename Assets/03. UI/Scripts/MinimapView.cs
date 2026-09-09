@@ -40,6 +40,7 @@ namespace TerrainCollapse
         private Vector2 normalMapFrameAnchorMax;
         private Vector2 normalMapFramePivot;
         private RectMask2D mapFrameMask;
+        private Image fullMapBackground;
         private RectTransform mapRect;
         private Vector2 normalMapAnchorMin;
         private Vector2 normalMapAnchorMax;
@@ -75,6 +76,7 @@ namespace TerrainCollapse
                 mapFrameMask = mapFrame.GetComponent<RectMask2D>();
                 if (mapFrameMask == null)
                     mapFrameMask = mapFrame.gameObject.AddComponent<RectMask2D>();
+                EnsureFullMapBackground();
             }
 
             if (mapRect != null)
@@ -87,6 +89,7 @@ namespace TerrainCollapse
             }
 
             fullMapDimmer?.SetActive(false);
+            fullMapBackground?.gameObject.SetActive(false);
         }
 
         private void Update()
@@ -248,6 +251,7 @@ namespace TerrainCollapse
             isFullMapOpen = isOpen;
             fullMapZoomAccumulator = 0f;
             fullMapDimmer?.SetActive(isFullMapOpen);
+            fullMapBackground?.gameObject.SetActive(isFullMapOpen);
 
             if (isFullMapOpen)
             {
@@ -376,7 +380,8 @@ namespace TerrainCollapse
         {
             Vector2 contentSize = GetFullMapContentSize();
             Vector2 mapSize = contentSize * fullMapZoom;
-            Vector2 maxPan = (mapSize - contentSize) * 0.5f;
+            Vector2 viewportSize = GetFullMapViewportSize();
+            Vector2 maxPan = Vector2.Max(Vector2.zero, (mapSize - viewportSize) * 0.5f);
 
             fullMapPan.x = Mathf.Clamp(fullMapPan.x, -maxPan.x, maxPan.x);
             fullMapPan.y = Mathf.Clamp(fullMapPan.y, -maxPan.y, maxPan.y);
@@ -384,17 +389,50 @@ namespace TerrainCollapse
 
         private Vector2 GetFullMapContentSize()
         {
+            Vector2 viewportSize = GetFullMapViewportSize();
+            if (mapWidth <= 0 || mapHeight <= 0)
+                return viewportSize;
+
+            // 프레임 안쪽의 가용 영역에 지도를 맞추되, 텍스처 비율을 보존한다.
+            // 이 크기를 그대로 사용하면 지도의 한 타일이 항상 정방형으로 표시된다.
+            float mapAspect = (float)mapWidth / mapHeight;
+            float viewportAspect = viewportSize.x / viewportSize.y;
+            return mapAspect >= viewportAspect
+                ? new Vector2(viewportSize.x, viewportSize.x / mapAspect)
+                : new Vector2(viewportSize.y * mapAspect, viewportSize.y);
+        }
+
+        private Vector2 GetFullMapViewportSize()
+        {
             // 전체 지도에서는 미니맵의 기존 inset 값에 의존하지 않는다.
             // 프레임 안쪽 여백을 고정해 지도 이미지가 테두리를 덮지 않게 한다.
-            float contentWidth = Mathf.Max(1f, fullMapSize.x - fullMapFramePadding * 2f);
-            float contentHeight = Mathf.Max(1f, fullMapSize.y - fullMapFramePadding * 2f);
-            return new Vector2(contentWidth, contentHeight);
+            return new Vector2(
+                Mathf.Max(1f, fullMapSize.x - fullMapFramePadding * 2f),
+                Mathf.Max(1f, fullMapSize.y - fullMapFramePadding * 2f));
         }
 
         private void SetMapFrameMaskPadding(float padding)
         {
             if (mapFrameMask == null) return;
             mapFrameMask.padding = new Vector4(padding, padding, padding, padding);
+        }
+
+        private void EnsureFullMapBackground()
+        {
+            if (mapFrame == null || mapRect == null || fullMapBackground != null) return;
+
+            GameObject backgroundObject = new("FullMapBlackBackground", typeof(RectTransform), typeof(Image));
+            backgroundObject.transform.SetParent(mapFrame, false);
+            RectTransform backgroundRect = backgroundObject.GetComponent<RectTransform>();
+            backgroundRect.anchorMin = Vector2.zero;
+            backgroundRect.anchorMax = Vector2.one;
+            backgroundRect.offsetMin = Vector2.zero;
+            backgroundRect.offsetMax = Vector2.zero;
+
+            fullMapBackground = backgroundObject.GetComponent<Image>();
+            fullMapBackground.color = Color.black;
+            fullMapBackground.raycastTarget = false;
+            backgroundObject.transform.SetSiblingIndex(mapRect.GetSiblingIndex());
         }
 
         private void UpdateViewUvRect()

@@ -199,10 +199,10 @@ namespace TerrainCollapse
             return positionStableTime >= positionStabilityDuration;
         }
 
-        private void OnCollisionEnter2D(Collision2D collision) => HandleCollision(collision);
-        private void OnCollisionStay2D(Collision2D collision) => HandleCollision(collision);
+        private void OnCollisionEnter2D(Collision2D collision) => HandleCollision(collision, true);
+        private void OnCollisionStay2D(Collision2D collision) => HandleCollision(collision, false);
 
-        private void HandleCollision(Collision2D collision)
+        private void HandleCollision(Collision2D collision, bool isInitialContact)
         {
             MonoBehaviour[] behaviours = collision.collider.GetComponents<MonoBehaviour>();
             
@@ -212,24 +212,27 @@ namespace TerrainCollapse
                 {
                     float impactSpeed = Mathf.Max(0f, -beforeVelocity.y);
 
-                    if (target is FallingTerrainInteraction)
+                    // 청크 위에 올라서 있거나 옆면에 닿은 일반 물리 접촉까지
+                    // 매몰/탈출 흐름으로 넘기면 충돌을 무시하게 되어 플레이어가
+                    // 청크의 EdgeCollider 안쪽으로 들어갈 수 있다. 플레이어 전용
+                    // 상호작용은 청크 타일의 하단이 실제로 몸통을 침범한 경우에만
+                    // 이 흐름을 시작한다.
+                    if (target is FallingTerrainInteraction interaction &&
+                        interaction.IsBurialCandidate(this, out string candidateReason) == false)
                     {
-                        Physics2D.IgnoreCollision(compositeCollider, collision.collider, true);
+                        if (isInitialContact)
+                            LogCharacterContact(collision, "normal-physics", candidateReason);
 
-                        body.linearVelocity = new Vector2(
-                            beforeVelocity.x,
-                            Mathf.Min(beforeVelocity.y, 0f));
-
-                        target.ResolveFallingTerrainContact(this, impactSpeed);
-                        staticTerrainContacts.Remove(collision.collider);
-                        terrainContactInfos.Remove(collision.collider);
-
+                        UpdateGroundContact(collision);
                         return;
                     }
 
                     FallingTerrainContactResult result = target.ResolveFallingTerrainContact(
                         this,
                         impactSpeed);
+                    if (isInitialContact)
+                        LogCharacterContact(collision, result.ToString(), "burial-candidate");
+
                     if (result == FallingTerrainContactResult.Ignored)
                     {
                         UpdateGroundContact(collision);
@@ -251,6 +254,23 @@ namespace TerrainCollapse
             }
 
             UpdateGroundContact(collision);
+        }
+
+        private void LogCharacterContact(
+            Collision2D collision,
+            string resolution,
+            string reason)
+        {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            ContactPoint2D contact = collision.contactCount > 0
+                ? collision.GetContact(0)
+                : default;
+            Debug.Log(
+                $"[Collapse Diagnose] contact collapse={collapseId}, chunk={name}, " +
+                $"target={collision.collider.name}, resolution={resolution}, reason={reason}, " +
+                $"velocityBefore={beforeVelocity}, point={contact.point}, normal={contact.normal}",
+                this);
+#endif
         }
 
         private void UpdateGroundContact(Collision2D collision)

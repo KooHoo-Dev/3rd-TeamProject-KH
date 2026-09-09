@@ -37,7 +37,7 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (ChatInputState.IsTyping)
+            if (ChatInputState.IsTyping || PauseMenuController.IsGameplayInputBlocked)
             {
                 CancelPendingDrop();
                 return;

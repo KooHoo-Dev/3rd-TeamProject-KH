@@ -266,6 +266,38 @@ namespace TerrainCollapse
             return result;
         }
 
+        /// <summary>
+        /// 일반적인 상단/측면 물리 접촉과, 플레이어가 낙하 청크에 실제로 덮이는
+        /// 상황을 구분한다. 이 메서드는 FallingChunk가 충돌 무시를 시작하기 전에
+        /// 호출해야 한다.
+        /// </summary>
+        public bool IsBurialCandidate(FallingChunk fallingChunk, out string reason)
+        {
+            if (fallingChunk == null || character == null)
+            {
+                reason = "missing-chunk-or-character";
+                return false;
+            }
+
+            if (fallingChunk.BeforeVelocity.y >= -Mathf.Epsilon)
+            {
+                reason = $"not-descending(y={fallingChunk.BeforeVelocity.y:F3})";
+                return false;
+            }
+
+            // includeVerticalPath=false는 청크가 플레이어 위에 있기만 한 경우를
+            // 제외하고, 청크 타일의 하단이 플레이어 몸통 높이까지 들어온 실제
+            // 세로 겹침만 허용한다.
+            bool overlapsBody = IntersectsFallingTerrain(
+                character.CollisionBounds,
+                fallingChunk,
+                includeVerticalPath: false);
+            reason = overlapsBody
+                ? "descending-body-overlap"
+                : "no-body-overlap(top-or-side-contact)";
+            return overlapsBody;
+        }
+
         private void BeginAwaitingBurialResolution(FallingChunk fallingChunk)
         {
             pendingBurialImpacts[fallingChunk.CollapseId] = new FallingTerrainImpactInfo(

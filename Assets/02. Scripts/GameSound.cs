@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 
 namespace GameAudio
 {
@@ -35,6 +36,14 @@ namespace GameAudio
         private static int[] lastPlayedVariantIndices;
         private static float[] nextPlayTimes;
         private static AudioSource musicSource;
+        private static readonly HashSet<AudioSource> activeEffectSources = new();
+        private static float musicVolume = 1f;
+        private static float effectVolume = 1f;
+        private static float sceneMusicVolume = 1f;
+
+        public static float MasterVolume => AudioListener.volume;
+        public static float MusicVolume => musicVolume;
+        public static float EffectVolume => effectVolume;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
@@ -87,6 +96,7 @@ namespace GameAudio
             voice.transform.position = ResolveEffectPosition(worldPosition);
             AudioSource source = voice.AddComponent<AudioSource>();
             ConfigureEffectSource(source);
+            activeEffectSources.Add(source);
             source.clip = clip;
             float volumeScale = cue == SoundCue.PlayerHurt || cue == SoundCue.PlayerDeath
                 ? PlayerReactionVolumeScale
@@ -112,6 +122,7 @@ namespace GameAudio
 
             AudioSource source = voice.AddComponent<AudioSource>();
             ConfigureEffectSource(source);
+            activeEffectSources.Add(source);
             source.loop = true;
             source.clip = cueClips[variantIndex];
             source.Play();
@@ -121,6 +132,7 @@ namespace GameAudio
         public static void StopLoop(AudioSource source)
         {
             if (source == null) return;
+            activeEffectSources.Remove(source);
             source.Stop();
             Object.Destroy(source.gameObject);
         }
@@ -135,6 +147,7 @@ namespace GameAudio
         private static void ConfigureEffectSource(AudioSource source)
         {
             source.playOnAwake = false;
+            source.volume = effectVolume;
             source.spatialBlend = 1f;
             source.rolloffMode = AudioRolloffMode.Linear;
             source.minDistance = EffectMinDistance;
@@ -184,10 +197,15 @@ namespace GameAudio
             if (music == null) return false;
 
             EnsureMusicSource();
-            if (musicSource.clip == music && musicSource.isPlaying) return true;
+            if (musicSource.clip == music && musicSource.isPlaying)
+            {
+                ApplyMusicVolume();
+                return true;
+            }
 
             musicSource.clip = music;
             musicSource.Play();
+            ApplyMusicVolume();
             return true;
         }
 
@@ -200,8 +218,27 @@ namespace GameAudio
 
         public static void SetMusicVolume(float volume)
         {
-            EnsureMusicSource();
-            musicSource.volume = Mathf.Clamp01(volume);
+            musicVolume = Mathf.Clamp01(volume);
+            ApplyMusicVolume();
+        }
+
+        public static void SetMasterVolume(float volume)
+        {
+            AudioListener.volume = Mathf.Clamp01(volume);
+        }
+
+        public static void SetEffectVolume(float volume)
+        {
+            effectVolume = Mathf.Clamp01(volume);
+            activeEffectSources.RemoveWhere(source => source == null);
+            foreach (AudioSource source in activeEffectSources)
+                source.volume = effectVolume;
+        }
+
+        private static void ApplyMusicVolume()
+        {
+            if (musicSource != null)
+                musicSource.volume = sceneMusicVolume * musicVolume;
         }
 
         private static void EnsureMusicSource()
@@ -250,12 +287,14 @@ namespace GameAudio
 
             if (TryPlayMusic(musicName))
             {
-                musicSource.volume = musicVolume;
+                sceneMusicVolume = musicVolume;
+                ApplyMusicVolume();
                 return;
             }
             if (musicName != DefaultMusicName && TryPlayMusic(DefaultMusicName))
             {
-                musicSource.volume = musicVolume;
+                sceneMusicVolume = musicVolume;
+                ApplyMusicVolume();
                 Debug.LogWarning($"[GameSound] {scene.name} 전용 배경음악 '{musicName}'이 없어 " +
                     $"기본 배경음악 '{DefaultMusicName}'을 재생합니다.");
                 return;

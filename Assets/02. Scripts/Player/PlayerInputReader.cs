@@ -26,7 +26,7 @@ namespace TerrainCollapse
 
         public void Tick()
         {
-            if (ChatInputState.IsTyping)
+            if (ChatInputState.IsTyping || PauseMenuController.IsGameplayInputBlocked)
             {
                 CurrentInput = new PlayerInputData(0f, 0f, false, false);
                 return;

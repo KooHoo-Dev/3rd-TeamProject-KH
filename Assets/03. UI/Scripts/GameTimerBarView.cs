@@ -26,6 +26,8 @@ namespace TerrainCollapse
 
         private bool isEnded;
 
+        public bool IsResultPanelOpen => resultPanel != null && resultPanel.activeInHierarchy;
+
         private void Awake()
         {
             if (roomClient == null) roomClient = FindFirstObjectByType<RoomClient>();
@@ -97,6 +99,8 @@ namespace TerrainCollapse
         private void HandleGameEnded(GameEndedMessage message)
         {
             isEnded = true;
+            FindFirstObjectByType<ShopAccessController>()?.CloseShop();
+            FindFirstObjectByType<PauseMenuController>()?.CloseAll();
             Render(0f, "게임 종료");
             RenderRanking(message);
             if (resultPanel != null) resultPanel.SetActive(true);
