@@ -114,7 +114,9 @@ namespace TerrainCollapse
         /// <summary>살아 있는 셀에 클라이언트 타격 피드백만 요청한다.</summary>
         public void PlayTileHit(Vector2Int cell)
         {
-            if (IsReady) terrainWorld.PlayCellHit(cell);
+            if (IsReady == false) return;
+            terrainWorld.PlayCellHit(cell);
+            GameAudio.GameSound.Play(GameAudio.SoundCue.Dig);
         }
 
         public bool TryGetDurability(Vector2Int cell, out int durability)

@@ -54,12 +54,15 @@ namespace Character
                 $"hp={previousHp}→{currentHp}/{maxHp}, source={sourceName}",
                 this);
 
+            if (previousHp - currentHp >= 3)
+                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerHurt);
             DamageTaken?.Invoke(damageInfo);
             HpChanged?.Invoke(currentHp, maxHp);
 
             if (currentHp > 0) return;
 
             isDead = true;
+            GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath);
             Died?.Invoke();
         }
 
@@ -147,7 +150,10 @@ namespace Character
             HpChanged?.Invoke(currentHp, maxHp);
 
             if (notifyDeath && wasDead == false && isDead)
+            {
+                GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath);
                 Died?.Invoke();
+            }
         }
     }
 }

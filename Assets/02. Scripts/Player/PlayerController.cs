@@ -39,6 +39,8 @@ namespace TerrainCollapse
         private PlayerLifeCycle lifeCycle;
         private bool isWaitingForTerrainSnapshot;
         private Vector2 terrainSnapshotWaitingPosition;
+        private float soundAirTime;
+        private float nextFootstepTime;
 
 
         public bool IsBuried => terrainState.IsBuried;
@@ -89,6 +91,9 @@ namespace TerrainCollapse
 
         private void FixedUpdate()
         {
+            if (isWaitingForTerrainSnapshot || lifeCycle.IsDead || terrainState.IsBuried ||
+                terrainState.IsInteractionLocked || terrainState.IsEscaping || terrainState.IsClimbing)
+                soundAirTime = 0f;
             if (isWaitingForTerrainSnapshot)
             {
                 SetPosition(terrainSnapshotWaitingPosition);
@@ -105,6 +110,25 @@ namespace TerrainCollapse
             CollisionMoveResult result = collisionMove.Move(position, movement.Velocity, Time.fixedDeltaTime);
             body.MovePosition(result.Position);
             movement.SetVelocity(result.Velocity);
+            if (terrainState.IsClimbing == false)
+            {
+                if (result.Grounded)
+                {
+                    if (soundAirTime >= 0.1f)
+                    {
+                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerLand);
+                        nextFootstepTime = Time.time + 0.3f;
+                    }
+                    soundAirTime = 0f;
+                    if (Mathf.Abs(result.Position.x - position.x) > movementTolerance &&
+                        Time.time >= nextFootstepTime)
+                    {
+                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerRun);
+                        nextFootstepTime = Time.time + 0.3f;
+                    }
+                }
+                else soundAirTime += Time.fixedDeltaTime;
+            }
         }
 
         public void EnterDeadState(bool isPositionLocked = false)
@@ -143,6 +167,8 @@ namespace TerrainCollapse
 
         public void Respawn(Vector2 spawnPosition)
         {
+            soundAirTime = 0f;
+            nextFootstepTime = 0f;
             body.position = spawnPosition;
 
             if (isWaitingForTerrainSnapshot) terrainSnapshotWaitingPosition = spawnPosition;
