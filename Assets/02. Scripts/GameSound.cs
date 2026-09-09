@@ -25,6 +25,8 @@ namespace GameAudio
         private const float InGameMusicVolume = 0.5f;
         private const float EffectMinDistance = 2f;
         private const float EffectMaxDistance = 18f;
+        private const float DefaultEffectVolumeScale = 1f;
+        private const float PlayerReactionVolumeScale = 3.5f;
         private static readonly string[] Names =
             { "dig", "collapse", "player_hurt", "player_death", "player_land", "player_run", "explosion", "dynamite_tick" };
         private static readonly string[] VariantFolders =
@@ -86,7 +88,10 @@ namespace GameAudio
             AudioSource source = voice.AddComponent<AudioSource>();
             ConfigureEffectSource(source);
             source.clip = clip;
-            source.Play();
+            float volumeScale = cue == SoundCue.PlayerHurt || cue == SoundCue.PlayerDeath
+                ? PlayerReactionVolumeScale
+                : DefaultEffectVolumeScale;
+            source.PlayOneShot(clip, volumeScale);
             Object.Destroy(voice, clip.length + 0.1f);
         }
 
