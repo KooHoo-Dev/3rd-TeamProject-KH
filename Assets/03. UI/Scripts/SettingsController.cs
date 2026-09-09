@@ -9,13 +9,13 @@ namespace TerrainCollapse
     /// 화면 모드와 창 모드 해상도를 관리한다.
     /// 전체화면/전체 창 모드는 현재 모니터 해상도를 사용하며, 창 모드에서만 지정 해상도를 적용한다.
     /// </summary>
-    public sealed class DisplaySettingsController : MonoBehaviour
+    public sealed class SettingsController : MonoBehaviour
     {
-        private const string ScreenModePreferenceKey = "Settings.ScreenMode";
-        private const string ResolutionPreferenceKey = "Settings.WindowResolution";
-        private const string MasterVolumePreferenceKey = "Settings.MasterVolume";
-        private const string MusicVolumePreferenceKey = "Settings.MusicVolume";
-        private const string EffectVolumePreferenceKey = "Settings.EffectVolume";
+        private const string ScreenModePreferenceKey = "ScreenMode";
+        private const string ResolutionPreferenceKey = "WindowResolution";
+        private const string MasterVolumePreferenceKey = "MasterVolume";
+        private const string MusicVolumePreferenceKey = "MusicVolume";
+        private const string EffectVolumePreferenceKey = "EffectVolume";
 
         private static readonly Vector2Int[] WindowResolutions =
         {
@@ -62,6 +62,12 @@ namespace TerrainCollapse
         private float masterVolume;
         private float musicVolume;
         private float effectVolume;
+
+        // PlayerPrefs는 기본적으로 같은 CompanyName/ProductName 빌드가 모두 공유한다.
+        // 실행 파일별 독립 설정을 위해 빌드의 Data 경로를 해시한 접두어를 사용한다.
+        // 같은 폴더에 빌드를 덮어쓰는 경우에는 경로가 같으므로 기존 설정도 유지된다.
+        private static string PreferencePrefix =>
+            $"Settings.{Hash128.Compute(Application.dataPath)}.";
 
         private void Awake()
         {
@@ -118,16 +124,16 @@ namespace TerrainCollapse
         private void LoadSavedSettings()
         {
             screenModeIndex = Mathf.Clamp(
-                PlayerPrefs.GetInt(ScreenModePreferenceKey, FindScreenModeIndex(Screen.fullScreenMode)),
+                PlayerPrefs.GetInt(PreferenceKey(ScreenModePreferenceKey), FindScreenModeIndex(Screen.fullScreenMode)),
                 0,
                 ScreenModes.Length - 1);
             resolutionIndex = Mathf.Clamp(
-                PlayerPrefs.GetInt(ResolutionPreferenceKey, FindResolutionIndex(Screen.width, Screen.height)),
+                PlayerPrefs.GetInt(PreferenceKey(ResolutionPreferenceKey), FindResolutionIndex(Screen.width, Screen.height)),
                 0,
                 WindowResolutions.Length - 1);
-            masterVolume = PlayerPrefs.GetFloat(MasterVolumePreferenceKey, GameSound.MasterVolume);
-            musicVolume = PlayerPrefs.GetFloat(MusicVolumePreferenceKey, GameSound.MusicVolume);
-            effectVolume = PlayerPrefs.GetFloat(EffectVolumePreferenceKey, GameSound.EffectVolume);
+            masterVolume = PlayerPrefs.GetFloat(PreferenceKey(MasterVolumePreferenceKey), GameSound.MasterVolume);
+            musicVolume = PlayerPrefs.GetFloat(PreferenceKey(MusicVolumePreferenceKey), GameSound.MusicVolume);
+            effectVolume = PlayerPrefs.GetFloat(PreferenceKey(EffectVolumePreferenceKey), GameSound.EffectVolume);
 
             ApplyCurrentSelection();
             ApplySoundVolumes();
@@ -168,8 +174,8 @@ namespace TerrainCollapse
                 Screen.SetResolution(monitorResolution.width, monitorResolution.height, mode);
             }
 
-            PlayerPrefs.SetInt(ScreenModePreferenceKey, screenModeIndex);
-            PlayerPrefs.SetInt(ResolutionPreferenceKey, resolutionIndex);
+            PlayerPrefs.SetInt(PreferenceKey(ScreenModePreferenceKey), screenModeIndex);
+            PlayerPrefs.SetInt(PreferenceKey(ResolutionPreferenceKey), resolutionIndex);
             PlayerPrefs.Save();
             RefreshLabels();
         }
@@ -197,9 +203,9 @@ namespace TerrainCollapse
             GameSound.SetMasterVolume(masterVolume);
             GameSound.SetMusicVolume(musicVolume);
             GameSound.SetEffectVolume(effectVolume);
-            PlayerPrefs.SetFloat(MasterVolumePreferenceKey, masterVolume);
-            PlayerPrefs.SetFloat(MusicVolumePreferenceKey, musicVolume);
-            PlayerPrefs.SetFloat(EffectVolumePreferenceKey, effectVolume);
+            PlayerPrefs.SetFloat(PreferenceKey(MasterVolumePreferenceKey), masterVolume);
+            PlayerPrefs.SetFloat(PreferenceKey(MusicVolumePreferenceKey), musicVolume);
+            PlayerPrefs.SetFloat(PreferenceKey(EffectVolumePreferenceKey), effectVolume);
             PlayerPrefs.Save();
             RefreshLabels();
         }
@@ -284,6 +290,8 @@ namespace TerrainCollapse
         }
 
         private static int Wrap(int value, int count) => (value % count + count) % count;
+
+        private static string PreferenceKey(string settingName) => PreferencePrefix + settingName;
 
         private readonly struct ScreenModeOption
         {
