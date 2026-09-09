@@ -25,6 +25,8 @@ namespace TerrainCollapse
         [SerializeField] private TerrainTileCatalog tileCatalog;
         [SerializeField] private Material spawnPlatformMaterial;
         [SerializeField] private bool isDebugTileColorEnabled;
+        [SerializeField] private Color spawnPlatformColor = new(0.8f, 0.7f, 0.4f, 1f);
+        [SerializeField] private Color topBedrockColor = new(0.2f, 0.15f, 0.1f, 1f);
         [SerializeField] private Color undergroundBedrockColor = new(0.68f, 0.7f, 0.74f, 1f);
 #if UNITY_EDITOR
         [SerializeField] private bool isDurabilityTextEnabled;
@@ -72,6 +74,7 @@ namespace TerrainCollapse
         {
             if (type == TerrainTileType.DeathLoot) return Color.red;
             if (type == TerrainTileType.Bedrock) return undergroundBedrockColor;
+            if (type == TerrainTileType.SpawnPlatform) return spawnPlatformColor;
 
             TerrainTileDefinition definition = tileCatalog?.Get(type);
             
@@ -80,6 +83,17 @@ namespace TerrainCollapse
             
             return terrainColor;
         }
+
+        private Color GetTileColor(TerrainTileType type, Vector2Int coord)
+        {
+            if (type == TerrainTileType.Bedrock && IsUndergroundTopRow(coord))
+                return topBedrockColor;
+
+            return GetTileColor(type);
+        }
+
+        private bool IsUndergroundTopRow(Vector2Int coord)
+            => IsUndergroundCell(coord) && IsUndergroundCell(coord + Vector2Int.up) == false;
 
         private static Color GetDebugTileColor(TerrainTileType type)
             => type switch
@@ -593,7 +607,7 @@ namespace TerrainCollapse
             filter.sharedMesh = mesh;
 
             MeshRenderer renderer = filter.GetComponent<MeshRenderer>();
-            // SpawnPlatform 서브메시가 만들어진 청크에만 Unlit 슬롯을 추가한다.
+            // SpawnPlatform 또는 Bedrock 서브메시가 만들어진 청크에만 Unlit 슬롯을 추가한다.
             // 일반 청크에 두 번째 머터리얼을 남기면 Unity가 동일 서브메시에 두
             // 머터리얼을 차례로 적용해 조명이 섞여 보인다.
             renderer.sharedMaterials = spawnPlatformMaterial != null && mesh.subMeshCount > 1
@@ -619,7 +633,7 @@ namespace TerrainCollapse
                 Vector2Int local = cells[i] - chunkOrigin;
                 TerrainCell cell = data.GetCellOrNull(cells[i]);
                 Sprite sprite = GetTileSprite(cell.Type);
-                Color color = GetTileColor(cell.Type);
+                Color color = GetTileColor(cell.Type, cells[i]);
                 Rect textureRect = sprite.textureRect;
                 float uMin = textureRect.xMin / sprite.texture.width;
                 float uMax = textureRect.xMax / sprite.texture.width;
@@ -633,8 +647,8 @@ namespace TerrainCollapse
                 uv[vertex + 2] = new Vector2(uMax, vMax);
                 uv[vertex + 3] = new Vector2(uMax, vMin);
                 colors[vertex] = colors[vertex + 1] = colors[vertex + 2] = colors[vertex + 3] = color;
-                List<int> triangles = cell.Type == TerrainTileType.SpawnPlatform &&
-                                      spawnPlatformMaterial != null
+                bool usesUnlitMaterial = cell.Type is TerrainTileType.SpawnPlatform or TerrainTileType.Bedrock;
+                List<int> triangles = usesUnlitMaterial && spawnPlatformMaterial != null
                     ? platformTriangles
                     : terrainTriangles;
                 triangles.Add(vertex);

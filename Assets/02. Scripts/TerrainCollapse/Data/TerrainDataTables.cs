@@ -163,11 +163,6 @@ namespace TerrainCollapse
             if (dto.RespawnAreaHeight <= 0)
                 throw new InvalidDataException($"RespawnAreaHeight는 1 이상이어야 합니다: {dto.ProfileID}");
 
-            if (dto.RespawnPlatformWidth < 8 || dto.RespawnExitWidth <= 0 ||
-                dto.BoundaryThickness * 2 + dto.RespawnExitWidth * 2 +
-                dto.RespawnPlatformWidth != dto.TopOpeningWidth)
-                throw new InvalidDataException(
-                    $"스폰 구역 너비 합계가 TopOpeningWidth와 일치하지 않습니다: {dto.ProfileID}");
         }
     }
 

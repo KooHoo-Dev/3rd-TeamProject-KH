@@ -8,6 +8,9 @@ namespace TerrainCollapse
 
     internal static class TerrainTableSeedGenerator
     {
+        private const int RespawnCandidateWidth = 8;
+        private const int RespawnPointCount = 4;
+
         private readonly struct EllipseShape
         {
             private readonly TerrainSeedProfileDef profile;
@@ -129,14 +132,15 @@ namespace TerrainCollapse
             TerrainCaveGenerator.Apply(map, caves, context);
             TerrainVariantClusterGenerator.Apply(map, variants, context);
             TerrainMineralClusterGenerator.Apply(map, sections, mineralTable, context);
-            AttachRespawnArea(map, profile);
+            AttachRespawnArea(map, profile, seed);
 
             return map;
         }
 
         private static void AttachRespawnArea(
             TerrainMapFile map,
-            TerrainSeedProfileDef profile)
+            TerrainSeedProfileDef profile,
+            int seed)
         {
             int terrainHeight = map.Height;
             int areaMinX = (map.Width - profile.TopOpeningWidth) / 2;
@@ -168,22 +172,34 @@ namespace TerrainCollapse
             int platformY = terrainHeight - 1;
             int emptyBelowPlatformY = platformY - 1;
 
-            // 지상 스폰실의 바닥이 아니라 지하 최상단에 플랫폼을 둔다.
-            // 바로 아래 행은 비워 하향 점프로 빠져나갈 수 있게 한다.
-            for (int x = platformMinX; x <= platformMaxX; x++)
+            // 지하 최상단은 중앙 플랫폼과 양옆의 고정 배드락 한 줄로 구성한다.
+            // 플랫폼 바로 아래 행만 비워 하향 점프로 빠져나갈 수 있게 한다.
+            for (int x = 0; x < map.Width; x++)
             {
-                Vector2Int platformCell = new(x, platformY);
-                map.SetTile(platformCell, TerrainTileType.SpawnPlatform);
-                map.SetResource(platformCell, 0);
-                if (emptyBelowPlatformY >= 0)
+                Vector2Int topCell = new(x, platformY);
+                bool isPlatform = x >= platformMinX && x <= platformMaxX;
+                map.SetTile(topCell, isPlatform ? TerrainTileType.SpawnPlatform : TerrainTileType.Bedrock);
+                map.SetResource(topCell, 0);
+                if (isPlatform && emptyBelowPlatformY >= 0)
                     map.SetTile(new Vector2Int(x, emptyBelowPlatformY), TerrainTileType.Empty);
             }
 
-            int spawnCount = Mathf.Min(profile.RespawnPlatformWidth - 4, platformMaxX - platformMinX + 1);
-            int spawnMinX = platformMinX + (platformMaxX - platformMinX + 1 - spawnCount) / 2;
-            int spawnMaxX = spawnMinX + spawnCount - 1;
-            for (int x = spawnMinX; x <= spawnMaxX; x++)
-                map.RespawnPoints.Add(new Vector2Int(x, areaMinY));
+            int platformWidth = platformMaxX - platformMinX + 1;
+            int candidateCount = Mathf.Min(RespawnCandidateWidth, platformWidth);
+            int candidateMinX = platformMinX + (platformWidth - candidateCount) / 2;
+            List<int> candidates = new(candidateCount);
+            for (int x = candidateMinX; x < candidateMinX + candidateCount; x++)
+                candidates.Add(x);
+
+            System.Random random = new(seed);
+            for (int i = candidates.Count - 1; i > 0; i--)
+            {
+                int swapIndex = random.Next(i + 1);
+                (candidates[i], candidates[swapIndex]) = (candidates[swapIndex], candidates[i]);
+            }
+
+            for (int i = 0; i < Mathf.Min(RespawnPointCount, candidates.Count); i++)
+                map.RespawnPoints.Add(new Vector2Int(candidates[i], areaMinY));
         }
 
         public static TerrainMapFile CreateEmptyMap(

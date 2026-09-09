@@ -620,6 +620,8 @@ MonoBehaviour:
   tileCatalog: {fileID: 0}
   spawnPlatformMaterial: {fileID: 2100000, guid: bb732559349d34267a9248147b09b655, type: 2}
   isDebugTileColorEnabled: 1
+  spawnPlatformColor: {r: 0.5377358, g: 0.39884576, b: 0.31706122, a: 1}
+  topBedrockColor: {r: 0.18867922, g: 0.123129055, b: 0.08098967, a: 1}
   undergroundBedrockColor: {r: 0, g: 0, b: 0, a: 1}
   isDurabilityTextEnabled: 1
 --- !u!50 &190307190

@@ -3995,7 +3995,7 @@ MonoBehaviour:
   m_CaretColor: {r: 1, g: 1, b: 1, a: 1}
   m_CustomCaretColor: 1
   m_SelectionColor: {r: 0.24, g: 0.52, b: 0.95, a: 0.75}
-  m_Text: 
+  m_Text: "Enter \uB610\uB294 T\uB97C \uB20C\uB7EC \uCC44\uD305\uD558\uAE30"
   m_CaretBlinkRate: 0.85
   m_CaretWidth: 1
   m_ReadOnly: 0
@@ -4379,7 +4379,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u200B"
+  m_text: "Enter \uB610\uB294 T\uB97C \uB20C\uB7EC \uCC44\uD305\uD558\uAE30\u200B"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}
   m_sharedMaterial: {fileID: -8736176697884498249, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}

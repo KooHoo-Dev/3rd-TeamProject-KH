@@ -44,6 +44,8 @@ namespace TerrainCollapse
         private bool isDroppingThroughSpawnPlatform;
         private float climbThroughPlatformTargetY = float.NegativeInfinity;
         private bool isClimbingThroughSpawnPlatform;
+        private float climbThroughPlatformMinX = float.NegativeInfinity;
+        private float climbThroughPlatformMaxX = float.PositiveInfinity;
         private float soundAirTime;
         private float nextFootstepTime;
 
@@ -92,7 +94,10 @@ namespace TerrainCollapse
         {
             inputReader.Tick();
             if (lifeCycle.IsDead || terrainState.IsInteractionLocked || terrainState.IsEscaping) return;
-            if (inputReader.CurrentInput.ClimbTogglePressed && !isInSpawnArea) ToggleClimbState();
+            PlayerInputData input = inputReader.CurrentInput;
+            if (isInSpawnArea == false &&
+                (input.ClimbTogglePressed || (terrainState.IsClimbing && input.JumpPressed)))
+                ToggleClimbState();
         }
 
         private void FixedUpdate()
@@ -130,8 +135,13 @@ namespace TerrainCollapse
                 collisionMove.IsGrounded,
                 Time.fixedDeltaTime);
             CollisionMoveResult result = collisionMove.Move(position, movement.Velocity, Time.fixedDeltaTime);
-            body.MovePosition(result.Position);
-            movement.SetVelocity(result.Velocity);
+            Vector2 resolvedPosition = ClampClimbThroughPlatformPosition(result.Position);
+            Vector2 resolvedVelocity = result.Velocity;
+            if (Mathf.Approximately(resolvedPosition.x, result.Position.x) == false)
+                resolvedVelocity.x = 0f;
+
+            body.MovePosition(resolvedPosition);
+            movement.SetVelocity(resolvedVelocity);
             collisionMove.IgnoreDownwardCollisions = false;
             collisionMove.IgnoreUpwardCollisions = false;
             if (terrainState.IsClimbing == false)
@@ -200,6 +210,8 @@ namespace TerrainCollapse
             {
                 isClimbingThroughSpawnPlatform = false;
                 climbThroughPlatformTargetY = float.NegativeInfinity;
+                climbThroughPlatformMinX = float.NegativeInfinity;
+                climbThroughPlatformMaxX = float.PositiveInfinity;
                 return;
             }
 
@@ -209,10 +221,43 @@ namespace TerrainCollapse
                 // 몸 전체가 플랫폼 상단보다 위로 올라갈 때까지 통과 상태를 유지한다.
                 climbThroughPlatformTargetY = platformCenter.y + terrainManager.CellSize * 0.5f +
                                               box.bounds.extents.y + collisionSkin;
+                UpdateClimbThroughPlatformHorizontalBounds(platformCell);
             }
 
             isClimbingThroughSpawnPlatform =
                 body.position.y < climbThroughPlatformTargetY;
+        }
+
+        private void UpdateClimbThroughPlatformHorizontalBounds(Vector2Int platformCell)
+        {
+            int minCellX = platformCell.x;
+            int maxCellX = platformCell.x;
+
+            while (IsSpawnPlatformCell(new Vector2Int(minCellX - 1, platformCell.y))) minCellX--;
+            while (IsSpawnPlatformCell(new Vector2Int(maxCellX + 1, platformCell.y))) maxCellX++;
+
+            if (terrainManager.TryCellToWorldCenter(new Vector2Int(minCellX, platformCell.y), out Vector3 minCenter) == false ||
+                terrainManager.TryCellToWorldCenter(new Vector2Int(maxCellX, platformCell.y), out Vector3 maxCenter) == false)
+                return;
+
+            float halfCell = terrainManager.CellSize * 0.5f;
+            float halfBody = box.bounds.extents.x + collisionSkin;
+            climbThroughPlatformMinX = minCenter.x - halfCell + halfBody;
+            climbThroughPlatformMaxX = maxCenter.x + halfCell - halfBody;
+        }
+
+        private Vector2 ClampClimbThroughPlatformPosition(Vector2 position)
+        {
+            if (isClimbingThroughSpawnPlatform == false) return position;
+
+            position.x = Mathf.Clamp(position.x, climbThroughPlatformMinX, climbThroughPlatformMaxX);
+            return position;
+        }
+
+        private bool IsSpawnPlatformCell(Vector2Int cell)
+        {
+            return terrainManager.TryGetTileType(cell, out TerrainTileType type) &&
+                   type == TerrainTileType.SpawnPlatform;
         }
 
         private bool TryGetSpawnPlatformAboveHead(out Vector2Int cell)

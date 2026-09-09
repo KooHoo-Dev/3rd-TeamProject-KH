@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using TerrainCollapse;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace TerrainCollapse
 {
@@ -30,9 +30,18 @@ namespace TerrainCollapse
         [SerializeField] private Color dirtColor = new Color(0.43f, 0.27f, 0.14f, 1f);
         [SerializeField] private Color stoneColor = new Color(0.42f, 0.45f, 0.5f, 1f);
         [SerializeField] private Color bedrockColor = new Color(0.08f, 0.08f, 0.1f, 1f);
+        [SerializeField] private Color topBedrockColor = new Color(0.29f, 0.18f, 0.11f, 1f);
         [SerializeField] private Color deepStoneColor = new Color(0.2f, 0.22f, 0.28f, 1f);
+        [SerializeField] private Color spawnPlatformColor = new Color(0.84f, 0.7f, 0.48f, 1f);
+        [SerializeField] private Color deathLootColor = Color.red;
         [SerializeField] private Color coalColor = new Color(0.12f, 0.13f, 0.15f, 1f);
-        [SerializeField] private Color ironColor = new Color(0.82f, 0.34f, 0.12f, 1f);
+        [FormerlySerializedAs("ironColor")]
+        [SerializeField] private Color bronzeColor = new Color(0.82f, 0.34f, 0.12f, 1f);
+        [SerializeField] private Color silverColor = new Color(0.72f, 0.75f, 0.82f, 1f);
+        [SerializeField] private Color goldColor = new Color(0.93f, 0.72f, 0.12f, 1f);
+        [SerializeField] private Color sapphireColor = new Color(0.18f, 0.55f, 0.95f, 1f);
+        [SerializeField] private Color rubyColor = new Color(0.86f, 0.12f, 0.2f, 1f);
+        [SerializeField] private Color diamondColor = new Color(0.55f, 0.92f, 1f, 1f);
         [SerializeField] private Color unknownTileColor = Color.magenta;
         [SerializeField] private Color unexploredColor = Color.black;
 
@@ -229,7 +238,7 @@ namespace TerrainCollapse
 
             int pixelIndex = cell.y * mapWidth + cell.x;
 
-            // 월드 안개 View와 동일하게 지상/스폰 영역(y > 0)은 개인 탐험 여부와
+            // 월드 안개 View와 동일하게 지상/지하 최상단 영역(y > -1)은 개인 탐험 여부와
             // 관계없이 공개한다. 전체 맵도 이 텍스처를 공유하므로 같은 결과가 적용된다.
             if (IsFogFreeCell(cell) == false &&
                 explorationController.ExplorationData.IsExplored(cell) == false)
@@ -244,20 +253,43 @@ namespace TerrainCollapse
                 return;
             }
 
+            if (type == TerrainTileType.Bedrock && IsSurfaceCell(cell))
+            {
+                pixels[pixelIndex] = emptyColor;
+                return;
+            }
+
             terrainManager.TryGetResourceID(cell, out int resourceID);
-            pixels[pixelIndex] = GetTileColor(type, resourceID);
+            pixels[pixelIndex] = GetTileColor(cell, type, resourceID);
         }
 
-        private bool IsFogFreeCell(Vector2Int cell)
+        private bool IsSurfaceCell(Vector2Int cell)
         {
             float cellCenterY = mapOrigin.y + (cell.y + 0.5f) * cellSize;
             return cellCenterY > 0f;
         }
 
-        private Color32 GetTileColor(TerrainTileType type, int resourceID)
+        private bool IsFogFreeCell(Vector2Int cell)
         {
-            if (resourceID == 1) return coalColor;
-            if (resourceID == 2) return ironColor;
+            float cellCenterY = mapOrigin.y + (cell.y + 0.5f) * cellSize;
+            return cellCenterY > -1f;
+        }
+
+        private Color32 GetTileColor(Vector2Int cell, TerrainTileType type, int resourceID)
+        {
+            if (type == TerrainTileType.Bedrock && IsFogFreeCell(cell))
+                return topBedrockColor;
+
+            switch (resourceID)
+            {
+                case 1: return coalColor;
+                case 2: return bronzeColor;
+                case 3: return silverColor;
+                case 4: return goldColor;
+                case 1001: return sapphireColor;
+                case 1002: return rubyColor;
+                case 1003: return diamondColor;
+            }
 
             return type switch
             {
@@ -267,7 +299,8 @@ namespace TerrainCollapse
                 TerrainTileType.Stone => stoneColor,
                 TerrainTileType.Bedrock => bedrockColor,
                 TerrainTileType.DeepStone => deepStoneColor,
-                TerrainTileType.DeathLoot => Color.red,
+                TerrainTileType.SpawnPlatform => spawnPlatformColor,
+                TerrainTileType.DeathLoot => deathLootColor,
                 _ => unknownTileColor
             };
         }
@@ -286,7 +319,13 @@ namespace TerrainCollapse
             if (coordText != null && terrainManager.TryWorldToCell(
                     localPlayer.position,
                     out Vector2Int cell))
-                coordText.text = $"X: {cell.x - 45}\nY: {cell.y - 100}";
+            {
+                TerrainDataManager terrainData = TerrainDataManager.Instance;
+                terrainData.EnsureLoaded();
+                string profileID = roomClient?.MapSession?.ProfileID ?? "Default";
+                if (terrainData.SeedProfiles.TryGet(profileID, out TerrainSeedProfileDef profile))
+                    coordText.text = $"X: {cell.x - profile.Width / 2}\nY: {cell.y - profile.Height}";
+            }
 
             if (terrainManager.TryGetMapBounds(
                     out int width,

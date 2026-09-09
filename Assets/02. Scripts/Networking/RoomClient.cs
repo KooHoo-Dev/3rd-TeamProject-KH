@@ -55,6 +55,10 @@ namespace TerrainCollapse
         [SerializeField] private MineExplosive mineExplosivePrefab;
         [SerializeField] private Transform mineRoot;
 
+        [Header("Torch")]
+        [SerializeField] private TorchLight torchLightPrefab;
+        [SerializeField] private Transform torchRoot;
+
         [Header("Game End Presentation")]
         [SerializeField, Range(0.01f, 1f)] private float gameEndTimeScale = 0.08f;
         [SerializeField, Min(0f)] private float gameEndSlowMotionSeconds = 1.5f;
@@ -75,6 +79,7 @@ namespace TerrainCollapse
         private readonly Dictionary<string, string> pendingDynamiteExplosions = new();
         private readonly Dictionary<string, DynamiteExplosive> activeDynamites = new();
         private readonly Dictionary<string, MineExplosive> activeMines = new();
+        private readonly Dictionary<string, TorchLight> activeTorches = new();
         private readonly Dictionary<string, float> nextDamageRequestTimes = new();
         private float nextAnyDamageRequestTime;
         private PickaxeInventory localPickaxeInventory;
@@ -163,6 +168,17 @@ namespace TerrainCollapse
         public event Action<GoldRankingMessage> GoldRankingChanged;
         public GoldRankingMessage CurrentGoldRanking { get; private set; }
 
+        public void ShowLocalSystemMessage(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            SystemMessageReceived?.Invoke(new ChatSystemMessage
+            {
+                ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
+                Text = text,
+            });
+        }
+
         /// <summary>서버 스냅샷 정의한 스폰/안전 구역에 월드 좌표가 포함되는지 확인한다</summary>
         public bool IsInSpawnArea(Vector2 worldPosition)
         {
@@ -218,6 +234,10 @@ namespace TerrainCollapse
                 mineExplosivePrefab = Resources.Load<MineExplosive>("Items/Usable/MineExplosive");
             if (mineRoot == null)
                 mineRoot = transform;
+            if (torchLightPrefab == null)
+                torchLightPrefab = Resources.Load<TorchLight>("Items/Usable/TorchLight");
+            if (torchRoot == null)
+                torchRoot = transform;
         }
 
         /// <summary>대기방에서 확정한 접속 정보를 인게임 WebSocket 연결 전에 적용한다.</summary>
@@ -341,6 +361,7 @@ namespace TerrainCollapse
             ClearRemotePlayers();
             ClearActiveDynamites();
             ClearActiveMines();
+            ClearActiveTorches();
             hasSentPosition = false;
             handshakeComplete = false;
             pendingInitialSpawn = null;
@@ -434,6 +455,7 @@ namespace TerrainCollapse
             ClearRemotePlayers();
             ClearActiveDynamites();
             ClearActiveMines();
+            ClearActiveTorches();
         }
 
         public bool RequestExcavation(Vector2Int targetCell, int itemId)
@@ -689,6 +711,28 @@ namespace TerrainCollapse
                 return false;
 
             string createdRequestId = $"mine-{Interlocked.Increment(ref nextRequestId)}";
+            if (Send(new DynamiteThrowRequest
+            {
+                RequestId = createdRequestId,
+                ItemID = itemID,
+                StartX = placementPosition.x,
+                StartY = placementPosition.y,
+                DirectionX = 0f,
+                DirectionY = 0f,
+            }) == false)
+                return false;
+
+            requestId = createdRequestId;
+            return true;
+        }
+
+        public bool RequestTorchPlacement(int itemID, Vector2 placementPosition, out string requestId)
+        {
+            requestId = null;
+            if (IsGameplayActive == false || itemID <= 0)
+                return false;
+
+            string createdRequestId = $"torch-{Interlocked.Increment(ref nextRequestId)}";
             if (Send(new DynamiteThrowRequest
             {
                 RequestId = createdRequestId,
@@ -1516,6 +1560,12 @@ namespace TerrainCollapse
             if (message == null || string.IsNullOrWhiteSpace(message.ProjectileID))
                 return;
 
+            if (message.IsTorch)
+            {
+                HandleTorchPlaced(message);
+                return;
+            }
+
             if (message.IsMine)
             {
                 HandleMinePlaced(message);
@@ -1628,6 +1678,34 @@ namespace TerrainCollapse
                 Destroy(mine?.gameObject);
 
             activeMines.Clear();
+        }
+
+        private void HandleTorchPlaced(DynamiteThrownMessage message)
+        {
+            if (activeTorches.ContainsKey(message.ProjectileID))
+                return;
+
+            if (torchLightPrefab == null)
+            {
+                Debug.LogError("[RoomClient] TorchLight prefab reference is not assigned.", this);
+                return;
+            }
+
+            TorchLight torch = Instantiate(
+                torchLightPrefab,
+                new Vector2(message.StartX, message.StartY),
+                Quaternion.identity,
+                torchRoot);
+            torch.Place(torch.transform.position, new Vector2Int(message.CellX, message.CellY));
+            activeTorches.Add(message.ProjectileID, torch);
+        }
+
+        private void ClearActiveTorches()
+        {
+            foreach (TorchLight torch in activeTorches.Values)
+                Destroy(torch?.gameObject);
+
+            activeTorches.Clear();
         }
 
         private void HandleInventorySnapshot(InventorySnapshotMessage message)

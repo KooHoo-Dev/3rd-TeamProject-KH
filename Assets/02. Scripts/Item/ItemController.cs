@@ -305,6 +305,22 @@ namespace TerrainCollapse
             out string requestId)
         {
             requestId = null;
+
+            // 서버도 동일하게 검증하지만, 클라이언트가 확정적으로 알 수 있는 제한은
+            // 요청을 보내지 않고 즉시 안내한다. false 반환으로 쿨다운/소모도 막힌다.
+            if (roomClient.IsInSpawnArea(ownerPos))
+            {
+                roomClient.ShowLocalSystemMessage("스폰 지역에서는 아이템을 사용할 수 없습니다.");
+                return false;
+            }
+
+            if (item is Potion && TryGetComponent(out Character.PlayerHp playerHp) &&
+                playerHp.CurrentHp >= playerHp.MaxHp)
+            {
+                roomClient.ShowLocalSystemMessage("체력이 이미 가득 찼습니다.");
+                return false;
+            }
+
             bool requested;
             if (item is DynamiteItem)
             {
@@ -313,6 +329,10 @@ namespace TerrainCollapse
             else if (item is MineItem)
             {
                 requested = roomClient.RequestMinePlacement(item.Def.ID, ownerPos, out requestId);
+            }
+            else if (item is TorchItem)
+            {
+                requested = roomClient.RequestTorchPlacement(item.Def.ID, ownerPos, out requestId);
             }
             else if (item is Potion or Detector)
             {

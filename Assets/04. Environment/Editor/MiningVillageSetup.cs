@@ -216,8 +216,9 @@ namespace WorldEnvironment.Editor
                 SpawnArea = new RectInt((profile.Width - profile.TopOpeningWidth) / 2,
                     profile.Height, profile.TopOpeningWidth, profile.RespawnAreaHeight)
             };
-            int start = snapshot.SpawnArea.xMin + profile.BoundaryThickness + profile.RespawnExitWidth;
-            for (int x = start; x < start + profile.RespawnPlatformWidth; x++)
+            int start = snapshot.SpawnArea.xMin + profile.BoundaryThickness;
+            int end = snapshot.SpawnArea.xMax - profile.BoundaryThickness;
+            for (int x = start; x < end; x++)
                 snapshot.Cells.Add(new TerrainCellChange(new Vector2Int(x, snapshot.SpawnArea.yMin),
                     TerrainTileType.SpawnPlatform));
             return snapshot;

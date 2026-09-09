@@ -226,6 +226,7 @@ namespace TerrainCollapse
 
                     if (data.IsInside(cell) == false) continue;
                     if (mapOrigin.y + (cell.y + 0.5f) * cellSize > 0f) continue;
+                    if (IsAlwaysVisibleTerrain(cell)) continue;
                     // 현재 시야에서는 탐험 기록과 관계없이 일시적으로 공개한다.
                     if (data.IsExplored(cell) || observedCells.Contains(cell)) continue;
 
@@ -260,6 +261,7 @@ namespace TerrainCollapse
                     if (cell.x < 0 || cell.x >= mapWidth || cell.y < 0 || cell.y >= mapHeight)
                         continue;
                     if (mapOrigin.y + (cell.y + 0.5f) * cellSize > 0f) continue;
+                    if (IsAlwaysVisibleTerrain(cell)) continue;
                     if (observedCells.Contains(cell)) continue;
 
                     hiddenCells.Add(cell);
@@ -277,6 +279,13 @@ namespace TerrainCollapse
                 hiddenCells, chunkOrigin, currentVisionFogColor);
 
             if (previousMesh != null) Destroy(previousMesh);
+        }
+
+        private bool IsAlwaysVisibleTerrain(Vector2Int cell)
+        {
+            return terrainManager != null &&
+                   terrainManager.TryGetTileType(cell, out TerrainTileType type) &&
+                   type is TerrainTileType.Bedrock or TerrainTileType.SpawnPlatform;
         }
 
         private void RemoveChunk(Vector2Int chunkCoord)

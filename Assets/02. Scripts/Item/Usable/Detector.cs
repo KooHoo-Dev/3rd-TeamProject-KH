@@ -43,6 +43,13 @@ namespace TerrainCollapse
         {
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
             if (terrainManager == null || cells == null) return;
+
+            if (cells.Length == 0)
+            {
+                RoomClient.Instance?.ShowLocalSystemMessage("범위 내에 탐지된 자원이 없습니다.");
+                return;
+            }
+
             List<(Vector3 worldPos, float distance)> found = new();
             foreach (GridCoord cell in cells)
                 if (terrainManager.TryCellToWorldCenter(new Vector2Int(cell.X, cell.Y), out Vector3 worldPos))
