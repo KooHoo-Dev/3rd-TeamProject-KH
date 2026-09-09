@@ -21,6 +21,7 @@ namespace TerrainCollapse
         [SerializeField] private TMP_Text rankingText;
         [SerializeField] private Button mainMenuButton;
         [SerializeField] private Button roomLobbyButton;
+        [SerializeField] private MinimapView minimapView;
         [SerializeField] private string mainMenuSceneName = "MainMenuScene";
         [SerializeField] private string roomLobbySceneName = "RoomLobbyScene";
 
@@ -33,6 +34,8 @@ namespace TerrainCollapse
             if (roomClient == null) roomClient = FindFirstObjectByType<RoomClient>();
             if (goalGoldText == null)
                 goalGoldText = transform.Find("GoalGold")?.GetComponent<TMP_Text>();
+            if (minimapView == null)
+                minimapView = FindFirstObjectByType<MinimapView>();
         }
 
         private void OnEnable()
@@ -47,6 +50,7 @@ namespace TerrainCollapse
         private void Start()
         {
             if (resultPanel != null) resultPanel.SetActive(false);
+            minimapView?.SetGameResultDimmerActive(false);
             RenderGoalGold();
             if (roomClient != null && roomClient.GameStartedAtUnixMilliseconds > 0)
                 BeginTimer();
@@ -101,9 +105,14 @@ namespace TerrainCollapse
             isEnded = true;
             FindFirstObjectByType<ShopAccessController>()?.CloseShop();
             FindFirstObjectByType<PauseMenuController>()?.CloseAll();
+            minimapView?.SetGameResultDimmerActive(true);
             Render(0f, "게임 종료");
             RenderRanking(message);
-            if (resultPanel != null) resultPanel.SetActive(true);
+            if (resultPanel != null)
+            {
+                resultPanel.SetActive(true);
+                resultPanel.transform.SetAsLastSibling();
+            }
         }
 
         private void RenderRanking(GameEndedMessage message)

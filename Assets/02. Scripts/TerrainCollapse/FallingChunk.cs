@@ -215,10 +215,10 @@ namespace TerrainCollapse
                     // 청크 위에 올라서 있거나 옆면에 닿은 일반 물리 접촉까지
                     // 매몰/탈출 흐름으로 넘기면 충돌을 무시하게 되어 플레이어가
                     // 청크의 EdgeCollider 안쪽으로 들어갈 수 있다. 플레이어 전용
-                    // 상호작용은 청크 타일의 하단이 실제로 몸통을 침범한 경우에만
+                    // 상호작용은 낙하 청크의 하단이 플레이어 상단에 닿는 경우에만
                     // 이 흐름을 시작한다.
                     if (target is FallingTerrainInteraction interaction &&
-                        interaction.IsBurialCandidate(this, out string candidateReason) == false)
+                        interaction.IsBurialCandidate(this, collision, out string candidateReason) == false)
                     {
                         if (isInitialContact)
                             LogCharacterContact(collision, "normal-physics", candidateReason);

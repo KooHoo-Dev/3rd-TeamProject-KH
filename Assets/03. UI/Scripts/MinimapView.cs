@@ -53,6 +53,7 @@ namespace TerrainCollapse
         private float fullMapZoomAccumulator;
         private bool hasPlayerNormalizedPosition;
         private bool isFullMapOpen;
+        private bool isGameResultDimmerActive;
 
         public bool IsFullMapOpen => isFullMapOpen;
 
@@ -88,12 +89,18 @@ namespace TerrainCollapse
                 normalMapSize = mapRect.sizeDelta;
             }
 
-            fullMapDimmer?.SetActive(false);
+            SetFullMapDimmerActive(false);
             fullMapBackground?.gameObject.SetActive(false);
         }
 
         private void Update()
         {
+            if (PauseMenuController.IsGameplayInputBlocked)
+            {
+                if (isFullMapOpen) SetFullMapOpen(false);
+                return;
+            }
+
             if (ChatInputState.IsTyping) return;
 
             bool isTabHeld = Keyboard.current?.tabKey.isPressed == true;
@@ -244,13 +251,27 @@ namespace TerrainCollapse
             SetFullMapOpen(isFullMapOpen == false);
         }
 
+        /// <summary>
+        /// 게임 결과 화면이 표시되는 동안 전체 지도 Dimmer를 유지한다.
+        /// 지도 열림 상태와 분리해서 관리하므로 Tab 입력으로 꺼지지 않는다.
+        /// </summary>
+        public void SetGameResultDimmerActive(bool isActive)
+        {
+            isGameResultDimmerActive = isActive;
+
+            if (isGameResultDimmerActive && isFullMapOpen)
+                SetFullMapOpen(false);
+
+            SetFullMapDimmerActive(isFullMapOpen || isGameResultDimmerActive);
+        }
+
         private void SetFullMapOpen(bool isOpen)
         {
             if (mapFrame == null) return;
 
             isFullMapOpen = isOpen;
             fullMapZoomAccumulator = 0f;
-            fullMapDimmer?.SetActive(isFullMapOpen);
+            SetFullMapDimmerActive(isFullMapOpen || isGameResultDimmerActive);
             fullMapBackground?.gameObject.SetActive(isFullMapOpen);
 
             if (isFullMapOpen)
@@ -281,6 +302,25 @@ namespace TerrainCollapse
 
             if (hasPlayerNormalizedPosition) SetPlayerNormalizedPosition(playerNormalizedPosition);
             else UpdateViewUvRect();
+        }
+
+        private void SetFullMapDimmerActive(bool isActive)
+        {
+            if (fullMapDimmer == null) return;
+
+            fullMapDimmer.SetActive(isActive);
+            if (isActive == false) return;
+
+            // 결과 화면에서는 Dimmer가 전체 화면 UI 입력까지 차단해야 한다.
+            foreach (Graphic graphic in fullMapDimmer.GetComponents<Graphic>())
+                graphic.raycastTarget = true;
+
+            CanvasGroup canvasGroup = fullMapDimmer.GetComponent<CanvasGroup>();
+            if (canvasGroup != null)
+            {
+                canvasGroup.blocksRaycasts = true;
+                canvasGroup.interactable = true;
+            }
         }
 
         private void HandleFullMapInput()

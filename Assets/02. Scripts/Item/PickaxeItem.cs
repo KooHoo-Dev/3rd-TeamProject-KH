@@ -66,10 +66,15 @@ namespace TerrainCollapse
                 highlightInstance.transform.position = targetWorldPos;
                 highlightInstance.SetActive(true);
 
-                // 3. 표시선(LineRenderer) 그린다면 업데이트
-                lineRenderer.enabled = true;
-                lineRenderer.SetPosition(0, ownerPos);
-                lineRenderer.SetPosition(1, targetWorldPos);
+                // 타일 하이라이트는 모든 플레이어에게 유지하되, 플레이어와 타일을
+                // 잇는 보조선은 Debug Mode에서만 표시한다.
+                bool showDebugConnectionLine = RoomClient.Instance?.IsDebugMode == true;
+                lineRenderer.enabled = showDebugConnectionLine;
+                if (showDebugConnectionLine)
+                {
+                    lineRenderer.SetPosition(0, ownerPos);
+                    lineRenderer.SetPosition(1, targetWorldPos);
+                }
             }
             else
             {

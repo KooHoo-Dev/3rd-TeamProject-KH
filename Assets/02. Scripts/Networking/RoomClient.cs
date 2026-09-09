@@ -31,6 +31,8 @@ namespace TerrainCollapse
         [SerializeField] private bool debugMode;
         [SerializeField] private string mainMenuSceneName = "MainMenuScene";
 
+        public bool IsDebugMode => debugMode;
+
         [Header("Scene References")]
         [SerializeField] private TerrainGridWorld terrainWorld;
         [SerializeField] private TerrainManager terrainManager;

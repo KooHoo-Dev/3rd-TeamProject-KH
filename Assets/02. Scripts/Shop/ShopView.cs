@@ -41,6 +41,8 @@ namespace TerrainCollapse
         {
             if (inventory != null)
                 inventory.ItemChanged -= HandleInventoryChanged;
+            if (pickaxeInventory != null)
+                pickaxeInventory.PickaxeChanged -= HandlePickaxeChanged;
 
             shopService = service;
             inventory = playerInventory;
@@ -54,6 +56,8 @@ namespace TerrainCollapse
 
             if (inventory != null)
                 inventory.ItemChanged += HandleInventoryChanged;
+            if (pickaxeInventory != null)
+                pickaxeInventory.PickaxeChanged += HandlePickaxeChanged;
 
             RefreshGold();
         }
@@ -62,6 +66,8 @@ namespace TerrainCollapse
         {
             if (inventory != null)
                 inventory.ItemChanged -= HandleInventoryChanged;
+            if (pickaxeInventory != null)
+                pickaxeInventory.PickaxeChanged -= HandlePickaxeChanged;
             if (roomClient != null)
                 roomClient.ShopNotificationReceived -= ShowNotification;
         }
@@ -100,6 +106,9 @@ namespace TerrainCollapse
 
         public void Hide()
         {
+            // 상점 아이콘에서 PointerExit 없이 UI가 비활성화될 수 있으므로,
+            // 그 경우에도 남아 있는 Tooltip을 명시적으로 정리한다.
+            ItemTooltipView.Instance?.Hide();
             Root.SetActive(false);
         }
 
@@ -132,7 +141,7 @@ namespace TerrainCollapse
             {
                 if (listing.Category != currentCategory) continue;
 
-                bool isLocked = listing.Category == ShopCategory.Pickaxe && listing.DigPower <= currentDigPower;
+                bool isLocked = listing.Category == ShopCategory.Pickaxe && listing.DigPower < currentDigPower;
 
                 ShopItemRowView row = Instantiate(rowTemplate, itemListContent);
                 row.gameObject.SetActive(true);
@@ -205,6 +214,14 @@ namespace TerrainCollapse
         {
             if (TryGetGoldItemID(out int goldItemID) && change.ItemID == goldItemID)
                 RefreshGold();
+        }
+
+        private void HandlePickaxeChanged(ItemDef _)
+        {
+            // 서버 인벤토리 Snapshot은 장착 곡괭이를 적용한 뒤 이 이벤트를 발생시킨다.
+            // 상점이 열려 있다면 즉시 다시 그려 하위 티어 구매 버튼을 잠근다.
+            if (Root.activeInHierarchy)
+                RefreshListing();
         }
 
         private void RefreshGold()

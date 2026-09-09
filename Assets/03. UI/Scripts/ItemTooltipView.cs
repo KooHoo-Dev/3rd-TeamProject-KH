@@ -69,6 +69,12 @@ namespace TerrainCollapse
         {
             if (activeTrigger != trigger) return;
 
+            Hide();
+        }
+
+        /// <summary>현재 호버 대상과 무관하게 Tooltip을 즉시 닫는다.</summary>
+        public void Hide()
+        {
             activeTrigger = null;
             gameObject.SetActive(false);
         }

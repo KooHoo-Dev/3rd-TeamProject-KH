@@ -1911,7 +1911,7 @@ MonoBehaviour:
   roomCode: ABCE
   nickName: Player66
   connectOnStart: 1
-  debugMode: 1
+  debugMode: 0
   mainMenuSceneName: MainMenuScene
   terrainWorld: {fileID: 190307189}
   terrainManager: {fileID: 190307187}

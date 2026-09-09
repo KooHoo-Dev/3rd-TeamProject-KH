@@ -27,12 +27,13 @@ namespace TerrainCollapse
 
         private static PauseMenuController instance;
 
-        /// <summary>Pause 또는 인게임 설정 창이 열린 동안 월드 입력을 차단한다.</summary>
+        /// <summary>Pause, 인게임 설정 또는 결과 창이 열린 동안 월드 입력을 차단한다.</summary>
         public static bool IsGameplayInputBlocked => instance != null && instance.IsAnyModalOpen;
 
         private bool IsAnyModalOpen =>
             (popupRoot != null && popupRoot.activeInHierarchy) ||
-            (settingPopup != null && settingPopup.activeInHierarchy);
+            (settingPopup != null && settingPopup.activeInHierarchy) ||
+            (gameTimerBar != null && gameTimerBar.IsResultPanelOpen);
 
         private void Awake()
         {

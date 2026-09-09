@@ -271,11 +271,14 @@ namespace TerrainCollapse
         /// 상황을 구분한다. 이 메서드는 FallingChunk가 충돌 무시를 시작하기 전에
         /// 호출해야 한다.
         /// </summary>
-        public bool IsBurialCandidate(FallingChunk fallingChunk, out string reason)
+        public bool IsBurialCandidate(
+            FallingChunk fallingChunk,
+            Collision2D collision,
+            out string reason)
         {
-            if (fallingChunk == null || character == null)
+            if (fallingChunk == null || character == null || collision == null)
             {
-                reason = "missing-chunk-or-character";
+                reason = "missing-chunk-character-or-collision";
                 return false;
             }
 
@@ -285,17 +288,22 @@ namespace TerrainCollapse
                 return false;
             }
 
-            // includeVerticalPath=false는 청크가 플레이어 위에 있기만 한 경우를
-            // 제외하고, 청크 타일의 하단이 플레이어 몸통 높이까지 들어온 실제
-            // 세로 겹침만 허용한다.
-            bool overlapsBody = IntersectsFallingTerrain(
-                character.CollisionBounds,
-                fallingChunk,
-                includeVerticalPath: false);
-            reason = overlapsBody
-                ? "descending-body-overlap"
-                : "no-body-overlap(top-or-side-contact)";
-            return overlapsBody;
+            // CollisionEnter 시점의 Bounds는 Physics2D가 이미 분리했기 때문에
+            // 타일 좌표 재계산보다 실제 접점 노멀이 신뢰할 수 있다. FallingChunk
+            // 기준 위쪽 노멀은 청크의 하단이 플레이어 상단에 닿았다는 뜻이다.
+            // 청크 위에 올라선 플레이어는 반대(-Y) 노멀을 받으므로 제외된다.
+            for (int i = 0; i < collision.contactCount; i++)
+            {
+                ContactPoint2D contact = collision.GetContact(i);
+                if (contact.normal.y >= 0.5f)
+                {
+                    reason = $"descending-lower-face-contact(normalY={contact.normal.y:F2})";
+                    return true;
+                }
+            }
+
+            reason = "no-lower-face-contact(top-or-side-contact)";
+            return false;
         }
 
         private void BeginAwaitingBurialResolution(FallingChunk fallingChunk)
