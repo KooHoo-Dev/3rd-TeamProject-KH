@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -11,6 +13,8 @@ namespace TerrainCollapse
     /// </summary>
     public class TorchLight : MonoBehaviour, IPlaceable
     {
+        private static readonly HashSet<TorchLight> activeTorches = new();
+
         [Header("Light Settings")]
         [SerializeField] private Light2D spotLight; // Light2D의 Light Type을 Point(스팟 조명)로 설정해서 사용
 
@@ -18,8 +22,17 @@ namespace TerrainCollapse
         private Vector2Int placedCell;
         private TerrainManager terrainManager;
 
+        public static IReadOnlyCollection<TorchLight> ActiveTorches => activeTorches;
+        public static event Action TorchesChanged;
+
         /// <summary>주어진 셀에 이미 횃불이 설치돼 있는지 여부.</summary>
         public static bool IsCellOccupied(Vector2Int cell) => GridOccupancy<TorchLight>.IsOccupied(cell);
+
+        public bool TryGetPlacedCell(out Vector2Int cell)
+        {
+            cell = placedCell;
+            return hasCell;
+        }
 
         /// <summary>
         /// TorchItem.Use()에서 설치 직후 호출. 위치/셀 세팅 후 조명을 켜고,
@@ -34,10 +47,13 @@ namespace TerrainCollapse
                 hasCell = true;
                 placedCell = cell.Value;
                 GridOccupancy<TorchLight>.Register(placedCell, this);
+                activeTorches.Add(this);
 
                 terrainManager = FindFirstObjectByType<TerrainManager>();
                 if (terrainManager != null)
                     terrainManager.TerrainChanged += HandleTerrainChanged;
+
+                TorchesChanged?.Invoke();
             }
 
             if (spotLight != null)
@@ -57,7 +73,11 @@ namespace TerrainCollapse
         private void OnDestroy()
         {
             if (hasCell)
+            {
                 GridOccupancy<TorchLight>.Unregister(this);
+                activeTorches.Remove(this);
+                TorchesChanged?.Invoke();
+            }
 
             if (terrainManager != null)
                 terrainManager.TerrainChanged -= HandleTerrainChanged;

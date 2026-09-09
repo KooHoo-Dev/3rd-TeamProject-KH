@@ -23,7 +23,8 @@ namespace TerrainCollapse
         {
             TerrainCell cell = world.Data.GetCellOrNull(coord);
 
-            if (cell == null || cell.ResourceID <= 0)
+            if (cell == null || cell.ResourceID <= 0 ||
+                cell.Type == TerrainTileType.SpawnPlatform)
             {
                 RemoveView(coord);
                 return;

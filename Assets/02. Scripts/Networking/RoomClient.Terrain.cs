@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text;
 using TerrainCollapse.Networking;
 using UnityEngine;
 
@@ -85,7 +86,7 @@ namespace TerrainCollapse
                          .GetFiles(dataRoot, "*.tsv", SearchOption.TopDirectoryOnly)
                          .OrderBy(value => value))
             {
-                byte[] bytes = File.ReadAllBytes(path);
+                byte[] bytes = ReadNormalizedTsvBytes(path);
                 hash.TransformBlock(bytes, 0, bytes.Length, null, 0);
             }
 
@@ -95,6 +96,19 @@ namespace TerrainCollapse
                 .Replace("-", string.Empty)
                 .ToLowerInvariant()
                 .Substring(0, 12);
+        }
+
+        private static byte[] ReadNormalizedTsvBytes(string path)
+        {
+            string content = Encoding.UTF8.GetString(File.ReadAllBytes(path));
+            content = content.TrimStart('\uFEFF')
+                .Replace("\r\n", "\n")
+                .Replace('\r', '\n');
+
+            if (content.EndsWith("\n", StringComparison.Ordinal))
+                content = content[..^1];
+
+            return new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(content);
         }
 
         // Cluade Log

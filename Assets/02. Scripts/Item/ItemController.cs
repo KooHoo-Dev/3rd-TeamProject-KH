@@ -20,11 +20,11 @@ namespace TerrainCollapse
     public class ItemController : MonoBehaviour
     {
         // 둘 다 인벤토리 상태에 따라 런타임에 채워지는 값이라 인스펙터에 노출하지 않습니다.
-        [SerializeField]private Item pickaxeItem;
-        [SerializeField]private Item activeItem;
+        [SerializeField] private Item pickaxeItem;
+        [SerializeField] private Item activeItem;
 
-        [Header("곡괭이 보유 정보를 알려주는 전용 창구")]
-        [SerializeField] private PickaxeInventory pickaxeInventory;
+        [Header("곡괭이 보유 정보를 알려주는 전용 창구")] [SerializeField]
+        private PickaxeInventory pickaxeInventory;
 
         private IPlayerController playerController;
         private IItemInventory inventory;
@@ -41,7 +41,7 @@ namespace TerrainCollapse
         private bool isMining;
         private PickaxeItem activePickaxe;
         public bool IsMining => isMining;
-        
+
         private void Awake()
         {
             playerController = GetComponent(typeof(IPlayerController)) as IPlayerController;
@@ -49,7 +49,7 @@ namespace TerrainCollapse
 
             if (inventory == null)
                 Debug.LogWarning("[ItemController] IItemInventory 구현체(PlayerInventory)를 찾지 못했습니다.");
-            
+
             if (pickaxeInventory == null)
                 Debug.LogWarning("[ItemController] IItemInventory 구현체(pickaxeInventory)를 찾지 못했습니다.");
         }
@@ -114,7 +114,7 @@ namespace TerrainCollapse
         /// 또는 보유하지 않은 아이템이면 장착되지 않고 return을 반환합니다.
         /// </summary>
         public void SetActiveItem(int itemID)
-        {    
+        {
             if (DataManager.Instance.ItemTable.TryGet(itemID, out ItemDef def) == false)
                 return;
 
@@ -200,27 +200,30 @@ namespace TerrainCollapse
                 itemReadyTime[def.ID] = Time.time + def.Cooldown;
         }
 
+        /// <summary>
+        /// 아이템 입력을 처리할 수 없는 상태인지 판단.
+        /// 장착된 아이템이 없으면 그냥 무시(취소 불필요), 그 외 차단 사유는
+        /// 진행 중이던 사용/프리뷰를 취소한 뒤 이번 프레임 입력 처리를 막는다.
+        /// </summary>
+        private bool IsInputBlocked()
+        {
+            if (pickaxeItem == null && activeItem == null) return true;
+
+            bool isTyping = ChatInputState.IsTyping;
+            bool isGameplayInactive = RoomClient.Instance != null && RoomClient.Instance.IsGameplayActive == false;
+            bool isDead = playerController != null && playerController.IsDead;
+            bool isInSpawnArea = playerController != null && playerController.IsInSpawnArea;
+
+            if (isTyping == false && isGameplayInactive == false && isDead == false && isInSpawnArea == false)
+                return false;
+
+            CancelCurrentUse();
+            return true;
+        }
+
         private void Update()
         {
-            if (pickaxeItem == null && activeItem == null) return;
-            if (ChatInputState.IsTyping)
-            {
-                CancelCurrentUse();
-                return;
-            }
-
-            RoomClient roomClient = RoomClient.Instance;
-            if (roomClient != null && roomClient.IsGameplayActive == false)
-            {
-                CancelCurrentUse();
-                return;
-            }
-
-            if (playerController != null && playerController.IsDead)
-            {
-                CancelCurrentUse();
-                return;
-            }
+            if (IsInputBlocked()) return;
 
             bool isBuried = playerController?.IsBuried == true;
             if (isBuried)
@@ -241,9 +244,13 @@ namespace TerrainCollapse
 
             // 액티브 아이템 프리뷰가 시작되면 그 동안 곡괭이 입력은 처리하지 않는다.
             // 쿨다운 중인 아이템은 애초에 프리뷰(조준)조차 시작하지 않는다.
-            if (isBuried == false &&
-                rightPressedThisFrame && activeItem != null && !isPreviewingActiveItem &&
-                !IsOnCooldown(activeItem.Def))
+            bool canPreviewActiveItem =
+                isBuried == false &&
+                activeItem != null &&
+                isPreviewingActiveItem == false &&
+                IsOnCooldown(activeItem.Def) == false;
+
+            if (rightPressedThisFrame && canPreviewActiveItem)
             {
                 isPreviewingActiveItem = true;
                 pickaxeItem?.OnClearPreview();
@@ -258,10 +265,9 @@ namespace TerrainCollapse
             UpdatePickaxe(ownerPos, mouseWorldPos);
         }
 
-         // 우클릭 홀드 중 매 프레임 처리: 좌클릭이면 취소, 우클릭을 떼면 실제 사용
-        private void UpdateActiveItemPreview(Vector3 ownerPos, Vector3 mouseWorldPos, bool leftPressedThisFrame, bool rightReleasedThisFrame)
+        private void UpdateActiveItemPreview(Vector3 ownerPos, Vector3 mouseWorldPos, bool leftPressedThisFrame,
+            bool rightReleasedThisFrame)
         {
-            // 프리뷰 도중 좌클릭 -> 사용 취소 (곡괭이도 발동하지 않음)
             if (leftPressedThisFrame)
             {
                 activeItem.OnClearPreview();
@@ -271,95 +277,74 @@ namespace TerrainCollapse
 
             activeItem.OnUpdatePreview(ownerPos, mouseWorldPos);
 
-            // 우클릭을 뗀 시점에 실제 사용 실행
             if (rightReleasedThisFrame == false) return;
-            // 프리뷰 도중(다른 아이템 사용 등으로) 쿨다운이 걸렸을 수 있으니 사용 직전 한 번 더 확인
-            if (IsOnCooldown(activeItem.Def))
+
+            if (IsOnCooldown(activeItem.Def) == false)
             {
-                activeItem.OnClearPreview();
-                isPreviewingActiveItem = false;
-                return;
+                Item item = activeItem; // Clear/Destroy 이전에 참조 확보
+                if (TryUseActiveItem(item, ownerPos, mouseWorldPos))
+                    StartCooldown(item.Def); // ← 성공 시 부수효과는 여기 딱 한 곳에서만
             }
 
+            // 어떤 분기를 탔든 프리뷰 종료는 여기서 한 번만 (activeItem이 이미 null이어도 안전)
+            activeItem?.OnClearPreview();
+            isPreviewingActiveItem = false;
+        }
+
+// "사용에 성공했는가"만 반환. 쿨다운/소모 여부는 이 함수가 신경 쓰지 않는다.
+        private bool TryUseActiveItem(Item item, Vector3 ownerPos, Vector3 mouseWorldPos)
+        {
             if (RoomClient.Instance is { IsConnected: true } roomClient)
+                return TryUseActiveItemOnline(roomClient, item, ownerPos, mouseWorldPos);
+
+            return TryUseActiveItemOffline(item, ownerPos, mouseWorldPos);
+        }
+
+        private bool TryUseActiveItemOnline(RoomClient roomClient, Item item, Vector3 ownerPos, Vector3 mouseWorldPos)
+        {
+            bool? requested = item switch
             {
-                switch (activeItem)
-                {
-                    case DynamiteItem:
-                    {
-                        bool requested = roomClient.RequestDynamiteThrow(
-                            activeItem.Def.ID, ownerPos, mouseWorldPos);
+                DynamiteItem => roomClient.RequestDynamiteThrow(item.Def.ID, ownerPos, mouseWorldPos),
+                MineItem or TorchItem => roomClient.RequestPlaceablePlacement(item.Def.ID, ownerPos),
+                Potion or Detector => roomClient.RequestUsableItemUse(item.Def.ID),
+                _ => (bool?)null
+            };
 
-                        if (requested == false)
-                            Debug.LogWarning("[ItemController] 다이너마이트 서버 사용 요청을 보내지 못했습니다.", this);
-                        else
-                            StartCooldown(activeItem.Def);
-
-                        activeItem.OnClearPreview();
-                        isPreviewingActiveItem = false;
-
-                        return;
-                    }
-                    case MineItem:
-                    {
-                        bool requested = roomClient.RequestMinePlacement(
-                            activeItem.Def.ID, ownerPos);
-
-                        if (requested == false)
-                            Debug.LogWarning("[ItemController] 지뢰 서버 설치 요청을 보내지 못했습니다.", this);
-
-                        activeItem.OnClearPreview();
-                        isPreviewingActiveItem = false;
-
-                        return;
-                    }
-                    case Potion:
-                    case Detector:
-                    {
-                        if (roomClient.RequestUsableItemUse(activeItem.Def.ID) == false)
-                            Debug.LogWarning("[ItemController] 서버 아이템 사용 요청을 보내지 못했습니다.", this);
-
-                        activeItem.OnClearPreview();
-                        isPreviewingActiveItem = false;
-                        return;
-                    }
-                }
-
+            if (requested == null)
+            {
                 Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
-
-                activeItem.OnClearPreview();
-                isPreviewingActiveItem = false;
-
-                return;
+                return false;
             }
 
-            int itemID = activeItem.Def.ID;
+            if (requested == false)
+                Debug.LogWarning($"[ItemController] {item.GetType().Name} 서버 사용 요청을 보내지 못했습니다.", this);
 
-            // 프리뷰 도중 다른 경로(판매/드롭 등)로 소진됐을 수 있으니 사용 직전 한 번 더 확인
+            return requested.Value;
+        }
+
+        private bool TryUseActiveItemOffline(Item item, Vector3 ownerPos, Vector3 mouseWorldPos)
+        {
+            int itemID = item.Def.ID;
+
             if (inventory != null && inventory.Has(itemID, 1) == false)
             {
                 ClearActiveItem();
-                return;
+                return false;
             }
 
-            bool wasUsed = activeItem.Use(ownerPos, mouseWorldPos);
-
-            // 실제로 사용에 성공했을 때만 인벤토리에서 소모하고 쿨다운을 건다.
-            // (0개가 되면 HandleInventoryChanged에서 자동 해제됨)
+            bool wasUsed = item.Use(ownerPos, mouseWorldPos);
             if (wasUsed)
-            {
                 inventory?.TryRemove(itemID, 1);
-                StartCooldown(activeItem.Def);
-            }
 
-            isPreviewingActiveItem = false;
+            return wasUsed;
         }
 
         private void HandleUsableItemUsed(UsableItemUsedMessage message)
         {
             if (message == null || activeItem == null || activeItem.Def.ID != message.ItemID) return;
             if (activeItem is Potion potion) potion.PlayConfirmedEffect(transform.position);
-            else if (activeItem is Detector detector) detector.ShowConfirmedResults(transform.position, message.DetectedCells);
+            else if (activeItem is Detector detector)
+                detector.ShowConfirmedResults(transform.position, message.DetectedCells);
         }
 
         // 평상시 처리: 곡괭이 조준 표시 + 좌클릭 홀드 시 애니메이션 1사이클 단위 반복 채굴
@@ -469,7 +454,7 @@ namespace TerrainCollapse
 
             activePickaxe.ExecutePreparedUse(transform.position);
         }
-        
+
         public void FinishMine()
         {
             if (!isMining)

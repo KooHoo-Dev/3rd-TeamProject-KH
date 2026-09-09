@@ -17,34 +17,55 @@ namespace TerrainCollapse.Networking
         [SerializeField] private SpriteRenderer spriteRenderer;
         [SerializeField] private int normalSortingOrder = 2;
         [SerializeField] private int buriedSortingOrder = -1;
+        [SerializeField] private Material surfaceUnlitMaterial;
+
+        private Material undergroundMaterial;
 
         private void Awake()
         {
             if (animator == null) animator = GetComponent<Animator>();
             if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
+            undergroundMaterial = spriteRenderer != null ? spriteRenderer.sharedMaterial : null;
         }
 
         public void ApplyState(PlayerStateDto state)
         {
-            if (state == null || animator == null) return;
+            if (state == null) return;
 
-            animator.SetFloat(ClimbAnimSpeedHash,
-                state.IsClimbing &&
-                state.VelocityX * state.VelocityX + state.VelocityY * state.VelocityY > 0.001f
-                    ? 1f
-                    : 0f);
-            animator.SetFloat(SpeedHash, Mathf.Abs(state.VelocityX));
-            animator.SetFloat(YVelocityHash, state.VelocityY);
-            animator.SetBool(GroundedHash, state.IsGrounded);
-            animator.SetBool(ClimbingHash, state.IsClimbing);
-            animator.SetBool(DeadHash, state.IsDead);
+            if (animator != null)
+            {
+                animator.SetFloat(ClimbAnimSpeedHash,
+                    state.IsClimbing &&
+                    state.VelocityX * state.VelocityX + state.VelocityY * state.VelocityY > 0.001f
+                        ? 1f
+                        : 0f);
+                animator.SetFloat(SpeedHash, Mathf.Abs(state.VelocityX));
+                animator.SetFloat(YVelocityHash, state.VelocityY);
+                animator.SetBool(GroundedHash, state.IsGrounded);
+                animator.SetBool(ClimbingHash, state.IsClimbing);
+                animator.SetBool(DeadHash, state.IsDead);
+            }
 
             if (spriteRenderer == null) return;
+            UpdateLightingMaterial(state.Y > 0f);
             if (state.VelocityX > 0.01f) spriteRenderer.flipX = false;
             else if (state.VelocityX < -0.01f) spriteRenderer.flipX = true;
             spriteRenderer.sortingOrder = state.IsBuried
                 ? buriedSortingOrder
                 : normalSortingOrder;
+        }
+
+        private void UpdateLightingMaterial(bool isOnSurface)
+        {
+            if (isOnSurface == false)
+            {
+                if (undergroundMaterial != null && spriteRenderer.sharedMaterial != undergroundMaterial)
+                    spriteRenderer.sharedMaterial = undergroundMaterial;
+                return;
+            }
+
+            if (surfaceUnlitMaterial != null && spriteRenderer.sharedMaterial != surfaceUnlitMaterial)
+                spriteRenderer.sharedMaterial = surfaceUnlitMaterial;
         }
 
         public void SetDead(bool isDead)

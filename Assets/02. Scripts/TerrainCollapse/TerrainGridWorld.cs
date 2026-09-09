@@ -23,7 +23,9 @@ namespace TerrainCollapse
         [SerializeField] private Sprite terrainSprite;
         [SerializeField] private Color terrainColor = Color.white;
         [SerializeField] private TerrainTileCatalog tileCatalog;
+        [SerializeField] private Material spawnPlatformMaterial;
         [SerializeField] private bool isDebugTileColorEnabled;
+        [SerializeField] private Color undergroundBedrockColor = new(0.68f, 0.7f, 0.74f, 1f);
 #if UNITY_EDITOR
         [SerializeField] private bool isDurabilityTextEnabled;
 #endif
@@ -69,13 +71,14 @@ namespace TerrainCollapse
         public Color GetTileColor(TerrainTileType type)
         {
             if (type == TerrainTileType.DeathLoot) return Color.red;
+            if (type == TerrainTileType.Bedrock) return undergroundBedrockColor;
 
             TerrainTileDefinition definition = tileCatalog?.Get(type);
             
             if (definition != null) return definition.Color;
             if (isDebugTileColorEnabled) return GetDebugTileColor(type);
             
-            return type == TerrainTileType.Bedrock ? Color.black : terrainColor;
+            return terrainColor;
         }
 
         private static Color GetDebugTileColor(TerrainTileType type)
@@ -86,6 +89,7 @@ namespace TerrainCollapse
                 TerrainTileType.Stone => new Color(0.45f, 0.48f, 0.52f),
                 TerrainTileType.Bedrock => new Color(0.05f, 0.05f, 0.05f),
                 TerrainTileType.DeepStone => new Color(0.28f, 0.3f, 0.32f),
+                TerrainTileType.SpawnPlatform => Color.brown,
                 TerrainTileType.DeathLoot => Color.red,
                 _ => Color.magenta
             };
@@ -539,6 +543,9 @@ namespace TerrainCollapse
             foreach (Vector2Int chunkCoord in chunks) RebuildChunkMesh(chunkCoord);
         }
 
+        private bool IsUndergroundCell(Vector2Int coord)
+            => transform.position.y + (coord.y + 0.5f) * cellSize <= 0f;
+
         private void RebuildChunkMesh(Vector2Int chunkCoord)
         {
             List<Vector2Int> cells = new();
@@ -550,8 +557,11 @@ namespace TerrainCollapse
                 for (int x = minX; x < minX + RenderChunkSize; x++)
                 {
                     Vector2Int coord = new(x, y);
-                    
-                    if (data.IsOccupied(coord)) cells.Add(coord);
+                    TerrainCell cell = data.GetCellOrNull(coord);
+                    if (cell == null) continue;
+
+                    if (cell.Type != TerrainTileType.Bedrock || IsUndergroundCell(coord))
+                        cells.Add(coord);
                 }
             }
 
@@ -575,12 +585,20 @@ namespace TerrainCollapse
                 view.transform.SetParent(transform, false);
                 
                 filter = view.GetComponent<MeshFilter>();
-                view.GetComponent<MeshRenderer>().sharedMaterial = terrainMaterial;
                 chunkViews[chunkCoord] = filter;
             }
 
             Mesh previous = filter.sharedMesh;
-            filter.sharedMesh = BuildMesh(cells, chunkCoord);
+            Mesh mesh = BuildMesh(cells, chunkCoord);
+            filter.sharedMesh = mesh;
+
+            MeshRenderer renderer = filter.GetComponent<MeshRenderer>();
+            // SpawnPlatform 서브메시가 만들어진 청크에만 Unlit 슬롯을 추가한다.
+            // 일반 청크에 두 번째 머터리얼을 남기면 Unity가 동일 서브메시에 두
+            // 머터리얼을 차례로 적용해 조명이 섞여 보인다.
+            renderer.sharedMaterials = spawnPlatformMaterial != null && mesh.subMeshCount > 1
+                ? new[] { terrainMaterial, spawnPlatformMaterial }
+                : new[] { terrainMaterial };
             
             if (previous != null) Destroy(previous);
         }
@@ -592,7 +610,8 @@ namespace TerrainCollapse
             chunkVertexCaches[chunkCoord] = cache;
             Vector2[] uv = new Vector2[cells.Count * 4];
             Color[] colors = new Color[cells.Count * 4];
-            int[] triangles = new int[cells.Count * 6];
+            List<int> terrainTriangles = new(cells.Count * 6);
+            List<int> platformTriangles = new();
             Vector2Int chunkOrigin = chunkCoord * RenderChunkSize;
 
             for (int i = 0; i < cells.Count; i++)
@@ -614,13 +633,16 @@ namespace TerrainCollapse
                 uv[vertex + 2] = new Vector2(uMax, vMax);
                 uv[vertex + 3] = new Vector2(uMax, vMin);
                 colors[vertex] = colors[vertex + 1] = colors[vertex + 2] = colors[vertex + 3] = color;
-                int triangle = i * 6;
-                triangles[triangle] = vertex;
-                triangles[triangle + 1] = vertex + 1;
-                triangles[triangle + 2] = vertex + 2;
-                triangles[triangle + 3] = vertex;
-                triangles[triangle + 4] = vertex + 2;
-                triangles[triangle + 5] = vertex + 3;
+                List<int> triangles = cell.Type == TerrainTileType.SpawnPlatform &&
+                                      spawnPlatformMaterial != null
+                    ? platformTriangles
+                    : terrainTriangles;
+                triangles.Add(vertex);
+                triangles.Add(vertex + 1);
+                triangles.Add(vertex + 2);
+                triangles.Add(vertex);
+                triangles.Add(vertex + 2);
+                triangles.Add(vertex + 3);
             }
 
             Mesh mesh = new Mesh { name = $"TerrainChunk_{chunkCoord.x}_{chunkCoord.y}" };
@@ -630,7 +652,10 @@ namespace TerrainCollapse
             mesh.vertices = vertices;
             mesh.uv = uv;
             mesh.colors = colors;
-            mesh.triangles = triangles;
+            mesh.subMeshCount = platformTriangles.Count > 0 ? 2 : 1;
+            mesh.SetTriangles(terrainTriangles, 0);
+            if (platformTriangles.Count > 0)
+                mesh.SetTriangles(platformTriangles, 1);
             mesh.RecalculateBounds();
             MeshFilter filter = chunkViews.TryGetValue(chunkCoord, out MeshFilter existing) ? existing : null;
             

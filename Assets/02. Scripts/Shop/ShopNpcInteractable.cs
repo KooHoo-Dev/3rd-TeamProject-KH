@@ -14,29 +14,90 @@ namespace TerrainCollapse
     public sealed class ShopNpcInteractable : MonoBehaviour
     {
         [SerializeField] private ShopAccessController shopAccess; // 플레이어의 상점 접근/UI 컨트롤러
+        [SerializeField, Range(1, 8)] private int hoverOutlinePixelWidth = 2;
+        [SerializeField] private Material hoverOutlineMaterialTemplate;
 
         private Collider2D npcCollider;
+        private SpriteRenderer spriteRenderer;
+        private Material defaultMaterial;
+        private Material hoverOutlineMaterial;
+        private bool hasTriedCreatingOutlineMaterial;
+
+        private static readonly int OutlineColorId = Shader.PropertyToID("_OutlineColor");
+        private static readonly int OutlineAlphaId = Shader.PropertyToID("_OutlineAlpha");
+        private static readonly int OutlinePixelWidthId = Shader.PropertyToID("_OutlinePixelWidth");
 
         private void Awake()
         {
             npcCollider = GetComponent<Collider2D>();
+            spriteRenderer = GetComponent<SpriteRenderer>();
+            defaultMaterial = spriteRenderer != null ? spriteRenderer.sharedMaterial : null;
         }
 
         private void Update()
         {
-            if (shopAccess.IsShopAccessible == false) return;
+            bool isHovered = shopAccess != null && shopAccess.IsShopAccessible && IsPointerOverNpc();
+            SetHoverOutlineVisible(isHovered);
+            if (isHovered == false) return;
 
             Mouse mouse = Mouse.current;
             if (mouse.leftButton.wasPressedThisFrame == false) return;
 
+            shopAccess.OpenShop();
+        }
+
+        private bool IsPointerOverNpc()
+        {
+            Mouse mouse = Mouse.current;
             Camera mainCam = Camera.main;
+            if (mouse == null || mainCam == null || npcCollider == null) return false;
 
             Vector3 worldPos = mainCam.ScreenToWorldPoint(mouse.position.ReadValue());
-            worldPos.z = 0f;
+            return npcCollider.OverlapPoint(worldPos);
+        }
 
-            if (npcCollider.OverlapPoint(worldPos) == false) return;
+        private void SetHoverOutlineVisible(bool isVisible)
+        {
+            if (spriteRenderer == null || defaultMaterial == null) return;
 
-            shopAccess.OpenShop();
+            if (isVisible)
+            {
+                if (hoverOutlineMaterial == null && hasTriedCreatingOutlineMaterial == false)
+                {
+                    hasTriedCreatingOutlineMaterial = true;
+                    hoverOutlineMaterial = CreateHoverOutlineMaterial();
+                }
+
+                if (hoverOutlineMaterial != null)
+                    spriteRenderer.sharedMaterial = hoverOutlineMaterial;
+                return;
+            }
+
+            if (spriteRenderer.sharedMaterial == hoverOutlineMaterial)
+                spriteRenderer.sharedMaterial = defaultMaterial;
+        }
+
+        private Material CreateHoverOutlineMaterial()
+        {
+            if (hoverOutlineMaterialTemplate == null)
+            {
+                Debug.LogWarning("[Shop] 외곽선 머티리얼이 연결되지 않았습니다.", this);
+                return null;
+            }
+
+            Material material = new(hoverOutlineMaterialTemplate) { name = "Shop Hover Outline" };
+            material.SetColor(OutlineColorId, Color.white);
+            material.SetFloat(OutlineAlphaId, 1f);
+            material.SetInt(OutlinePixelWidthId, Mathf.Clamp(hoverOutlinePixelWidth, 1, 8));
+            return material;
+        }
+
+        private void OnDisable() => SetHoverOutlineVisible(false);
+
+        private void OnDestroy()
+        {
+            if (hoverOutlineMaterial != null)
+                Destroy(hoverOutlineMaterial);
         }
     }
 }

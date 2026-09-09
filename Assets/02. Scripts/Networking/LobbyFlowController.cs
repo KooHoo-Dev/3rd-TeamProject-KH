@@ -20,6 +20,7 @@ namespace TerrainCollapse
         [SerializeField] private TMP_InputField roomCodeInput;
         [SerializeField] private Button createRoomButton;
         [SerializeField] private Button joinRoomButton;
+        [SerializeField] private Button exitButton;
         [SerializeField] private GameObject roomCodePopup;
         [SerializeField] private Button confirmJoinButton;
         [SerializeField] private Button cancelJoinButton;
@@ -38,11 +39,19 @@ namespace TerrainCollapse
         [SerializeField] private TMP_Text kickConfirmMessage;
         [SerializeField] private Button kickConfirmButton;
         [SerializeField] private Button kickCancelButton;
+        [SerializeField] private GameObject returnConfirmPopup;
+        [SerializeField] private Button returnConfirmButton;
+        [SerializeField] private Button returnCancelButton;
 
         private LobbySession session;
         private LobbySocketClient lobbyClient;
         private bool isLoadingGame;
         private string pendingKickClientId;
+        private Canvas lobbyModalCanvas;
+        private GameObject joinPopupDimmer;
+        private GameObject kickedNoticeDimmer;
+        private GameObject kickConfirmDimmer;
+        private GameObject returnConfirmDimmer;
 
         private void Start()
         {
@@ -64,16 +73,32 @@ namespace TerrainCollapse
 
             if (isRoomScene == false)
             {
-                if (kickedNoticePopup != null) kickedNoticePopup.SetActive(false);
+                // 메인 메뉴에 직접 배치한 버튼을 인스펙터 연결 없이도 인식한다.
+                exitButton ??= GameObject.Find("ExitButton")?.GetComponent<Button>();
+                exitButton?.onClick.AddListener(QuitGame);
+                MovePopupToForegroundCanvas(roomCodePopup);
+                MovePopupToForegroundCanvas(kickedNoticePopup);
+                joinPopupDimmer = CreateModalDimmer(roomCodePopup, "Join Room Dimmer");
+                kickedNoticeDimmer = CreateModalDimmer(kickedNoticePopup, "Kicked Notice Dimmer");
+                SetModalVisible(roomCodePopup, joinPopupDimmer, false);
+                SetModalVisible(kickedNoticePopup, kickedNoticeDimmer, false);
                 kickedNoticeCloseButton?.onClick.AddListener(HideKickedNotice);
                 ShowKickedNoticeIfNeeded();
                 return;
             }
 
-            MoveKickPopupToForegroundCanvas();
-            if (kickConfirmPopup != null) kickConfirmPopup.SetActive(false);
+            MovePopupToForegroundCanvas(kickConfirmPopup);
+            MovePopupToForegroundCanvas(returnConfirmPopup);
+            kickConfirmDimmer = CreateModalDimmer(kickConfirmPopup, "Kick Confirm Dimmer");
+            returnConfirmDimmer = CreateModalDimmer(returnConfirmPopup, "Return Confirm Dimmer");
+            SetModalVisible(kickConfirmPopup, kickConfirmDimmer, false);
+            SetModalVisible(returnConfirmPopup, returnConfirmDimmer, false);
             kickCancelButton?.onClick.AddListener(HideKickConfirmation);
             kickConfirmButton?.onClick.AddListener(ConfirmKick);
+            returnButton?.onClick.RemoveListener(ReturnToMainMenu);
+            returnButton?.onClick.AddListener(ShowReturnConfirmation);
+            returnConfirmButton?.onClick.AddListener(ReturnToMainMenu);
+            returnCancelButton?.onClick.AddListener(HideReturnConfirmation);
             if (session.HasRoom == false)
             {
                 SetStatus("참여 중인 방이 없습니다. 메인 메뉴로 돌아가세요.");
@@ -82,6 +107,15 @@ namespace TerrainCollapse
             if (session.IsHost == false) SetStatus("호스트가 게임을 시작할 때까지 기다리는 중입니다.");
             if (startGameButton != null) startGameButton.gameObject.SetActive(session.IsHost);
             ReturnToLobbyAsync();
+        }
+
+        private static void QuitGame()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         private void OnDestroy()
@@ -117,13 +151,13 @@ namespace TerrainCollapse
         {
             if (TryReadNickName(out _) == false) return;
             if (roomCodePopup == null) return;
-            roomCodePopup.SetActive(true);
+            SetModalVisible(roomCodePopup, joinPopupDimmer, true);
             roomCodeInput?.Select();
         }
 
         private void HideJoinPopup()
         {
-            if (roomCodePopup != null) roomCodePopup.SetActive(false);
+            SetModalVisible(roomCodePopup, joinPopupDimmer, false);
         }
 
         private void StartGame()
@@ -206,6 +240,16 @@ namespace TerrainCollapse
             SceneManager.LoadScene(mainMenuSceneName);
         }
 
+        private void ShowReturnConfirmation()
+        {
+            SetModalVisible(returnConfirmPopup, returnConfirmDimmer, true);
+        }
+
+        private void HideReturnConfirmation()
+        {
+            SetModalVisible(returnConfirmPopup, returnConfirmDimmer, false);
+        }
+
         private void HandleStarted(string roomCode)
         {
             if (session.HasRoom && session.RoomCode == roomCode) LoadGame();
@@ -233,7 +277,7 @@ namespace TerrainCollapse
 
             pendingKickClientId = targetClientId;
             kickConfirmMessage.text = $"{nickName}님을 추방하시겠습니까?";
-            kickConfirmPopup.SetActive(true);
+            SetModalVisible(kickConfirmPopup, kickConfirmDimmer, true);
         }
 
         private void ConfirmKick()
@@ -246,7 +290,7 @@ namespace TerrainCollapse
         private void HideKickConfirmation()
         {
             pendingKickClientId = null;
-            if (kickConfirmPopup != null) kickConfirmPopup.SetActive(false);
+            SetModalVisible(kickConfirmPopup, kickConfirmDimmer, false);
         }
 
         private async void HandleKicked(LobbyKickedMessage _)
@@ -299,34 +343,76 @@ namespace TerrainCollapse
             if (statusText != null) statusText.text = text;
         }
 
-        private void MoveKickPopupToForegroundCanvas()
+        private void MovePopupToForegroundCanvas(GameObject popup)
         {
-            if (kickConfirmPopup == null) return;
+            if (popup == null) return;
 
             // 아바타 프리뷰는 SpriteRenderer이고, 로비 UI는 Screen Space - Camera다.
             // 따라서 팝업만 Screen Space - Overlay 루트로 옮겨 항상 모든 프리뷰보다 앞에 그린다.
-            Canvas sourceCanvas = kickConfirmPopup.GetComponentInParent<Canvas>();
-            GameObject root = new("Lobby Modal Overlay", typeof(RectTransform), typeof(Canvas),
-                typeof(CanvasScaler), typeof(GraphicRaycaster));
-            Canvas canvas = root.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.overrideSorting = true;
-            canvas.sortingOrder = 1000;
-
-            CanvasScaler sourceScaler = sourceCanvas != null
-                ? sourceCanvas.GetComponent<CanvasScaler>()
-                : null;
-            CanvasScaler scaler = root.GetComponent<CanvasScaler>();
-            if (sourceScaler != null)
+            Canvas sourceCanvas = popup.GetComponentInParent<Canvas>();
+            if (lobbyModalCanvas == null)
             {
-                scaler.uiScaleMode = sourceScaler.uiScaleMode;
-                scaler.referenceResolution = sourceScaler.referenceResolution;
-                scaler.screenMatchMode = sourceScaler.screenMatchMode;
-                scaler.matchWidthOrHeight = sourceScaler.matchWidthOrHeight;
-                scaler.referencePixelsPerUnit = sourceScaler.referencePixelsPerUnit;
+                GameObject root = new("Lobby Modal Overlay", typeof(RectTransform), typeof(Canvas),
+                    typeof(CanvasScaler), typeof(GraphicRaycaster));
+                lobbyModalCanvas = root.GetComponent<Canvas>();
+                lobbyModalCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                lobbyModalCanvas.overrideSorting = true;
+                lobbyModalCanvas.sortingOrder = 1000;
+
+                CanvasScaler sourceScaler = sourceCanvas != null
+                    ? sourceCanvas.GetComponent<CanvasScaler>()
+                    : null;
+                CanvasScaler scaler = root.GetComponent<CanvasScaler>();
+                if (sourceScaler != null)
+                {
+                    scaler.uiScaleMode = sourceScaler.uiScaleMode;
+                    scaler.referenceResolution = sourceScaler.referenceResolution;
+                    scaler.screenMatchMode = sourceScaler.screenMatchMode;
+                    scaler.matchWidthOrHeight = sourceScaler.matchWidthOrHeight;
+                    scaler.referencePixelsPerUnit = sourceScaler.referencePixelsPerUnit;
+                }
             }
 
-            kickConfirmPopup.transform.SetParent(root.transform, false);
+            popup.transform.SetParent(lobbyModalCanvas.transform, false);
+        }
+
+        private static GameObject CreateModalDimmer(GameObject popup, string name)
+        {
+            if (popup == null || popup.transform.parent == null) return null;
+
+            GameObject dimmer = new(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            dimmer.transform.SetParent(popup.transform.parent, false);
+            RectTransform rect = dimmer.transform as RectTransform;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+
+            Image image = dimmer.GetComponent<Image>();
+            image.color = new Color(0f, 0f, 0f, 0.65f);
+            image.raycastTarget = true;
+            dimmer.SetActive(false);
+            return dimmer;
+        }
+
+        private static void SetModalVisible(GameObject popup, GameObject dimmer, bool visible)
+        {
+            if (dimmer != null) dimmer.SetActive(visible);
+            if (popup == null) return;
+
+            popup.SetActive(visible);
+            if (visible)
+            {
+                RectTransform popupRect = popup.transform as RectTransform;
+                if (popupRect != null)
+                {
+                    popupRect.anchorMin = new Vector2(0.5f, 0.5f);
+                    popupRect.anchorMax = new Vector2(0.5f, 0.5f);
+                    popupRect.pivot = new Vector2(0.5f, 0.5f);
+                    popupRect.anchoredPosition = Vector2.zero;
+                }
+                popup.transform.SetAsLastSibling();
+            }
         }
 
         private void ShowKickedNoticeIfNeeded()
@@ -337,12 +423,12 @@ namespace TerrainCollapse
                 Debug.LogWarning("[LobbyFlowController] Kicked Notice Popup is not assigned.", this);
                 return;
             }
-            kickedNoticePopup.SetActive(true);
+            SetModalVisible(kickedNoticePopup, kickedNoticeDimmer, true);
         }
 
         private void HideKickedNotice()
         {
-            if (kickedNoticePopup != null) kickedNoticePopup.SetActive(false);
+            SetModalVisible(kickedNoticePopup, kickedNoticeDimmer, false);
         }
     }
 }

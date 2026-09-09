@@ -8,6 +8,7 @@ namespace TerrainCollapse
     public sealed class GameLoadingOverlay : MonoBehaviour
     {
         [SerializeField] private RoomClient roomClient;
+        [SerializeField, Min(0f)] private float fadeStartDelay = 0.5f;
         [SerializeField, Min(0.01f)] private float fadeDuration = 0.25f;
 
         private CanvasGroup canvasGroup;
@@ -54,12 +55,15 @@ namespace TerrainCollapse
         {
             if (fadeRoutine != null) return;
 
-            canvasGroup.blocksRaycasts = false;
             fadeRoutine = StartCoroutine(FadeOut());
         }
 
         private IEnumerator FadeOut()
         {
+            if (fadeStartDelay > 0f)
+                yield return new WaitForSecondsRealtime(fadeStartDelay);
+
+            canvasGroup.blocksRaycasts = false;
             float startAlpha = canvasGroup.alpha;
             float elapsed = 0f;
 

@@ -21,6 +21,7 @@ namespace TerrainCollapse
         [SerializeField] private RectTransform mapFrame;
         [SerializeField] private GameObject fullMapDimmer;
         [SerializeField] private Vector2 fullMapSize = new(900f, 900f);
+        [SerializeField, Min(0f)] private float fullMapFramePadding = 24f;
         [SerializeField, Min(0.1f)] private float fullMapZoomStep = 0.25f;
         [SerializeField, Min(1f)] private float minFullMapZoom = 1f;
         [SerializeField, Min(1f)] private float maxFullMapZoom = 5f;
@@ -38,6 +39,7 @@ namespace TerrainCollapse
         private Vector2 normalMapFrameAnchorMin;
         private Vector2 normalMapFrameAnchorMax;
         private Vector2 normalMapFramePivot;
+        private RectMask2D mapFrameMask;
         private RectTransform mapRect;
         private Vector2 normalMapAnchorMin;
         private Vector2 normalMapAnchorMax;
@@ -55,8 +57,13 @@ namespace TerrainCollapse
 
         private void Awake()
         {
-            mapFrame ??= transform.parent as RectTransform;
             mapRect = mapImage != null ? mapImage.rectTransform : null;
+            mapFrame ??= transform.parent as RectTransform;
+
+            // Map Frame에 MapImage 자신이 잘못 연결되면, 전체 지도 확대가 프레임
+            // 확대처럼 보인다. 지도 이미지의 부모를 최소 프레임으로 강제한다.
+            if (mapRect != null && mapFrame == mapRect)
+                mapFrame = mapRect.parent as RectTransform;
 
             if (mapFrame != null)
             {
@@ -65,8 +72,9 @@ namespace TerrainCollapse
                 normalMapFrameAnchorMin = mapFrame.anchorMin;
                 normalMapFrameAnchorMax = mapFrame.anchorMax;
                 normalMapFramePivot = mapFrame.pivot;
-                if (mapFrame.GetComponent<RectMask2D>() == null)
-                    mapFrame.gameObject.AddComponent<RectMask2D>();
+                mapFrameMask = mapFrame.GetComponent<RectMask2D>();
+                if (mapFrameMask == null)
+                    mapFrameMask = mapFrame.gameObject.AddComponent<RectMask2D>();
             }
 
             if (mapRect != null)
@@ -250,6 +258,7 @@ namespace TerrainCollapse
                 mapFrame.pivot = new Vector2(0.5f, 0.5f);
                 mapFrame.anchoredPosition = Vector2.zero;
                 mapFrame.sizeDelta = fullMapSize;
+                SetMapFrameMaskPadding(fullMapFramePadding);
 
                 ApplyFullMapTransform();
                 mapFrame.SetAsLastSibling();
@@ -261,6 +270,7 @@ namespace TerrainCollapse
                 mapFrame.pivot = normalMapFramePivot;
                 mapFrame.anchoredPosition = normalMapFrameAnchoredPosition;
                 mapFrame.sizeDelta = normalMapFrameSize;
+                SetMapFrameMaskPadding(0f);
 
                 RestoreMinimapTransform();
             }
@@ -374,7 +384,17 @@ namespace TerrainCollapse
 
         private Vector2 GetFullMapContentSize()
         {
-            return fullMapSize + normalMapSize;
+            // 전체 지도에서는 미니맵의 기존 inset 값에 의존하지 않는다.
+            // 프레임 안쪽 여백을 고정해 지도 이미지가 테두리를 덮지 않게 한다.
+            float contentWidth = Mathf.Max(1f, fullMapSize.x - fullMapFramePadding * 2f);
+            float contentHeight = Mathf.Max(1f, fullMapSize.y - fullMapFramePadding * 2f);
+            return new Vector2(contentWidth, contentHeight);
+        }
+
+        private void SetMapFrameMaskPadding(float padding)
+        {
+            if (mapFrameMask == null) return;
+            mapFrameMask.padding = new Vector4(padding, padding, padding, padding);
         }
 
         private void UpdateViewUvRect()

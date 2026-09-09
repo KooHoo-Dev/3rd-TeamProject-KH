@@ -24,6 +24,8 @@ namespace TerrainCollapse
         private readonly List<RaycastHit2D> castHits = new List<RaycastHit2D>(16);
 
         public bool IsGrounded { get; private set; }
+        public bool IgnoreDownwardCollisions { get; set; }
+        public bool IgnoreUpwardCollisions { get; set; }
         public void ClearGrounded() => IsGrounded = false;
 
         public PlayerCollisionMove(Rigidbody2D body, BoxCollider2D box, LayerMask collisionMask, float skin, float tolerance, float blockingNormalDotThreshold)
@@ -63,6 +65,9 @@ namespace TerrainCollapse
             if (Mathf.Approximately(distance, 0f)) return Vector2.zero;
             Vector2 direction = axis * Mathf.Sign(distance);
             float requestedDistance = Mathf.Abs(distance);
+            if ((IgnoreDownwardCollisions && direction.y < 0f) ||
+                (IgnoreUpwardCollisions && direction.y > 0f))
+                return direction * requestedDistance;
             castHits.Clear();
             int hitCount = box.Cast(startPosition, body.rotation, direction, CreateFilter(), castHits, requestedDistance + skin, true);
             float allowedDistance = requestedDistance;

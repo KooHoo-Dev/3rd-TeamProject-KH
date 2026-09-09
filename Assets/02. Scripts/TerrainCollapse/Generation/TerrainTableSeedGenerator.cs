@@ -163,15 +163,27 @@ namespace TerrainCollapse
                 map.SetTile(new Vector2Int(areaMaxX, y), TerrainTileType.Bedrock);
             }
 
-            int platformMinX = areaMinX + profile.BoundaryThickness + profile.RespawnExitWidth;
-            int platformMaxX = platformMinX + profile.RespawnPlatformWidth - 1;
-            for (int x = platformMinX; x <= platformMaxX; x++)
-                map.SetTile(new Vector2Int(x, areaMinY), TerrainTileType.SpawnPlatform);
+            int platformMinX = areaMinX + profile.BoundaryThickness;
+            int platformMaxX = areaMaxX - profile.BoundaryThickness;
+            int platformY = terrainHeight - 1;
+            int emptyBelowPlatformY = platformY - 1;
 
-            int spawnMinX = platformMinX + 2;
-            int spawnMaxX = platformMaxX - 2;
+            // 지상 스폰실의 바닥이 아니라 지하 최상단에 플랫폼을 둔다.
+            // 바로 아래 행은 비워 하향 점프로 빠져나갈 수 있게 한다.
+            for (int x = platformMinX; x <= platformMaxX; x++)
+            {
+                Vector2Int platformCell = new(x, platformY);
+                map.SetTile(platformCell, TerrainTileType.SpawnPlatform);
+                map.SetResource(platformCell, 0);
+                if (emptyBelowPlatformY >= 0)
+                    map.SetTile(new Vector2Int(x, emptyBelowPlatformY), TerrainTileType.Empty);
+            }
+
+            int spawnCount = Mathf.Min(profile.RespawnPlatformWidth - 4, platformMaxX - platformMinX + 1);
+            int spawnMinX = platformMinX + (platformMaxX - platformMinX + 1 - spawnCount) / 2;
+            int spawnMaxX = spawnMinX + spawnCount - 1;
             for (int x = spawnMinX; x <= spawnMaxX; x++)
-                map.RespawnPoints.Add(new Vector2Int(x, areaMinY + 2));
+                map.RespawnPoints.Add(new Vector2Int(x, areaMinY));
         }
 
         public static TerrainMapFile CreateEmptyMap(
