@@ -334,7 +334,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9bbf05d4562f450f94df15fddcf4dad0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.Networking.PlayerNameTag
-  localPosition: {x: -0.2, y: 0.85, z: -0.1}
+  localPosition: {x: 0, y: 0.85, z: -0.1}
   fontAsset: {fileID: 11400000, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}
   fontSize: 28
   worldScale: 0.1

@@ -71,7 +71,7 @@ namespace TerrainCollapse
                                       secondsUntilStart <= roomClient.GameCountdownSeconds;
                 string waitingText = isCountingDown
                     ? Mathf.Max(1, Mathf.CeilToInt((float)secondsUntilStart)).ToString()
-                    : "WAITING";
+                    : "게임 시작 대기중";
                 Render(0f, waitingText);
                 return;
             }
