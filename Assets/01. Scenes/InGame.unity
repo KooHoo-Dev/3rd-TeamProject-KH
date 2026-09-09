@@ -261,7 +261,7 @@ Camera:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 13110305}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_ClearFlags: 2
   m_BackGroundColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
@@ -1379,6 +1379,7 @@ GameObject:
   - component: {fileID: 1437070102}
   - component: {fileID: 1437070105}
   - component: {fileID: 1437070106}
+  - component: {fileID: 1437070107}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1536,6 +1537,19 @@ MonoBehaviour:
       m_PostInfinity: 2
       m_RotationOrder: 4
   CustomBlends: {fileID: 0}
+--- !u!114 &1437070107
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1437070101}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 660cca9b33466477dba3c5e3f19ef962, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FixedAspectViewport
+  targetAspect: 1.7777778
 --- !u!114 &1574959442 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 5859749976517822842, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
@@ -1649,7 +1663,7 @@ MonoBehaviour:
   roomCode: ABCE
   nickName: Player66
   connectOnStart: 1
-  debugMode: 0
+  debugMode: 1
   mainMenuSceneName: MainMenuScene
   terrainWorld: {fileID: 190307189}
   terrainManager: {fileID: 190307187}
@@ -1715,10 +1729,22 @@ PrefabInstance:
       propertyPath: playerHp
       value: 
       objectReference: {fileID: 1971883706}
+    - target: {fileID: 2921340679061737417, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 3675133176637916141, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: playerHp
       value: 
       objectReference: {fileID: 1971883706}
+    - target: {fileID: 4263733169462364768, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 5147519694784009753, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -225.00006
+      objectReference: {fileID: 0}
     - target: {fileID: 5456538461327803673, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: roomClient
       value: 
@@ -1819,9 +1845,13 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 7616313222136142199, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
-      propertyPath: m_Alpha
-      value: 0
+    - target: {fileID: 7605461622975599333, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_Camera
+      value: 
+      objectReference: {fileID: 1437070103}
+    - target: {fileID: 7605461622975599333, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_SortingOrder
+      value: 1000
       objectReference: {fileID: 0}
     - target: {fileID: 7657603729463489102, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: pickaxeInventory
@@ -1831,18 +1861,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: TPHud cooldownfeedback
       objectReference: {fileID: 0}
-    - target: {fileID: 7947304127095425168, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
-      propertyPath: m_IsActive
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 8165458758175099427, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
-      propertyPath: playerHp
-      value: 
-      objectReference: {fileID: 1971883706}
     - target: {fileID: 8302379988924598183, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
       propertyPath: roomClient
       value: 
       objectReference: {fileID: 1934651727}
+    - target: {fileID: 8400899570133709510, guid: 1f86427cdf3625348b5a820cdcfc8988, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2258,6 +2284,14 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6885603498107709611, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_Camera
+      value: 
+      objectReference: {fileID: 1437070103}
+    - target: {fileID: 6885603498107709611, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
+      propertyPath: m_SortingOrder
+      value: 999
+      objectReference: {fileID: 0}
     - target: {fileID: 8057358513438897001, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
       propertyPath: m_AnchorMax.y
       value: 0
@@ -2285,10 +2319,6 @@ PrefabInstance:
     - target: {fileID: 8471650360522374208, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
       propertyPath: m_Name
       value: Shop UI Server
-      objectReference: {fileID: 0}
-    - target: {fileID: 8471650360522374208, guid: e35d6006691d3434cb3e8e57b62129af, type: 3}
-      propertyPath: m_IsActive
-      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

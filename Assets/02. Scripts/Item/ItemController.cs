@@ -35,6 +35,14 @@ namespace TerrainCollapse
         // itemID -> 재사용 가능 시각(Time.time 기준). 인스턴스가 아니라 itemID에 귀속시켜
         // 아이템을 교체/재장착해도(인스턴스가 새로 생성돼도) 쿨다운이 초기화되지 않게 한다.
         private readonly System.Collections.Generic.Dictionary<int, float> itemReadyTime = new();
+        // 서버 권위 사용 요청이 거절되면, 해당 요청으로 시작한 쿨타임만 되돌린다.
+        private readonly System.Collections.Generic.Dictionary<string, PendingCooldown> pendingCooldowns = new();
+
+        private struct PendingCooldown
+        {
+            public int ItemID;
+            public float ReadyTime;
+        }
 
         public event Action<float> MineStarted;
 
@@ -59,7 +67,10 @@ namespace TerrainCollapse
             inventory.ItemChanged += HandleInventoryChanged;
             pickaxeInventory.PickaxeChanged += HandlePickaxeChanged;
             if (RoomClient.Instance != null)
+            {
                 RoomClient.Instance.UsableItemUsed += HandleUsableItemUsed;
+                RoomClient.Instance.RequestFailed += HandleRequestFailed;
+            }
         }
 
         private void OnDisable()
@@ -67,7 +78,10 @@ namespace TerrainCollapse
             inventory.ItemChanged -= HandleInventoryChanged;
             pickaxeInventory.PickaxeChanged -= HandlePickaxeChanged;
             if (RoomClient.Instance != null)
+            {
                 RoomClient.Instance.UsableItemUsed -= HandleUsableItemUsed;
+                RoomClient.Instance.RequestFailed -= HandleRequestFailed;
+            }
         }
 
         private void Start()
@@ -202,6 +216,8 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            ClearExpiredPendingCooldowns();
+
             bool isBuried = playerController?.IsBuried == true;
             if (isBuried)
             {
@@ -259,8 +275,11 @@ namespace TerrainCollapse
             if (IsOnCooldown(activeItem.Def) == false)
             {
                 Item item = activeItem; // Clear/Destroy 이전에 참조 확보
-                if (TryUseActiveItem(item, ownerPos, mouseWorldPos))
+                if (TryUseActiveItem(item, ownerPos, mouseWorldPos, out string requestId))
+                {
                     StartCooldown(item.Def); // ← 성공 시 부수효과는 여기 딱 한 곳에서만
+                    TrackPendingCooldown(requestId, item.Def);
+                }
             }
 
             // 어떤 분기를 탔든 프리뷰 종료는 여기서 한 번만 (activeItem이 이미 null이어도 안전)
@@ -269,25 +288,37 @@ namespace TerrainCollapse
         }
 
 // "사용에 성공했는가"만 반환. 쿨다운/소모 여부는 이 함수가 신경 쓰지 않는다.
-        private bool TryUseActiveItem(Item item, Vector3 ownerPos, Vector3 mouseWorldPos)
+        private bool TryUseActiveItem(Item item, Vector3 ownerPos, Vector3 mouseWorldPos, out string requestId)
         {
             if (RoomClient.Instance is { IsConnected: true } roomClient)
-                return TryUseActiveItemOnline(roomClient, item, ownerPos, mouseWorldPos);
+                return TryUseActiveItemOnline(roomClient, item, ownerPos, mouseWorldPos, out requestId);
 
+            requestId = null;
             return TryUseActiveItemOffline(item, ownerPos, mouseWorldPos);
         }
 
-        private bool TryUseActiveItemOnline(RoomClient roomClient, Item item, Vector3 ownerPos, Vector3 mouseWorldPos)
+        private bool TryUseActiveItemOnline(
+            RoomClient roomClient,
+            Item item,
+            Vector3 ownerPos,
+            Vector3 mouseWorldPos,
+            out string requestId)
         {
-            bool? requested = item switch
+            requestId = null;
+            bool requested;
+            if (item is DynamiteItem)
             {
-                DynamiteItem => roomClient.RequestDynamiteThrow(item.Def.ID, ownerPos, mouseWorldPos),
-                MineItem => roomClient.RequestMinePlacement(item.Def.ID, ownerPos),
-                Potion or Detector => roomClient.RequestUsableItemUse(item.Def.ID),
-                _ => (bool?)null
-            };
-
-            if (requested == null)
+                requested = roomClient.RequestDynamiteThrow(item.Def.ID, ownerPos, mouseWorldPos, out requestId);
+            }
+            else if (item is MineItem)
+            {
+                requested = roomClient.RequestMinePlacement(item.Def.ID, ownerPos, out requestId);
+            }
+            else if (item is Potion or Detector)
+            {
+                requested = roomClient.RequestUsableItemUse(item.Def.ID, out requestId);
+            }
+            else
             {
                 Debug.LogWarning("[ItemController] 서버가 지원하지 않는 아이템 사용을 멀티플레이에서 차단했습니다.", this);
                 return false;
@@ -296,7 +327,7 @@ namespace TerrainCollapse
             if (requested == false)
                 Debug.LogWarning($"[ItemController] {item.GetType().Name} 서버 사용 요청을 보내지 못했습니다.", this);
 
-            return requested.Value;
+            return requested;
         }
 
         private bool TryUseActiveItemOffline(Item item, Vector3 ownerPos, Vector3 mouseWorldPos)
@@ -318,10 +349,52 @@ namespace TerrainCollapse
 
         private void HandleUsableItemUsed(UsableItemUsedMessage message)
         {
+            if (message != null && string.IsNullOrEmpty(message.RequestId) == false)
+                pendingCooldowns.Remove(message.RequestId);
+
             if (message == null || activeItem == null || activeItem.Def.ID != message.ItemID) return;
             if (activeItem is Potion potion) potion.PlayConfirmedEffect(transform.position);
             else if (activeItem is Detector detector)
                 detector.ShowConfirmedResults(transform.position, message.DetectedCells);
+        }
+
+        private void HandleRequestFailed(ErrorMessage message)
+        {
+            if (message == null || string.IsNullOrEmpty(message.RequestId) ||
+                pendingCooldowns.Remove(message.RequestId, out PendingCooldown pending) == false)
+                return;
+
+            itemReadyTime.Remove(pending.ItemID);
+        }
+
+        private void TrackPendingCooldown(string requestId, ItemDef def)
+        {
+            if (string.IsNullOrEmpty(requestId) || def.Cooldown <= 0f ||
+                itemReadyTime.TryGetValue(def.ID, out float readyTime) == false)
+                return;
+
+            pendingCooldowns[requestId] = new PendingCooldown
+            {
+                ItemID = def.ID,
+                ReadyTime = readyTime,
+            };
+        }
+
+        private void ClearExpiredPendingCooldowns()
+        {
+            if (pendingCooldowns.Count == 0) return;
+
+            System.Collections.Generic.List<string> expiredRequestIds = null;
+            foreach (var pair in pendingCooldowns)
+            {
+                if (Time.time < pair.Value.ReadyTime) continue;
+                expiredRequestIds ??= new System.Collections.Generic.List<string>();
+                expiredRequestIds.Add(pair.Key);
+            }
+
+            if (expiredRequestIds == null) return;
+            foreach (string requestId in expiredRequestIds)
+                pendingCooldowns.Remove(requestId);
         }
 
         // 평상시 처리: 곡괭이 조준 표시 + 좌클릭 홀드 시 애니메이션 1사이클 단위 반복 채굴

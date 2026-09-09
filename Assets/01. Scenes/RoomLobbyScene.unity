@@ -208,6 +208,7 @@ GameObject:
   - component: {fileID: 2012}
   - component: {fileID: 2014}
   - component: {fileID: 2013}
+  - component: {fileID: 2015}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -333,6 +334,19 @@ AudioListener:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2010}
   m_Enabled: 1
+--- !u!114 &2015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2010}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 660cca9b33466477dba3c5e3f19ef962, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FixedAspectViewport
+  targetAspect: 1.7777778
 --- !u!1 &8203128
 GameObject:
   m_ObjectHideFlags: 0
@@ -693,7 +707,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -436.99997, y: 146}
-  m_SizeDelta: {x: 255.79, y: 341.05}
+  m_SizeDelta: {x: 255.78998, y: 341.05}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &57603634
 MonoBehaviour:
@@ -2634,7 +2648,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 130, y: -135}
+  m_AnchoredPosition: {x: 160, y: -135}
   m_SizeDelta: {x: 560, y: 150}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &775546052
@@ -4554,7 +4568,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 615, y: -142.99998}
+  m_AnchoredPosition: {x: 640, y: -142.99998}
   m_SizeDelta: {x: 560, y: 150}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1828038637
@@ -5813,7 +5827,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 586, y: -143}
+  m_AnchoredPosition: {x: 610, y: -143}
   m_SizeDelta: {x: 784.35, y: 210.08997}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2135770394
@@ -5836,7 +5850,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uB300\uAE30\uC2E4 \uBC88\uD638: 000000"
+  m_text: "\uBC29 \uCF54\uB4DC : 999999"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}
   m_sharedMaterial: {fileID: -8736176697884498249, guid: b79662fcfb6835a498c5f5ef67704ce9, type: 2}

@@ -110,6 +110,7 @@ namespace TerrainCollapse
 
         private void SpawnMarker(Vector3 worldPos)
         {
+            worldPos.z = -2f;
             GameObject marker = Instantiate(resourceMarkerPrefab, worldPos, Quaternion.identity);
             Destroy(marker, markerLifetime);
         }

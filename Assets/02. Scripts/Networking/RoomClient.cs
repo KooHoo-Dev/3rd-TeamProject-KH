@@ -158,6 +158,8 @@ namespace TerrainCollapse
         public event Action<ChatSystemMessage> SystemMessageReceived;
         public event Action<string> ShopNotificationReceived;
         public event Action<UsableItemUsedMessage> UsableItemUsed;
+        /// <summary>서버가 거절한 요청을 요청 ID와 함께 소비자에게 전달한다.</summary>
+        public event Action<ErrorMessage> RequestFailed;
         public event Action<GoldRankingMessage> GoldRankingChanged;
         public GoldRankingMessage CurrentGoldRanking { get; private set; }
 
@@ -564,13 +566,22 @@ namespace TerrainCollapse
             return false;
         }
 
-        public bool RequestUsableItemUse(int itemID)
+        public bool RequestUsableItemUse(int itemID, out string requestId)
         {
-            return IsGameplayActive && itemID > 0 && Send(new UsableItemUseRequest
+            requestId = null;
+            if (IsGameplayActive == false || itemID <= 0)
+                return false;
+
+            string createdRequestId = CreateRequestId("use", Interlocked.Increment(ref nextRequestId));
+            if (Send(new UsableItemUseRequest
             {
-                RequestId = CreateRequestId("use", Interlocked.Increment(ref nextRequestId)),
+                RequestId = createdRequestId,
                 ItemID = itemID,
-            });
+            }) == false)
+                return false;
+
+            requestId = createdRequestId;
+            return true;
         }
 
         public bool SendChat(string text)
@@ -603,8 +614,10 @@ namespace TerrainCollapse
         public bool RequestDynamiteThrow(
             int itemID,
             Vector2 startPosition,
-            Vector2 targetPosition)
+            Vector2 targetPosition,
+            out string requestId)
         {
+            requestId = null;
             if (IsGameplayActive == false)
             {
                 Debug.LogWarning(
@@ -628,7 +641,7 @@ namespace TerrainCollapse
             string requestID =
                 $"dynamite-{Interlocked.Increment(ref nextRequestId)}";
 
-            return Send(new DynamiteThrowRequest
+            if (Send(new DynamiteThrowRequest
             {
                 RequestId = requestID,
                 ItemID = itemID,
@@ -638,7 +651,11 @@ namespace TerrainCollapse
 
                 DirectionX = direction.x,
                 DirectionY = direction.y,
-            });
+            }) == false)
+                return false;
+
+            requestId = requestID;
+            return true;
         }
 
         public bool RequestDynamiteExplosion(
@@ -665,20 +682,26 @@ namespace TerrainCollapse
             return sent;
         }
 
-        public bool RequestMinePlacement(int itemID, Vector2 placementPosition)
+        public bool RequestMinePlacement(int itemID, Vector2 placementPosition, out string requestId)
         {
+            requestId = null;
             if (IsGameplayActive == false || itemID <= 0)
                 return false;
 
-            return Send(new DynamiteThrowRequest
+            string createdRequestId = $"mine-{Interlocked.Increment(ref nextRequestId)}";
+            if (Send(new DynamiteThrowRequest
             {
-                RequestId = $"mine-{Interlocked.Increment(ref nextRequestId)}",
+                RequestId = createdRequestId,
                 ItemID = itemID,
                 StartX = placementPosition.x,
                 StartY = placementPosition.y,
                 DirectionX = 0f,
                 DirectionY = 0f,
-            });
+            }) == false)
+                return false;
+
+            requestId = createdRequestId;
+            return true;
         }
 
         public bool RequestDeathLoot(Vector2Int targetCell)
@@ -1382,6 +1405,7 @@ namespace TerrainCollapse
             // 그래서 낙하 시작 실패가 남의 굴착 대기를 잘못 풀어 주었다.
             // 반대로 굴착이 player.not_found 로 거절되면 아무것도 안 풀렸다.
             ReleasePendingFor(message?.RequestId);
+            RequestFailed?.Invoke(message);
             if (string.IsNullOrEmpty(message?.RequestId) == false &&
                 pendingDynamiteExplosions.Remove(message.RequestId, out string projectileID) &&
                 activeMines.TryGetValue(projectileID, out MineExplosive mine))
