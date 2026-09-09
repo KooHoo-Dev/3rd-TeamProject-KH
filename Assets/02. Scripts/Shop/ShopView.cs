@@ -141,7 +141,7 @@ namespace TerrainCollapse
             {
                 if (listing.Category != currentCategory) continue;
 
-                bool isLocked = listing.Category == ShopCategory.Pickaxe && listing.DigPower < currentDigPower;
+                bool isLocked = listing.Category == ShopCategory.Pickaxe && listing.DigPower <= currentDigPower;
 
                 ShopItemRowView row = Instantiate(rowTemplate, itemListContent);
                 row.gameObject.SetActive(true);

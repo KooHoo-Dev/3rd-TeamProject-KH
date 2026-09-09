@@ -69,6 +69,44 @@ namespace TerrainCollapse
         private static string PreferencePrefix =>
             $"Settings.{Hash128.Compute(Application.dataPath)}.";
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void ApplySavedSettingsOnStartup()
+        {
+            // Setting UI는 기본 비활성화라 Awake가 창을 열 때까지 실행되지 않는다.
+            // UI 수명과 분리해 첫 씬이 열리기 전에 로컬 저장값을 먼저 반영한다.
+            int savedScreenModeIndex = Mathf.Clamp(
+                PlayerPrefs.GetInt(
+                    PreferenceKey(ScreenModePreferenceKey),
+                    FindScreenModeIndex(Screen.fullScreenMode)),
+                0,
+                ScreenModes.Length - 1);
+            int savedResolutionIndex = Mathf.Clamp(
+                PlayerPrefs.GetInt(
+                    PreferenceKey(ResolutionPreferenceKey),
+                    FindResolutionIndex(Screen.width, Screen.height)),
+                0,
+                WindowResolutions.Length - 1);
+
+            FullScreenMode mode = ScreenModes[savedScreenModeIndex].Mode;
+            if (mode == FullScreenMode.Windowed)
+            {
+                Vector2Int resolution = WindowResolutions[savedResolutionIndex];
+                Screen.SetResolution(resolution.x, resolution.y, mode);
+            }
+            else
+            {
+                Resolution monitorResolution = Screen.currentResolution;
+                Screen.SetResolution(monitorResolution.width, monitorResolution.height, mode);
+            }
+
+            GameSound.SetMasterVolume(PlayerPrefs.GetFloat(
+                PreferenceKey(MasterVolumePreferenceKey), GameSound.MasterVolume));
+            GameSound.SetMusicVolume(PlayerPrefs.GetFloat(
+                PreferenceKey(MusicVolumePreferenceKey), GameSound.MusicVolume));
+            GameSound.SetEffectVolume(PlayerPrefs.GetFloat(
+                PreferenceKey(EffectVolumePreferenceKey), GameSound.EffectVolume));
+        }
+
         private void Awake()
         {
             EnsureDimmerBlocksInput();

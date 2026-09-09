@@ -26,6 +26,12 @@ namespace TerrainCollapse
         [SerializeField] private string roomLobbySceneName = "RoomLobbyScene";
 
         private bool isEnded;
+        private bool announcedFiveMinutesRemaining;
+        private bool announcedThreeMinutesRemaining;
+        private double previousRemainingSeconds = double.NaN;
+
+        private const int FiveMinutesInSeconds = 5 * 60;
+        private const int ThreeMinutesInSeconds = 3 * 60;
 
         public bool IsResultPanelOpen => resultPanel != null && resultPanel.activeInHierarchy;
 
@@ -85,6 +91,7 @@ namespace TerrainCollapse
             double elapsedSeconds = roomClient.GameElapsedSeconds;
             float duration = Mathf.Max(1, roomClient.GameDurationSeconds);
 
+            AnnounceRemainingTime(duration, elapsedSeconds);
             Render(Mathf.Clamp01((float)(elapsedSeconds / duration)), FormatTime(elapsedSeconds));
         }
 
@@ -97,7 +104,37 @@ namespace TerrainCollapse
         private void BeginTimer()
         {
             isEnded = false;
+            announcedFiveMinutesRemaining = false;
+            announcedThreeMinutesRemaining = false;
+            previousRemainingSeconds = Mathf.Max(
+                0f,
+                (roomClient?.GameDurationSeconds ?? 0) - (float)(roomClient?.GameElapsedSeconds ?? 0d));
             Render(0f, FormatTime(roomClient?.GameElapsedSeconds ?? 0d));
+        }
+
+        private void AnnounceRemainingTime(float duration, double elapsedSeconds)
+        {
+            double remainingSeconds = Mathf.Max(0f, duration - (float)elapsedSeconds);
+
+            if (announcedFiveMinutesRemaining == false &&
+                duration >= FiveMinutesInSeconds &&
+                previousRemainingSeconds >= FiveMinutesInSeconds &&
+                remainingSeconds <= FiveMinutesInSeconds)
+            {
+                announcedFiveMinutesRemaining = true;
+                roomClient.ShowLocalSystemMessage("게임 종료까지 5분 남았습니다.");
+            }
+
+            if (announcedThreeMinutesRemaining == false &&
+                duration >= ThreeMinutesInSeconds &&
+                previousRemainingSeconds >= ThreeMinutesInSeconds &&
+                remainingSeconds <= ThreeMinutesInSeconds)
+            {
+                announcedThreeMinutesRemaining = true;
+                roomClient.ShowLocalSystemMessage("게임 종료까지 3분 남았습니다.");
+            }
+
+            previousRemainingSeconds = remainingSeconds;
         }
 
         private void HandleGameEnded(GameEndedMessage message)

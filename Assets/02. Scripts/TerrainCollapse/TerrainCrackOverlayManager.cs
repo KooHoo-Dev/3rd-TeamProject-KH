@@ -11,6 +11,11 @@ namespace TerrainCollapse
         private const int CrackSortingOrder = 4;
         private static readonly int[] DamageThresholds = { 20, 40, 60, 80 };
 
+        [Header("Rendering")]
+        // Inspector에서 직접 할당하는 균열 오버레이 전용 Lit 머터리얼.
+        // 공개 필드로 두어 런타임에 추가된 컴포넌트에서도 항상 노출되게 한다.
+        public Material CrackMaterial;
+
         private readonly struct CrackStage
         {
             public readonly int DamagePercent;
@@ -121,6 +126,8 @@ namespace TerrainCollapse
             overlay.transform.SetParent(viewRoot, false);
             overlay.layer = gameObject.layer;
             SpriteRenderer renderer = overlay.GetComponent<SpriteRenderer>();
+            if (CrackMaterial != null)
+                renderer.sharedMaterial = CrackMaterial;
             renderer.sortingOrder = CrackSortingOrder;
             return renderer;
         }

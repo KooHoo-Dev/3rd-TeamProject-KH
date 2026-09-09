@@ -7,6 +7,10 @@ namespace TerrainCollapse
 
     public sealed class TerrainResourceViewManager : MonoBehaviour
     {
+        // 지형 표면(0)보다 앞, 네임태그(-0.1)보다 뒤에 둔다.
+        // Lit 광물 머터리얼이 같은 깊이의 TMP 텍스트를 덮는 현상을 방지한다.
+        private const float ResourceOverlayLocalZ = -0.05f;
+
         private readonly Dictionary<Vector2Int, TerrainResourceView> views = new();
 
         private Transform resourceViewRoot;
@@ -46,7 +50,7 @@ namespace TerrainCollapse
             Vector3 localPosition = new(
                 (coord.x + 0.5f) * world.CellSize,
                 (coord.y + 0.5f) * world.CellSize,
-                -0.1f);
+                ResourceOverlayLocalZ);
             localPosition += world.GetCellVisualOffset(coord);
 
             TerrainResourceView view = TerrainResourceViewFactory.Create(
@@ -80,7 +84,8 @@ namespace TerrainCollapse
             if (views.TryGetValue(coord, out TerrainResourceView view) == false || view == null) return;
             view.transform.localPosition = new Vector3(
                 (coord.x + 0.5f) * world.CellSize,
-                (coord.y + 0.5f) * world.CellSize, -0.1f) + world.GetCellVisualOffset(coord);
+                (coord.y + 0.5f) * world.CellSize, ResourceOverlayLocalZ) +
+                world.GetCellVisualOffset(coord);
         }
 
         private void RemoveView(Vector2Int coord)

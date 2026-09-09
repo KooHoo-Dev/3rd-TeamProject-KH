@@ -97,6 +97,7 @@ namespace TerrainCollapse
         private bool hasSentPlayerReady;
         private bool isGameStarted;
         private bool isGameEnded;
+        private bool hasAnnouncedGameplayStart;
         private string pendingInventorySellRequestId;
         private string pendingShopRequestId;
         private string pendingDebugGoldRequestId;
@@ -289,6 +290,7 @@ namespace TerrainCollapse
 
             SweepPendingTimeouts();
             UpdateFinalCountdownSound();
+            AnnounceGameplayStartIfNeeded();
 
             if (IsMovementActive &&
                 localPlayer != null &&
@@ -375,6 +377,7 @@ namespace TerrainCollapse
             hasSentPlayerReady = false;
             isGameStarted = false;
             isGameEnded = false;
+            hasAnnouncedGameplayStart = false;
             pendingInventorySellRequestId = null;
             pendingShopRequestId = null;
             pendingDebugGoldRequestId = null;
@@ -428,6 +431,7 @@ namespace TerrainCollapse
             hasSentPlayerReady = false;
             isGameStarted = false;
             isGameEnded = false;
+            hasAnnouncedGameplayStart = false;
             pendingInventorySellRequestId = null;
             pendingShopRequestId = null;
             pendingDebugGoldRequestId = null;
@@ -1067,6 +1071,24 @@ namespace TerrainCollapse
                 $"[RoomClient] All players are ready. Gameplay starts in " +
                 $"{SecondsUntilGameplayStart:F1}s.",
                 this);
+        }
+
+        private void AnnounceGameplayStartIfNeeded()
+        {
+            if (hasAnnouncedGameplayStart || IsGameplayActive == false) return;
+
+            hasAnnouncedGameplayStart = true;
+            ShowLocalSystemMessage(
+                $"게임이 시작되었습니다. 제한 시간 {FormatGameDuration(GameDurationSeconds)}, " +
+                $"목표 골드 {VictoryGold}골드");
+        }
+
+        private static string FormatGameDuration(int totalSeconds)
+        {
+            totalSeconds = Mathf.Max(0, totalSeconds);
+            int minutes = totalSeconds / 60;
+            int seconds = totalSeconds % 60;
+            return seconds == 0 ? $"{minutes}분" : $"{minutes}분 {seconds}초";
         }
 
         private void HandleGameEnded(GameEndedMessage message)
