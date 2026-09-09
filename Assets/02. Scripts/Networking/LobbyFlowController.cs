@@ -348,14 +348,20 @@ namespace TerrainCollapse
             if (popup == null) return;
 
             // 아바타 프리뷰는 SpriteRenderer이고, 로비 UI는 Screen Space - Camera다.
-            // 따라서 팝업만 Screen Space - Overlay 루트로 옮겨 항상 모든 프리뷰보다 앞에 그린다.
+            // 팝업도 같은 카메라를 써야 letterbox 영역을 침범하지 않는다.
             Canvas sourceCanvas = popup.GetComponentInParent<Canvas>();
             if (lobbyModalCanvas == null)
             {
                 GameObject root = new("Lobby Modal Overlay", typeof(RectTransform), typeof(Canvas),
                     typeof(CanvasScaler), typeof(GraphicRaycaster));
                 lobbyModalCanvas = root.GetComponent<Canvas>();
-                lobbyModalCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+                lobbyModalCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+                lobbyModalCanvas.worldCamera = sourceCanvas != null && sourceCanvas.worldCamera != null
+                    ? sourceCanvas.worldCamera
+                    : Camera.main;
+                lobbyModalCanvas.planeDistance = lobbyModalCanvas.worldCamera != null
+                    ? lobbyModalCanvas.worldCamera.nearClipPlane + 0.01f
+                    : 1f;
                 lobbyModalCanvas.overrideSorting = true;
                 lobbyModalCanvas.sortingOrder = 1000;
 

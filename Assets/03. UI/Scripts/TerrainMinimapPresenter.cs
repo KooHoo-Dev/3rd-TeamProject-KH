@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using TerrainCollapse;
+using TMPro;
 using UnityEngine;
 
 namespace TerrainCollapse
@@ -18,6 +19,10 @@ namespace TerrainCollapse
 
         [Header("View")]
         [SerializeField] private MinimapView minimapView;
+        [SerializeField] private TMP_Text coordText;
+
+        [Header("Coordinate Display")]
+        [SerializeField] private Vector2 fullMapCoordOffset = new(16f, -16f);
 
         [Header("Tile Colors")]
         [SerializeField] private Color emptyColor = new Color(0.03f, 0.04f, 0.06f, 1f);
@@ -37,6 +42,9 @@ namespace TerrainCollapse
         private float cellSize;
         private Vector2 mapOrigin;
         private bool initialized;
+        private RectTransform coordRect;
+        private Vector2 normalCoordAnchoredPosition;
+        private GameObject loadingOverlay;
 
         public void SetLocalPlayer(Transform playerTransform)
         {
@@ -51,6 +59,32 @@ namespace TerrainCollapse
             if (explorationController == null)
                 explorationController = FindFirstObjectByType<PlayerExplorationController>();
             if (minimapView == null) minimapView = GetComponent<MinimapView>();
+            if (coordText == null)
+            {
+                foreach (TMP_Text candidate in GetComponentsInChildren<TMP_Text>(true))
+                {
+                    if (candidate.name != "CoordText") continue;
+                    coordText = candidate;
+                    break;
+                }
+
+                if (coordText == null)
+                    coordText = transform.root.Find("CoordText")?.GetComponent<TMP_Text>();
+            }
+
+            loadingOverlay = transform.root.Find("LoadingOverlay")?.gameObject;
+
+            if (coordText != null)
+            {
+                if (coordText.transform.parent == transform && transform.parent != null)
+                    coordText.transform.SetParent(transform.parent, false);
+
+                coordRect = coordText.rectTransform;
+                normalCoordAnchoredPosition = coordRect.anchoredPosition;
+                coordRect.SetAsLastSibling();
+                coordText.gameObject.SetActive(
+                    loadingOverlay == null || loadingOverlay.activeInHierarchy == false);
+            }
         }
 
         private void OnEnable()
@@ -86,6 +120,10 @@ namespace TerrainCollapse
 
         private void Update()
         {
+            if (coordText != null && coordText.gameObject.activeSelf == false &&
+                (loadingOverlay == null || loadingOverlay.activeInHierarchy == false))
+                coordText.gameObject.SetActive(true);
+
             if (initialized == false)
             {
                 TryInitialize();
@@ -236,11 +274,19 @@ namespace TerrainCollapse
 
         private void UpdateLocalPlayerMarker()
         {
+            UpdateCoordinateTextPosition();
+
             if (localPlayer == null)
             {
                 minimapView.SetPlayerVisible(false);
+                if (coordText != null) coordText.text = string.Empty;
                 return;
             }
+
+            if (coordText != null && terrainManager.TryWorldToCell(
+                    localPlayer.position,
+                    out Vector2Int cell))
+                coordText.text = $"X: {cell.x - 45}\nY: {cell.y - 100}";
 
             if (terrainManager.TryGetMapBounds(
                     out int width,
@@ -268,6 +314,18 @@ namespace TerrainCollapse
                 roomClient != null ? roomClient.LocalPlayerColorIndex : 0));
             minimapView.SetPlayerNormalizedPosition(new Vector2(normalizedX, normalizedY));
         }
+
+        private void UpdateCoordinateTextPosition()
+        {
+            if (coordRect == null) return;
+
+            coordRect.SetAsLastSibling();
+            coordRect.anchoredPosition = normalCoordAnchoredPosition +
+                (minimapView != null && minimapView.IsFullMapOpen
+                    ? fullMapCoordOffset
+                    : Vector2.zero);
+        }
+
 
         private void UpdateRemotePlayerMarkers()
         {
