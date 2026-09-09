@@ -8,21 +8,25 @@ namespace TerrainCollapse
         [SerializeField] private LineRenderer lineRenderer; // 캐릭터 ~ 타일 연결선
         [SerializeField] private GameObject tileHighlight; // 타일 하이라이트
         
-        private TerrainManager pendingTerrainManager;
+        [SerializeField] private TerrainManager pendingTerrainManager;
+        private TerrainManager terrainManager;
         private Vector2Int pendingTargetCell;
         private bool hasPendingDig;
-        
+
         private GameObject highlightInstance;
 
         public override void Init(ItemDef def)
         {
             base.Init(def);
+
+            GetTerrainManager();
+
             if (highlightInstance == null)
             {
                 highlightInstance = Instantiate(tileHighlight, transform);
                 highlightInstance.SetActive(false);
             }
-            
+
             void SetupLineRenderer()
             {
                 if (lineRenderer == null)
@@ -47,12 +51,12 @@ namespace TerrainCollapse
                 lineRenderer.enabled = false;
             }
             SetupLineRenderer();
-        } 
+        }
 
         // 매 프레임 ItemController에 의해 호출됨
         public override void OnUpdatePreview(Vector3 ownerPos, Vector3 targetPos)
         {
-            TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
+            GetTerrainManager();
 
             // 1. 공통 스냅 셀 계산
             if (TryGetTargetCell(terrainManager, ownerPos, targetPos, out Vector2Int targetCell,
@@ -81,9 +85,8 @@ namespace TerrainCollapse
 
         public override bool Use(Vector3 ownerPos, Vector3 targetPos)
         {
-            TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
+            GetTerrainManager();
 
-            // Preview와 동일한 로직으로 스냅 셀 획득
             if (TryGetTargetCell(terrainManager, ownerPos, targetPos, out Vector2Int targetCell, out _))
             {
                 ExecuteDigPower(terrainManager, targetCell, Def.PickaxeData.Value.DigPower);
@@ -94,6 +97,8 @@ namespace TerrainCollapse
 
         /// <summary>
         /// [공통 로직] 매몰 상태 검사 및 마우스 방향 스냅 타일 계산
+        /// 사거리 판정은 서버와 동일하게 "타일 중심 ~ 플레이어 위치" 단순 거리 비교로 수행한다.
+        /// (DDA 시야 스냅은 편의 기능이므로 그대로 유지, 다만 탐색 자체는 사거리로 클램프하지 않는다.)
         /// </summary>
         private bool TryGetTargetCell(TerrainManager manager, Vector3 ownerPos, Vector3 targetPos, out Vector2Int targetCell, out Vector3 worldPos)
         {
@@ -102,7 +107,7 @@ namespace TerrainCollapse
 
             if (manager.TryWorldToCell(ownerPos, out Vector2Int startCell) == false) return false;
 
-            // 1. 매몰(Buried) 상태 체크
+            // 1. 매몰(Buried) 상태 체크 - 플레이어가 서 있는 타일이므로 거리 판정 불필요
             if (manager.HasTerrain(startCell))
             {
                 if (manager.IsCellMineable(startCell) == false) return false;
@@ -112,25 +117,29 @@ namespace TerrainCollapse
                 return true;
             }
 
-            // 2. 사거리 계산 및 DDA 스냅
-            Vector3 direction = (targetPos - ownerPos);
-            float distance = direction.magnitude;
-            if (distance < 0.001f) return false;
+            // 2. 시야(DDA) 스냅 - 편의 기능: 클릭 방향에서 가장 가까운 채굴 가능 타일을 찾는다.
+            //    더 이상 사거리로 클램프한 위치를 사용하지 않고, 실제 클릭/타겟 위치까지 시야를 검사한다.
+            if (manager.TryWorldToCell(targetPos, out Vector2Int endCell) == false) return false;
 
-            direction.Normalize();
-            float allowedRange = Def.PickaxeData.Value.Range;
-            float effectiveDistance = Mathf.Min(distance, allowedRange);
-            Vector3 clampedTargetPos = ownerPos + direction * effectiveDistance;
+            if (TryGetNearestTargetCell(manager, startCell, endCell, out targetCell) == false)
+                return false;
 
-            if (manager.TryWorldToCell(clampedTargetPos, out Vector2Int endCell) == false) return false;
-
-            if (TryGetNearestTargetCell(manager, startCell, endCell, out targetCell))
+            if (manager.TryCellToWorldCenter(targetCell, out worldPos) == false)
             {
-                manager.TryCellToWorldCenter(targetCell, out worldPos);
-                return true;
+                targetCell = default;
+                return false;
             }
 
-            return false;
+            // 3. 최종 사거리 판정 - 서버 로직과 동일: 타일 중심 ~ 플레이어 위치 단순 거리 비교
+            float allowedRange = Def.PickaxeData.Value.Range;
+            if (Vector3.Distance(ownerPos, worldPos) > allowedRange)
+            {
+                targetCell = default;
+                worldPos = default;
+                return false;
+            }
+
+            return true;
         }
 
         private void ExecuteDigPower(TerrainManager manager, Vector2Int cell, int digPower)
@@ -226,29 +235,20 @@ namespace TerrainCollapse
             }
             return false;
         }
-        
+
         public bool PrepareUse(Vector3 ownerPos, Vector3 targetPos)
         {
             hasPendingDig = false;
             pendingTerrainManager = null;
 
-            TerrainManager terrainManager =
-                FindFirstObjectByType<TerrainManager>();
-
+            GetTerrainManager();
             if (terrainManager == null)
                 return false;
 
-            if (!TryGetTargetCell(
-                    terrainManager,
-                    ownerPos,
-                    targetPos,
-                    out Vector2Int targetCell,
-                    out _))
-            {
+            if (!TryGetTargetCell(terrainManager, ownerPos, targetPos, out Vector2Int targetCell, out _))
                 return false;
-            }
 
-            pendingTerrainManager = terrainManager;
+            pendingTerrainManager = terrainManager;  // 캐시를 예약 상태로 복사
             pendingTargetCell = targetCell;
             hasPendingDig = true;
 
@@ -280,34 +280,34 @@ namespace TerrainCollapse
             pendingTerrainManager = null;
         }
 
+        /// <summary>
+        /// 예약된 타겟이 여전히 유효한지 재검증한다.
+        /// 서버 판정과 동일하게 "타일 중심 ~ 현재 플레이어 위치" 단순 거리 비교만으로 판정한다.
+        /// (타일 채굴 가능 여부는 실제 실행 시 ExecuteDigPower -> RequestRemoveCell에서 다시 확인되므로
+        ///  여기서 전체 TryGetTargetCell을 재계산할 필요는 없다.)
+        /// </summary>
         private bool IsPreparedTargetStillValid(Vector3 currentOwnerPos)
         {
             if (pendingTerrainManager == null)
                 return false;
 
-            // pendingTargetCell의 월드 좌표를 다시 얻어서, 그 방향으로
-            // "지금 이 순간" TryGetTargetCell을 다시 돌려본다.
             if (!pendingTerrainManager.TryCellToWorldCenter(pendingTargetCell, out Vector3 targetWorldPos))
                 return false;
 
-            if (!TryGetTargetCell(
-                    pendingTerrainManager,
-                    currentOwnerPos,
-                    targetWorldPos,
-                    out Vector2Int currentTargetCell,
-                    out _))
-            {
-                return false;
-            }
-
-            // 지금 다시 계산해도 같은 셀이 나와야만 유효
-            return currentTargetCell == pendingTargetCell;
+            float allowedRange = Def.PickaxeData.Value.Range;
+            return Vector3.Distance(currentOwnerPos, targetWorldPos) <= allowedRange;
         }
 
         public void CancelPreparedUse()
         {
             hasPendingDig = false;
             pendingTerrainManager = null;
+        }
+
+        private void GetTerrainManager()
+        {
+            if (terrainManager == null)
+                terrainManager = FindFirstObjectByType<TerrainManager>();
         }
     }
 }
