@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 467c89128a7f4af6b0cb744da7ca1e9b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.Potion
-  healAmount: 30
+  healAmount: 20
   healEffectPrefab: {fileID: 3122698268581467381, guid: c69d65b1b77857e45a3122d0d19fe2b5, type: 3}
   minEffectCount: 3
   maxEffectCount: 5
