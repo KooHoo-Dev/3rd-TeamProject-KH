@@ -200,49 +200,8 @@ namespace TerrainCollapse
                 itemReadyTime[def.ID] = Time.time + def.Cooldown;
         }
 
-        /// <summary>
-        /// 아이템 입력을 처리할 수 없는 상태인지 판단.
-        /// 장착된 아이템이 없으면 그냥 무시(취소 불필요), 그 외 차단 사유는
-        /// 진행 중이던 사용/프리뷰를 취소한 뒤 이번 프레임 입력 처리를 막는다.
-        /// </summary>
-        private bool IsInputBlocked()
-        {
-            if (pickaxeItem == null && activeItem == null) return true;
-
-            bool isTyping = ChatInputState.IsTyping;
-            bool isGameplayInactive = RoomClient.Instance != null && RoomClient.Instance.IsGameplayActive == false;
-            bool isDead = playerController != null && playerController.IsDead;
-            bool isInSpawnArea = playerController != null && playerController.IsInSpawnArea;
-
-            if (isTyping == false && isGameplayInactive == false && isDead == false && isInSpawnArea == false)
-                return false;
-
-            CancelCurrentUse();
-            return true;
-        }
-
         private void Update()
         {
-            if (pickaxeItem == null && activeItem == null) return;
-            if (ChatInputState.IsTyping)
-            {
-                CancelCurrentUse();
-                return;
-            }
-
-            RoomClient roomClient = RoomClient.Instance;
-            if (roomClient != null && roomClient.IsGameplayActive == false)
-            {
-                CancelCurrentUse();
-                return;
-            }
-
-            if (playerController != null && playerController.IsDead)
-            {
-                CancelCurrentUse();
-                return;
-            }
-
             bool isBuried = playerController?.IsBuried == true;
             if (isBuried)
             {
