@@ -32,6 +32,7 @@ namespace TerrainCollapse
         private Collider2D projectileCollider;
         private SpriteRenderer spriteRenderer;
         private Color originalColor;
+        private AudioSource tickingSource;
 
         private void Awake()
         {
@@ -60,6 +61,7 @@ namespace TerrainCollapse
 
             StartCoroutine(FuseRoutine());
             StartCoroutine(BlinkRoutine(data.FuseTime));
+            StartTickingSound();
         }
 
         public void LaunchFromServer(DynamiteThrownMessage message, bool isOwner)
@@ -87,6 +89,7 @@ namespace TerrainCollapse
 
             StartCoroutine(NetworkFuseRoutine(message.FuseTime));
             StartCoroutine(BlinkRoutine(message.FuseTime));
+            StartTickingSound();
         }
 
         // 프리팹의 Collider2D offset까지 반영해, 콜라이더 뒤쪽 끝이 플레이어 중심보다
@@ -138,6 +141,7 @@ namespace TerrainCollapse
         {
             isServerControlled = false;
 
+            StopTickingSound();
             StopAllCoroutines();
 
             transform.position = explosionPosition;
@@ -200,9 +204,25 @@ namespace TerrainCollapse
 
         private void Explode()
         {
+            StopTickingSound();
             Detonate(data.Radius, data.Power);
 
             Destroy(gameObject);
+        }
+
+        private void StartTickingSound()
+        {
+            StopTickingSound();
+            tickingSource = GameAudio.GameSound.PlayLoop(
+                GameAudio.SoundCue.DynamiteTick,
+                transform);
+        }
+
+        private void StopTickingSound()
+        {
+            if (tickingSource == null) return;
+            GameAudio.GameSound.StopLoop(tickingSource);
+            tickingSource = null;
         }
     }
 }

@@ -55,10 +55,6 @@ namespace TerrainCollapse
         [SerializeField] private MineExplosive mineExplosivePrefab;
         [SerializeField] private Transform mineRoot;
 
-        [Header("Torch")]
-        [SerializeField] private TorchLight torchLightPrefab;
-        [SerializeField] private Transform torchRoot;
-
         [Header("Game End Presentation")]
         [SerializeField, Range(0.01f, 1f)] private float gameEndTimeScale = 0.08f;
         [SerializeField, Min(0f)] private float gameEndSlowMotionSeconds = 1.5f;
@@ -79,7 +75,6 @@ namespace TerrainCollapse
         private readonly Dictionary<string, string> pendingDynamiteExplosions = new();
         private readonly Dictionary<string, DynamiteExplosive> activeDynamites = new();
         private readonly Dictionary<string, MineExplosive> activeMines = new();
-        private readonly Dictionary<string, TorchLight> activeTorches = new();
         private readonly Dictionary<string, float> nextDamageRequestTimes = new();
         private float nextAnyDamageRequestTime;
         private PickaxeInventory localPickaxeInventory;
@@ -220,10 +215,6 @@ namespace TerrainCollapse
                 mineExplosivePrefab = Resources.Load<MineExplosive>("Items/Usable/MineExplosive");
             if (mineRoot == null)
                 mineRoot = transform;
-            if (torchLightPrefab == null)
-                torchLightPrefab = Resources.Load<TorchLight>("Items/Usable/TorchLight");
-            if (torchRoot == null)
-                torchRoot = transform;
         }
 
         /// <summary>대기방에서 확정한 접속 정보를 인게임 WebSocket 연결 전에 적용한다.</summary>
@@ -347,7 +338,6 @@ namespace TerrainCollapse
             ClearRemotePlayers();
             ClearActiveDynamites();
             ClearActiveMines();
-            ClearActiveTorches();
             hasSentPosition = false;
             handshakeComplete = false;
             pendingInitialSpawn = null;
@@ -674,14 +664,14 @@ namespace TerrainCollapse
             return sent;
         }
 
-        public bool RequestPlaceablePlacement(int itemID, Vector2 placementPosition)
+        public bool RequestMinePlacement(int itemID, Vector2 placementPosition)
         {
             if (IsGameplayActive == false || itemID <= 0)
                 return false;
 
             return Send(new DynamiteThrowRequest
             {
-                RequestId = $"place-{Interlocked.Increment(ref nextRequestId)}",
+                RequestId = $"mine-{Interlocked.Increment(ref nextRequestId)}",
                 ItemID = itemID,
                 StartX = placementPosition.x,
                 StartY = placementPosition.y,
@@ -1098,7 +1088,7 @@ namespace TerrainCollapse
                     ApplyLocalPlayerHealth(player, false);
                 else if (player != null &&
                          remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
-                    remote.SetDead(player.IsDead);
+                    remote.ApplyHealthSnapshot(player);
             }
         }
 
@@ -1110,11 +1100,13 @@ namespace TerrainCollapse
                 int previousHp = localPlayerHp != null ? localPlayerHp.CurrentHp : player.CurrentHealth;
                 ApplyLocalPlayerHealth(player, player.IsDead);
                 if (localPlayerHp != null && previousHp - localPlayerHp.CurrentHp >= 3)
-                    GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerHurt);
+                    GameAudio.GameSound.Play(
+                        GameAudio.SoundCue.PlayerHurt,
+                        localPlayerHp.transform.position);
             }
             else if (player != null &&
                      remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
-                remote.SetDead(player.IsDead);
+                remote.ApplyHealthChanged(player);
         }
 
         private void HandlePlayerDied(PlayerDiedMessage message)
@@ -1126,7 +1118,7 @@ namespace TerrainCollapse
             }
             else if (player != null &&
                      remotePlayers.TryGetValue(player.PlayerID, out RemotePlayerView remote))
-                remote.SetDead(true);
+                remote.ApplyDeath(player);
         }
 
         private void HandlePlayerRespawned(PlayerRespawnedMessage message)
@@ -1140,7 +1132,7 @@ namespace TerrainCollapse
                      remotePlayers.TryGetValue(message.Player.PlayerID, out RemotePlayerView remote))
             {
                 remote.Teleport(new Vector2(message.X, message.Y));
-                remote.SetDead(false);
+                remote.ApplyRespawn(message.Player);
             }
             ApplyLocalPlayerHealth(message?.Player, false);
         }
@@ -1506,12 +1498,6 @@ namespace TerrainCollapse
                 return;
             }
 
-            if (message.IsTorch)
-            {
-                HandleTorchPlaced(message);
-                return;
-            }
-
             if (activeDynamites.ContainsKey(message.ProjectileID))
                 return;
 
@@ -1618,35 +1604,6 @@ namespace TerrainCollapse
                 Destroy(mine?.gameObject);
 
             activeMines.Clear();
-        }
-
-        private void HandleTorchPlaced(DynamiteThrownMessage message)
-        {
-            if (message == null || string.IsNullOrWhiteSpace(message.ProjectileID) ||
-                activeTorches.ContainsKey(message.ProjectileID))
-                return;
-
-            if (torchLightPrefab == null)
-            {
-                Debug.LogError("[RoomClient] TorchLight prefab reference is not assigned.", this);
-                return;
-            }
-
-            TorchLight torch = Instantiate(
-                torchLightPrefab,
-                new Vector2(message.StartX, message.StartY),
-                Quaternion.identity,
-                torchRoot);
-            torch.Place(new Vector2(message.StartX, message.StartY), new Vector2Int(message.CellX, message.CellY));
-            activeTorches.Add(message.ProjectileID, torch);
-        }
-
-        private void ClearActiveTorches()
-        {
-            foreach (TorchLight torch in activeTorches.Values)
-                Destroy(torch?.gameObject);
-
-            activeTorches.Clear();
         }
 
         private void HandleInventorySnapshot(InventorySnapshotMessage message)

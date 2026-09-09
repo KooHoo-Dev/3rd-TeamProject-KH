@@ -140,14 +140,14 @@ namespace TerrainCollapse
                 {
                     if (soundAirTime >= 0.1f)
                     {
-                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerLand);
+                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerLand, result.Position);
                         nextFootstepTime = Time.time + 0.3f;
                     }
                     soundAirTime = 0f;
                     if (Mathf.Abs(result.Position.x - position.x) > movementTolerance &&
                         Time.time >= nextFootstepTime)
                     {
-                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerRun);
+                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerRun, result.Position);
                         nextFootstepTime = Time.time + 0.3f;
                     }
                 }
@@ -317,6 +317,9 @@ namespace TerrainCollapse
             soundAirTime = 0f;
             nextFootstepTime = 0f;
             body.position = spawnPosition;
+
+            if (isWaitingForTerrainSnapshot) terrainSnapshotWaitingPosition = spawnPosition;
+
             body.linearVelocity = Vector2.zero;
             body.angularVelocity = 0f;
             Physics2D.SyncTransforms();

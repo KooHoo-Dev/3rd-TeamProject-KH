@@ -1,46 +1,264 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace GameAudio
 {
-    public enum SoundCue { Dig, Collapse, PlayerHurt, PlayerDeath, PlayerLand, PlayerRun }
+    public enum SoundCue
+    {
+        Dig,
+        Collapse,
+        PlayerHurt,
+        PlayerDeath,
+        PlayerLand,
+        PlayerRun,
+        Explosion,
+        DynamiteTick,
+    }
 
-    /// <summary>Resources/Sounds에서 효과음을 로드하는 클라이언트 재생 전용 도우미.</summary>
+    /// <summary>Resources/Sounds에서 효과음과 배경음악을 로드하는 클라이언트 재생 도우미.</summary>
     public static class GameSound
     {
+        private const string DefaultMusicName = "bgm";
+        private const string MenuMusicName = "menu_bgm";
+        private const string InGameMusicName = "ingame_bgm";
+        private const float DefaultMusicVolume = 1f;
+        private const float InGameMusicVolume = 0.5f;
+        private const float EffectMinDistance = 2f;
+        private const float EffectMaxDistance = 18f;
         private static readonly string[] Names =
-            { "dig", "collapse", "player_hurt", "player_death", "player_land", "player_run" };
-        private static AudioClip[] clips;
+            { "dig", "collapse", "player_hurt", "player_death", "player_land", "player_run", "explosion", "dynamite_tick" };
+        private static readonly string[] VariantFolders =
+            { "DigVariants", "CollapseVariants", "HurtVariants", "DeathVariants", "LandVariants", "RunVariants", "ExplosionVariants", null };
+        private static AudioClip[][] clips;
+        private static int[] lastPlayedVariantIndices;
         private static float[] nextPlayTimes;
+        private static AudioSource musicSource;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Initialize()
         {
-            clips = new AudioClip[Names.Length];
+            clips = new AudioClip[Names.Length][];
+            lastPlayedVariantIndices = new int[Names.Length];
             nextPlayTimes = new float[Names.Length];
             for (int i = 0; i < Names.Length; i++)
             {
-                clips[i] = Resources.Load<AudioClip>("Sounds/" + Names[i]);
-                if (clips[i] == null)
-                    Debug.LogError($"[GameSound] 사운드 파일 누락: Assets/Resources/Sounds/{Names[i]}.wav " +
-                        "(동일한 이름의 .ogg 또는 .mp3도 가능). 파일을 넣고 Play Mode를 다시 시작하세요.");
+                lastPlayedVariantIndices[i] = -1;
+                AudioClip[] variants = string.IsNullOrEmpty(VariantFolders[i])
+                    ? null
+                    : Resources.LoadAll<AudioClip>("Sounds/" + VariantFolders[i]);
+                if (variants != null && variants.Length > 0)
+                {
+                    clips[i] = variants;
+                    continue;
+                }
+
+                AudioClip singleClip = Resources.Load<AudioClip>("Sounds/" + Names[i]);
+                clips[i] = singleClip != null ? new[] { singleClip } : System.Array.Empty<AudioClip>();
+                if (singleClip == null)
+                {
+                    string variantHint = string.IsNullOrEmpty(VariantFolders[i])
+                        ? string.Empty
+                        : $" 또는 Assets/Resources/Sounds/{VariantFolders[i]}/ 폴더";
+                    Debug.LogError($"[GameSound] 사운드 파일 누락: Assets/Resources/Sounds/{Names[i]}.wav" +
+                        variantHint + "에 오디오 파일을 넣으세요 (.wav, .ogg, .mp3 지원). " +
+                        "파일을 넣고 Play Mode를 다시 시작하세요.");
+                }
             }
+
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+            PlayMusicForScene(SceneManager.GetActiveScene());
         }
 
-        public static void Play(SoundCue cue)
+        public static void Play(SoundCue cue, Vector3 worldPosition)
         {
             if (clips == null) Initialize();
             int index = (int)cue;
-            AudioClip clip = clips[index];
-            if (clip == null || Time.time < nextPlayTimes[index]) return;
+            AudioClip[] cueClips = clips[index];
+            if (cueClips.Length == 0 || Time.time < nextPlayTimes[index]) return;
+            int variantIndex = ChooseVariantIndex(index, cueClips.Length);
+            AudioClip clip = cueClips[variantIndex];
             // 한 번의 붕괴에서 여러 청크가 생성되어도 소리가 과도하게 겹치지 않게 한다.
-            nextPlayTimes[index] = Time.time + 0.06f;
+            if (cue == SoundCue.Collapse)
+                nextPlayTimes[index] = Time.time + 0.06f;
             GameObject voice = new GameObject("Sound_" + Names[index]);
+            voice.transform.position = ResolveEffectPosition(worldPosition);
             AudioSource source = voice.AddComponent<AudioSource>();
-            source.playOnAwake = false;
-            source.spatialBlend = 0f;
+            ConfigureEffectSource(source);
             source.clip = clip;
             source.Play();
             Object.Destroy(voice, clip.length + 0.1f);
+        }
+
+        /// <summary>대상을 따라다니며 반복되는 거리 감쇠 효과음을 재생한다.</summary>
+        public static AudioSource PlayLoop(SoundCue cue, Transform followTarget)
+        {
+            if (followTarget == null) return null;
+            if (clips == null) Initialize();
+
+            int index = (int)cue;
+            AudioClip[] cueClips = clips[index];
+            if (cueClips.Length == 0) return null;
+
+            int variantIndex = ChooseVariantIndex(index, cueClips.Length);
+            GameObject voice = new GameObject("LoopSound_" + Names[index]);
+            voice.transform.position = ResolveEffectPosition(followTarget.position);
+            voice.transform.SetParent(followTarget, true);
+
+            AudioSource source = voice.AddComponent<AudioSource>();
+            ConfigureEffectSource(source);
+            source.loop = true;
+            source.clip = cueClips[variantIndex];
+            source.Play();
+            return source;
+        }
+
+        public static void StopLoop(AudioSource source)
+        {
+            if (source == null) return;
+            source.Stop();
+            Object.Destroy(source.gameObject);
+        }
+
+        private static Vector3 ResolveEffectPosition(Vector3 worldPosition)
+        {
+            AudioListener listener = Object.FindFirstObjectByType<AudioListener>();
+            if (listener != null) worldPosition.z = listener.transform.position.z;
+            return worldPosition;
+        }
+
+        private static void ConfigureEffectSource(AudioSource source)
+        {
+            source.playOnAwake = false;
+            source.spatialBlend = 1f;
+            source.rolloffMode = AudioRolloffMode.Linear;
+            source.minDistance = EffectMinDistance;
+            source.maxDistance = EffectMaxDistance;
+            source.dopplerLevel = 0f;
+        }
+
+        private static int ChooseVariantIndex(int cueIndex, int variantCount)
+        {
+            if (variantCount <= 1) return 0;
+
+            int previousIndex = lastPlayedVariantIndices[cueIndex];
+            if (previousIndex < 0)
+            {
+                int firstIndex = Random.Range(0, variantCount);
+                lastPlayedVariantIndices[cueIndex] = firstIndex;
+                return firstIndex;
+            }
+
+            int selectedIndex = Random.Range(0, variantCount - 1);
+            if (selectedIndex >= previousIndex) selectedIndex++;
+            lastPlayedVariantIndices[cueIndex] = selectedIndex;
+            return selectedIndex;
+        }
+
+        /// <summary>
+        /// Resources/Sounds에서 배경음악을 불러와 반복 재생한다.
+        /// 이름을 생략하면 bgm 파일을 사용한다.
+        /// </summary>
+        public static void PlayMusic(string name = DefaultMusicName)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                Debug.LogWarning("[GameSound] 재생할 배경음악 이름이 비어 있습니다.");
+                return;
+            }
+
+            if (TryPlayMusic(name)) return;
+
+            Debug.LogWarning($"[GameSound] 배경음악 파일 누락: Assets/Resources/Sounds/{name}.wav " +
+                "(동일한 이름의 .ogg 또는 .mp3도 가능).");
+        }
+
+        private static bool TryPlayMusic(string name)
+        {
+            AudioClip music = Resources.Load<AudioClip>("Sounds/" + name);
+            if (music == null) return false;
+
+            EnsureMusicSource();
+            if (musicSource.clip == music && musicSource.isPlaying) return true;
+
+            musicSource.clip = music;
+            musicSource.Play();
+            return true;
+        }
+
+        public static void StopMusic()
+        {
+            if (musicSource == null) return;
+            musicSource.Stop();
+            musicSource.clip = null;
+        }
+
+        public static void SetMusicVolume(float volume)
+        {
+            EnsureMusicSource();
+            musicSource.volume = Mathf.Clamp01(volume);
+        }
+
+        private static void EnsureMusicSource()
+        {
+            if (musicSource != null) return;
+
+            GameObject musicObject = new GameObject("BackgroundMusic");
+            Object.DontDestroyOnLoad(musicObject);
+            musicSource = musicObject.AddComponent<AudioSource>();
+            musicSource.playOnAwake = false;
+            musicSource.loop = true;
+            musicSource.spatialBlend = 0f;
+        }
+
+        private static void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            if (mode == LoadSceneMode.Additive && IsMusicScene(scene.name) == false) return;
+            PlayMusicForScene(scene);
+        }
+
+        private static bool IsMusicScene(string sceneName)
+        {
+            return sceneName == "MainMenuScene" ||
+                   sceneName == "RoomLobbyScene" ||
+                   sceneName == "InGame";
+        }
+
+        private static void PlayMusicForScene(Scene scene)
+        {
+            string musicName;
+            float musicVolume = DefaultMusicVolume;
+            switch (scene.name)
+            {
+                case "MainMenuScene":
+                case "RoomLobbyScene":
+                    musicName = MenuMusicName;
+                    break;
+                case "InGame":
+                    musicName = InGameMusicName;
+                    musicVolume = InGameMusicVolume;
+                    break;
+                default:
+                    musicName = DefaultMusicName;
+                    break;
+            }
+
+            if (TryPlayMusic(musicName))
+            {
+                musicSource.volume = musicVolume;
+                return;
+            }
+            if (musicName != DefaultMusicName && TryPlayMusic(DefaultMusicName))
+            {
+                musicSource.volume = musicVolume;
+                Debug.LogWarning($"[GameSound] {scene.name} 전용 배경음악 '{musicName}'이 없어 " +
+                    $"기본 배경음악 '{DefaultMusicName}'을 재생합니다.");
+                return;
+            }
+
+            StopMusic();
+            Debug.LogWarning($"[GameSound] 배경음악 파일 누락: Assets/Resources/Sounds/{musicName}.wav " +
+                "(동일한 이름의 .ogg 또는 .mp3도 가능).");
         }
     }
 }

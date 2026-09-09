@@ -186,7 +186,7 @@ namespace TerrainCollapse
                 minimumWorldY,
                 isPlacementOwner);
             activeChunks.Add(chunk);
-            GameAudio.GameSound.Play(GameAudio.SoundCue.Collapse);
+            GameAudio.GameSound.Play(GameAudio.SoundCue.Collapse, root.transform.position);
             
             Debug.Log($"[Terrain Collapse] Chunk Created: id={collapseId}, cells={cells.Count}, " +
                       $"placementOwner={isPlacementOwner}");

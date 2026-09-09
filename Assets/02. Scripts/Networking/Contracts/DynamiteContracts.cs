@@ -39,7 +39,6 @@ namespace TerrainCollapse.Networking
         public float ExplosionRadius { get; set; }
 
         public bool IsMine { get; set; }
-        public bool IsTorch { get; set; }
         public int CellX { get; set; }
         public int CellY { get; set; }
         public float ArmDelay { get; set; }

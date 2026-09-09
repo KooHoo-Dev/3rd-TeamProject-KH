@@ -223,7 +223,25 @@ namespace TerrainCollapse
 
         private void Update()
         {
-            if (IsInputBlocked()) return;
+            if (pickaxeItem == null && activeItem == null) return;
+            if (ChatInputState.IsTyping)
+            {
+                CancelCurrentUse();
+                return;
+            }
+
+            RoomClient roomClient = RoomClient.Instance;
+            if (roomClient != null && roomClient.IsGameplayActive == false)
+            {
+                CancelCurrentUse();
+                return;
+            }
+
+            if (playerController != null && playerController.IsDead)
+            {
+                CancelCurrentUse();
+                return;
+            }
 
             bool isBuried = playerController?.IsBuried == true;
             if (isBuried)
@@ -305,7 +323,7 @@ namespace TerrainCollapse
             bool? requested = item switch
             {
                 DynamiteItem => roomClient.RequestDynamiteThrow(item.Def.ID, ownerPos, mouseWorldPos),
-                MineItem or TorchItem => roomClient.RequestPlaceablePlacement(item.Def.ID, ownerPos),
+                MineItem => roomClient.RequestMinePlacement(item.Def.ID, ownerPos),
                 Potion or Detector => roomClient.RequestUsableItemUse(item.Def.ID),
                 _ => (bool?)null
             };
