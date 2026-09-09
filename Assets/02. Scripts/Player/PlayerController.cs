@@ -134,6 +134,25 @@ namespace TerrainCollapse
             movement.SetVelocity(result.Velocity);
             collisionMove.IgnoreDownwardCollisions = false;
             collisionMove.IgnoreUpwardCollisions = false;
+            if (terrainState.IsClimbing == false)
+            {
+                if (result.Grounded)
+                {
+                    if (soundAirTime >= 0.1f)
+                    {
+                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerLand);
+                        nextFootstepTime = Time.time + 0.3f;
+                    }
+                    soundAirTime = 0f;
+                    if (Mathf.Abs(result.Position.x - position.x) > movementTolerance &&
+                        Time.time >= nextFootstepTime)
+                    {
+                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerRun);
+                        nextFootstepTime = Time.time + 0.3f;
+                    }
+                }
+                else soundAirTime += Time.fixedDeltaTime;
+            }
         }
 
         /// <summary>
@@ -257,25 +276,6 @@ namespace TerrainCollapse
             }
 
             return false;
-            if (terrainState.IsClimbing == false)
-            {
-                if (result.Grounded)
-                {
-                    if (soundAirTime >= 0.1f)
-                    {
-                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerLand);
-                        nextFootstepTime = Time.time + 0.3f;
-                    }
-                    soundAirTime = 0f;
-                    if (Mathf.Abs(result.Position.x - position.x) > movementTolerance &&
-                        Time.time >= nextFootstepTime)
-                    {
-                        GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerRun);
-                        nextFootstepTime = Time.time + 0.3f;
-                    }
-                }
-                else soundAirTime += Time.fixedDeltaTime;
-            }
         }
 
         public void EnterDeadState(bool isPositionLocked = false)
