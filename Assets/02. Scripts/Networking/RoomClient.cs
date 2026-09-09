@@ -93,8 +93,9 @@ namespace TerrainCollapse
         private string pendingInventorySellRequestId;
         private string pendingShopRequestId;
         private string pendingDebugGoldRequestId;
-        private long pendingCollapsePlacementId;
-        private string pendingCollapsePlacementRequestId;
+        // 낙하 청크는 여러 개가 동시에 완료될 수 있다. 전역 단일 대기로 두면
+        // 뒤 청크의 확정 제안이 버려져 서버 예약이 시간 초과로 취소된다.
+        private readonly Dictionary<string, long> pendingCollapsePlacementIds = new();
         private string pendingDeathLootRequestId;
         private string localPlayerId;
         private Vector2? pendingInitialSpawn;
@@ -427,7 +428,7 @@ namespace TerrainCollapse
             nextDamageRequestTimes.Clear();
             nextAnyDamageRequestTime = 0f;
             pendingDeathLootRequestId = null;
-            ClearPendingCollapsePlacement();
+            ClearAllPendingCollapsePlacements();
             ClearRemotePlayers();
             ClearActiveDynamites();
             ClearActiveMines();
@@ -1337,10 +1338,9 @@ namespace TerrainCollapse
             bool isLocalExcavationResult =
                 string.IsNullOrEmpty(message.RequestId) == false &&
                 pendingExcavations.ContainsKey(message.RequestId);
-            bool isLocalCollapsePlacementResult = string.Equals(
-                message.RequestId,
-                pendingCollapsePlacementRequestId,
-                StringComparison.Ordinal);
+            bool isLocalCollapsePlacementResult =
+                string.IsNullOrEmpty(message.RequestId) == false &&
+                pendingCollapsePlacementIds.ContainsKey(message.RequestId);
             bool isLocalDynamiteExplosionResult =
                 string.IsNullOrEmpty(message.RequestId) == false &&
                 pendingDynamiteExplosions.ContainsKey(message.RequestId);
@@ -1352,7 +1352,7 @@ namespace TerrainCollapse
             // 서버가 이 요청에 답을 했다. 로컬 적용의 성패와 상관없이 기다림은 끝난다.
             // 적용 뒤에 풀면 적용이 한 번 실패하는 순간 그 칸이 영영 잠긴다.
             if (isLocalExcavationResult) ClearPendingExcavation(message.RequestId);
-            if (isLocalCollapsePlacementResult) ClearPendingCollapsePlacement();
+            if (isLocalCollapsePlacementResult) ClearPendingCollapsePlacement(message.RequestId);
             if (isLocalDynamiteExplosionResult) pendingDynamiteExplosions.Remove(message.RequestId);
 
             if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
@@ -1648,9 +1648,9 @@ namespace TerrainCollapse
         {
             if (proposal == null || IsAuthoritativeTerrainMode == false) return;
             if (proposal.IsPlacementOwner == false) return;
-            if (pendingCollapsePlacementId > 0)
+            if (pendingCollapsePlacementIds.ContainsValue(proposal.CollapseId))
             {
-                Debug.LogWarning("[RoomClient] 이미 지형 붕괴 배치 확정을 기다리고 있습니다.", this);
+                Debug.LogWarning($"[RoomClient] 이미 낙하 {proposal.CollapseId}의 배치 확정을 기다리고 있습니다.", this);
                 return;
             }
 
@@ -1682,12 +1682,10 @@ namespace TerrainCollapse
                 });
             }
 
-            pendingCollapsePlacementId = proposal.CollapseId;
-            pendingCollapsePlacementRequestId = request.RequestId;
-            pendingCollapsePlacementSentAt = Time.unscaledTime;
+            pendingCollapsePlacementIds.Add(request.RequestId, proposal.CollapseId);
             if (Send(request)) return;
 
-            ClearPendingCollapsePlacement();
+            ClearPendingCollapsePlacement(request.RequestId);
             Debug.LogWarning("[RoomClient] 붕괴 지형 배치 요청을 보내지 못했습니다.", this);
         }
 

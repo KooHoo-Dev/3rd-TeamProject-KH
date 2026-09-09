@@ -120,6 +120,8 @@ namespace TerrainCollapse
         {
             if (collapseManager == null || message?.CollapseIDs == null) return;
 
+            ClearPendingCollapsePlacements(message.CollapseIDs);
+
             foreach (long collapseID in message.CollapseIDs)
                 collapseManager.CancelChunk(collapseID);
 
@@ -153,9 +155,6 @@ namespace TerrainCollapse
         // 한 번에 서버에 띄워 둘 수 있는 굴착 수.
         private const int MaxInFlightExcavations = 8;
 
-        // 낙하 배치를 보낸 시각. 위와 같은 이유로 시간 제한을 둔다.
-        private float pendingCollapsePlacementSentAt;
-
         private void ClearPendingExcavation(string requestId)
         {
             if (string.IsNullOrEmpty(requestId)) return;
@@ -170,10 +169,36 @@ namespace TerrainCollapse
             pendingExcavationCells.Clear();
         }
 
-        private void ClearPendingCollapsePlacement()
+        private void ClearPendingCollapsePlacement(string requestId)
         {
-            pendingCollapsePlacementId = 0;
-            pendingCollapsePlacementRequestId = null;
+            if (string.IsNullOrEmpty(requestId)) return;
+
+            pendingCollapsePlacementIds.Remove(requestId);
+        }
+
+        private void ClearAllPendingCollapsePlacements()
+        {
+            pendingCollapsePlacementIds.Clear();
+        }
+
+        private void ClearPendingCollapsePlacements(IReadOnlyList<long> collapseIds)
+        {
+            if (collapseIds == null || collapseIds.Count == 0) return;
+
+            timedOutRequestIds.Clear();
+            foreach (KeyValuePair<string, long> pending in pendingCollapsePlacementIds)
+            {
+                for (int i = 0; i < collapseIds.Count; i++)
+                {
+                    if (pending.Value != collapseIds[i]) continue;
+
+                    timedOutRequestIds.Add(pending.Key);
+                    break;
+                }
+            }
+
+            foreach (string requestId in timedOutRequestIds)
+                ClearPendingCollapsePlacement(requestId);
         }
 
         /// <summary>이 RequestId 로 띄워 둔 대기만 푼다. 남의 것은 건드리지 않는다.</summary>
@@ -183,8 +208,7 @@ namespace TerrainCollapse
 
             ClearPendingExcavation(requestId);
 
-            if (string.Equals(requestId, pendingCollapsePlacementRequestId, StringComparison.Ordinal))
-                ClearPendingCollapsePlacement();
+            ClearPendingCollapsePlacement(requestId);
         }
 
         // 답이 오지 않은 요청을 시간으로 푼다.
@@ -210,12 +234,8 @@ namespace TerrainCollapse
                 }
             }
 
-            if (pendingCollapsePlacementRequestId != null &&
-                now - pendingCollapsePlacementSentAt > PendingTimeoutSeconds)
-            {
-                Debug.LogWarning("[RoomClient] 낙하 배치 응답이 늦어 대기를 풉니다.", this);
-                ClearPendingCollapsePlacement();
-            }
+            // 낙하 배치는 입력을 잠그지 않는다. 응답이 늦더라도 RequestId를 지우면
+            // 늦게 도착한 서버 batch를 내 배치로 인식하지 못하므로, 성공/오류/취소 시에만 정리한다.
         }
 
         #endregion
