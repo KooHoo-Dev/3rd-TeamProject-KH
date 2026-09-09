@@ -106,6 +106,8 @@ namespace TerrainCollapse
         private Vector2? pendingInitialSpawn;
         private Coroutine gameEndPresentationCoroutine;
         private float timeScaleBeforeGameEnd = 1f;
+        private AudioSource finalCountdownTickingSource;
+        private bool isFinalCountdownSoundActive;
 
         public static RoomClient Instance { get; private set; }
         public bool IsConnected => socket?.State == WebSocketState.Open;
@@ -264,6 +266,7 @@ namespace TerrainCollapse
 
         private void OnDisable()
         {
+            StopFinalCountdownSound();
             if (collapseManager != null)
             {
                 collapseManager.PlacementProposed -= HandlePlacementProposed;
@@ -283,6 +286,7 @@ namespace TerrainCollapse
                 action.Invoke();
 
             SweepPendingTimeouts();
+            UpdateFinalCountdownSound();
 
             if (IsMovementActive &&
                 localPlayer != null &&
@@ -350,6 +354,7 @@ namespace TerrainCollapse
         public async Task ConnectAsync()
         {
             if (IsConnected) return;
+            StopFinalCountdownSound();
             localPlayer?.SetWaitingForTerrainSnapshot(true);
             await DisconnectAsync();
             // 이전 연결에서 전송하지 못한 패킷은 새 연결의 hello보다 먼저 보내면 안 된다.
@@ -405,6 +410,7 @@ namespace TerrainCollapse
 
         public async Task DisconnectAsync()
         {
+            StopFinalCountdownSound();
             StopGameEndPresentation();
             CancellationTokenSource source = cancellation;
             ClientWebSocket currentSocket = socket;
@@ -1040,6 +1046,7 @@ namespace TerrainCollapse
         {
             if (isGameStarted || message == null) return;
 
+            StopFinalCountdownSound();
             StopGameEndPresentation();
             long localNow = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             serverClockOffsetMilliseconds = message.ServerNowUnixMilliseconds - localNow;
@@ -1065,6 +1072,7 @@ namespace TerrainCollapse
             if (isGameEnded) return;
 
             isGameEnded = true;
+            StopFinalCountdownSound();
             GameEndedAtUnixMilliseconds = message?.EndedAtUnixMilliseconds ??
                                           DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             pendingInventorySellRequestId = null;
@@ -1076,6 +1084,38 @@ namespace TerrainCollapse
                 ? string.Empty
                 : string.Join(", ", message.WinnerPlayerIDs);
             Debug.Log($"[RoomClient] Game ended. reason={message?.Reason}, winners={winners}", this);
+        }
+
+        private void UpdateFinalCountdownSound()
+        {
+            if (IsGameplayActive == false || GameEndsAtUnixMilliseconds <= 0)
+            {
+                StopFinalCountdownSound();
+                return;
+            }
+
+            double remainingSeconds =
+                (GameEndsAtUnixMilliseconds - EstimatedServerNowUnixMilliseconds) / 1000d;
+            if (remainingSeconds <= 0d || remainingSeconds > 10d)
+            {
+                StopFinalCountdownSound();
+                return;
+            }
+
+            if (isFinalCountdownSoundActive) return;
+            isFinalCountdownSoundActive = true;
+            finalCountdownTickingSource = GameAudio.GameSound.PlayGlobalLoop(
+                GameAudio.SoundCue.DynamiteTick,
+                1.5f,
+                transform);
+        }
+
+        private void StopFinalCountdownSound()
+        {
+            if (finalCountdownTickingSource != null)
+                GameAudio.GameSound.StopLoop(finalCountdownTickingSource);
+            finalCountdownTickingSource = null;
+            isFinalCountdownSoundActive = false;
         }
 
         private void HandlePlayerKicked(PlayerKickedMessage message)

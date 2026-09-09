@@ -129,6 +129,43 @@ namespace GameAudio
             return source;
         }
 
+        /// <summary>거리 감쇠 없이 반복되는 2D 효과음을 지정 배율로 재생한다.</summary>
+        public static AudioSource PlayGlobalLoop(
+            SoundCue cue,
+            float volumeScale,
+            Transform owner = null)
+        {
+            if (clips == null) Initialize();
+
+            int index = (int)cue;
+            AudioClip[] cueClips = clips[index];
+            if (cueClips.Length == 0 || volumeScale <= 0f) return null;
+
+            int variantIndex = ChooseVariantIndex(index, cueClips.Length);
+            AudioClip clip = cueClips[variantIndex];
+            GameObject voice = new GameObject("GlobalLoopSound_" + Names[index]);
+            if (owner != null) voice.transform.SetParent(owner, false);
+
+            // AudioSource.volume은 최대 1이므로, 1을 넘는 배율은 동기화된 소스를 합산한다.
+            float remainingVolume = Mathf.Clamp(volumeScale, 0f, 4f);
+            AudioSource primarySource = null;
+            double startTime = AudioSettings.dspTime + 0.05d;
+            while (remainingVolume > 0f)
+            {
+                AudioSource source = voice.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.spatialBlend = 0f;
+                source.loop = true;
+                source.clip = clip;
+                source.volume = Mathf.Min(1f, remainingVolume);
+                source.PlayScheduled(startTime);
+                primarySource ??= source;
+                remainingVolume -= source.volume;
+            }
+
+            return primarySource;
+        }
+
         public static void StopLoop(AudioSource source)
         {
             if (source == null) return;

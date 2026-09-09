@@ -18,8 +18,10 @@ namespace TerrainCollapse.Networking
         [SerializeField] private int normalSortingOrder = 2;
         [SerializeField] private int buriedSortingOrder = -1;
         [SerializeField] private Material surfaceUnlitMaterial;
+        [SerializeField, Min(0f)] private float mineSoundOffset = 0.75f;
 
         private Material undergroundMaterial;
+        private float mineDirectionX = 1f;
 
         private void Awake()
         {
@@ -77,11 +79,18 @@ namespace TerrainCollapse.Networking
         {
             if (spriteRenderer != null && Mathf.Abs(directionX) > 0.01f)
                 spriteRenderer.flipX = directionX < 0f;
+            if (Mathf.Abs(directionX) > 0.01f)
+                mineDirectionX = Mathf.Sign(directionX);
             animator?.SetTrigger(MineHash);
         }
 
-        // 원격 채굴은 시각 표현만 하므로 로컬 지형/아이템 Animation Event는 실행하지 않는다.
+        // 원격 채굴은 지형/아이템 로직을 실행하지 않고 타격 프레임의 위치 효과음만 재생한다.
         public void AnimationEvent_MineFinished() { }
-        public void AnimationEvent_MineImpact() { }
+        public void AnimationEvent_MineImpact()
+        {
+            Vector3 soundPosition = transform.position +
+                                    Vector3.right * mineDirectionX * mineSoundOffset;
+            GameAudio.GameSound.Play(GameAudio.SoundCue.Dig, soundPosition);
+        }
     }
 }
