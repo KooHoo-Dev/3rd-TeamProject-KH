@@ -13,6 +13,10 @@ namespace TerrainCollapse
         [SerializeField] private GameObject resourceMarkerPrefab;         // 발견된 자원 위치 마커
         [SerializeField, Min(0.1f)] private float markerLifetime = 4f;    // 마커 유지 시간(초)
 
+        [Header("음파 링 이펙트")]
+        [SerializeField] private DetectionWaveRing waveRingPrefab;        // 중심에서 퍼져나가는 소나 링 이펙트
+        [SerializeField] private Color waveRingColor;
+
         private Coroutine waveCoroutine;
 
         public override bool Use(Vector3 ownerPos, Vector3 targetPos)
@@ -31,7 +35,7 @@ namespace TerrainCollapse
                 StopCoroutine(waveCoroutine);
 
             waveCoroutine = StartCoroutine(RunDetectionWave(ownerPos, found));
-            
+
             return true;
         }
 
@@ -80,6 +84,8 @@ namespace TerrainCollapse
         {
             float waveDuration = detectRadius / waveSpeed;
 
+            SpawnWaveRing(ownerPos, waveDuration);
+
             float elapsed = 0f;
             int nextIndex = 0;
 
@@ -106,6 +112,12 @@ namespace TerrainCollapse
 
             Debug.Log($"[Detector] 반경 {detectRadius} 내 자원 {found.Count}개를 발견했습니다.");
             waveCoroutine = null;
+        }
+
+        private void SpawnWaveRing(Vector3 ownerPos, float waveDuration)
+        {
+            DetectionWaveRing ring = Instantiate(waveRingPrefab, ownerPos, Quaternion.identity);
+            ring.Play(waveDuration, detectRadius, waveRingColor);
         }
 
         private void SpawnMarker(Vector3 worldPos)

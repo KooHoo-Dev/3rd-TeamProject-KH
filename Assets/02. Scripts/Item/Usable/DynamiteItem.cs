@@ -12,11 +12,19 @@ namespace TerrainCollapse
         [SerializeField, Min(2)] private int trajectorySegments = 20; // 경로선 정밀도
         [SerializeField] private Color highlightLineColor = Color.white;
 
+        [Header("Preview - Dashed Line")]
+        [SerializeField, Min(0.01f)] private float dashLength = 0.25f;   // 대시(선) 한 칸의 월드 길이
+        [SerializeField, Min(0.01f)] private float dashGapLength = 0.15f; // 대시 사이 빈 간격의 월드 길이
+
+        [Header("Preview - Sorting")]
+        [SerializeField] private string trajectorySortingLayerName = "Default";
+        [SerializeField] private int trajectorySortingOrder = -10;
+
         [Header("Throw Settings")]
         [SerializeField] private DynamiteExplosive explosivePrefab; // 투척되는 실제 폭발물 프리팹
         [SerializeField] private ExplosiveData data; // SO 데이터 참조
-        
-        
+
+
         private GameObject highlightInstance;
 
         public override void Init(ItemDef def)
@@ -38,14 +46,18 @@ namespace TerrainCollapse
                 trajectoryLine.positionCount = trajectorySegments;
                 trajectoryLine.useWorldSpace = true;
 
-                // 2. 두께 및 정렬 레이어 설정
+                // 2. 두께 및 정렬 레이어 설정 (벽 뒤에 숨기려면 지형보다 낮은 레이어/오더로 설정)
                 trajectoryLine.startWidth = lineThickness;
                 trajectoryLine.endWidth = lineThickness;
-                trajectoryLine.sortingLayerName = "Foreground";
-                trajectoryLine.sortingOrder = 10;
+                trajectoryLine.sortingLayerName = trajectorySortingLayerName;
+                trajectoryLine.sortingOrder = trajectorySortingOrder;
 
-                // 3. 머티리얼 및 색상 설정 (다이너마이트 느낌의 주황색 계열)
-                trajectoryLine.material = new Material(Shader.Find("Sprites/Default"));
+                // 3. 머티리얼 및 색상 설정 - 점선(대시) 텍스처를 타일 형태로 반복시킨다
+                trajectoryLine.material = new Material(Shader.Find("Sprites/Default"))
+                {
+                    mainTexture = BuildDashTexture()
+                };
+                trajectoryLine.textureMode = LineTextureMode.Tile;
                 trajectoryLine.startColor = highlightLineColor;
                 trajectoryLine.endColor = highlightLineColor;
 
@@ -53,6 +65,37 @@ namespace TerrainCollapse
                 trajectoryLine.enabled = false;
             }
             SetupLineRenderer();
+        }
+
+        /// <summary>
+        /// 점선(대시) 표현을 위한 텍스처를 만든다.
+        /// LineRenderer.textureMode = Tile 상태에서는 U방향 타일링 값이 곧
+        /// "텍스처 1회 반복 = 1월드유닛"을 의미하므로, mainTextureScale.x를
+        /// 1 / (대시 길이 + 간격 길이)로 맞추면 실제 월드 단위 기준 대시 간격이 된다.
+        /// </summary>
+        private Texture2D BuildDashTexture()
+        {
+            const int resolution = 64; // 대시:간격 비율을 표현하기 위한 텍스처 해상도(1주기)
+            Texture2D texture = new Texture2D(resolution, 1, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Point, // 경계를 또렷하게(안티에일리어싱 없이) 표현
+                name = "DynamiteTrajectoryDashTexture"
+            };
+
+            float period = dashLength + dashGapLength;
+            int dashPixelWidth = Mathf.Clamp(
+                Mathf.RoundToInt(resolution * (dashLength / period)), 1, resolution - 1);
+
+            for (int x = 0; x < resolution; x++)
+                texture.SetPixel(x, 0, x < dashPixelWidth ? Color.white : new Color(1f, 1f, 1f, 0f));
+            texture.Apply();
+
+            // Tile 모드에서는 mainTextureScale.x가 "1회 반복당 월드유닛 수"의 역수로 동작하므로,
+            // 여기서 1 / period로 설정하면 실제 dashLength/dashGapLength(월드 단위)와 일치한다.
+            trajectoryLine.material.mainTextureScale = new Vector2(1f / period, 1f);
+
+            return texture;
         }
 
         // ItemController가 우클릭 홀드 중일 때만 매 프레임 호출합니다.

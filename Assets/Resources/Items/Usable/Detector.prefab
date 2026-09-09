@@ -48,3 +48,5 @@ MonoBehaviour:
   waveSpeed: 8
   resourceMarkerPrefab: {fileID: 6015587917944298857, guid: b1c2f4865c7eae04398015a8764f22eb, type: 3}
   markerLifetime: 4
+  waveRingPrefab: {fileID: 7072833636502873393, guid: 8a37fcc0a69e6ec4c8d01126a985f0a5, type: 3}
+  waveRingColor: {r: 0.019607844, g: 1, b: 0, a: 1}
