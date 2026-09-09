@@ -132,6 +132,7 @@ MonoBehaviour:
   normalSortingOrder: 2
   buriedSortingOrder: -1
   surfaceUnlitMaterial: {fileID: 2100000, guid: 3f87f0d9f99d4e56b6961ad5053ac025, type: 2}
+  mineSoundOffset: 0.75
 --- !u!1 &6396105255954339911
 GameObject:
   m_ObjectHideFlags: 0
