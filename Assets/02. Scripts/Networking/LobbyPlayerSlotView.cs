@@ -48,7 +48,7 @@ namespace TerrainCollapse
     {
         private const float PreviewScale = 135f;
         private const int PreviewSortingOrder = 1;
-        private static readonly Vector3 PreviewLocalPosition = new(35f, -5f, 0f);
+        private static readonly Vector3 PreviewLocalPosition = Vector3.zero;
         private const int HoverOverlaySortingOrder = 900;
         private static Canvas hoverOverlayCanvas;
 
