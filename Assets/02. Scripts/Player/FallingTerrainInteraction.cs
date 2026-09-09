@@ -541,7 +541,9 @@ namespace TerrainCollapse
 
         private void ExitBuriedState()
         {
-            if (isBuried == false || IsCurrentSpaceEmpty() == false) return;
+            // 엣지콜라이더 재생성 타이밍 때문에 물리 오버랩이 한 프레임 더 남을 수 있어
+            // 매몰 해제는 동일한 그리드 기준으로 판정
+            if (isBuried == false || IsGridSpaceEmpty(character.CollisionBounds) == false) return;
 
             isBuried = false;
             burialDamageElapsed = 0f;
@@ -657,7 +659,8 @@ namespace TerrainCollapse
 
             Physics2D.SyncTransforms();
 
-            if (IsCurrentSpaceEmpty() || TryFindNearbyBurialExit())
+            // 이전 프레임의 엣지콜라이더가 남아 있어도 매몰 상태를 유지하지 않음
+            if (IsGridSpaceEmpty(character.CollisionBounds) || TryFindNearbyBurialExit())
                 ExitBuriedState();
 
             burialRecheckRoutine = null;
