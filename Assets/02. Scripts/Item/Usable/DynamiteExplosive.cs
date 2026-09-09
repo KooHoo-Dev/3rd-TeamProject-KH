@@ -16,12 +16,9 @@ namespace TerrainCollapse
         [Header("Explosive Setting Asset")]
         [SerializeField] private ExplosiveData data; // SO 데이터 참조
 
-        [Header("Launch Physics")]
-        [SerializeField, Min(0f)] private float launchClearance = 0.05f;
-
         [Header("Visual Feedback - Blink")]
         [SerializeField] private float maxBlinkInterval = 0.4f; // 퓨즈 시작 시점 깜빡임 간격
-        [SerializeField] private float minBlinkInterval = 0.05f; // 폭발 직전 깜빡임 간격
+        [SerializeField] private float minBlinkInterval = 0.021f; // 폭발 직전 깜빡임 간격
         [SerializeField] private Color blinkColor = Color.red;   // 깜빡일 때 색상
 
         private string projectileID;
@@ -50,7 +47,7 @@ namespace TerrainCollapse
         public void Launch(Vector3 ownerPos, Vector3 direction)
         {
             Vector2 launchDirection = ((Vector2)direction).normalized;
-            transform.position = GetSeparatedLaunchPosition(ownerPos, launchDirection);
+            transform.position = ownerPos;
             IgnoreLocalPlayerCollisions();
 
             // 방향 벡터로 물리 속도 부여
@@ -76,9 +73,7 @@ namespace TerrainCollapse
             else
                 launchDirection.Normalize();
 
-            transform.position = GetSeparatedLaunchPosition(
-                new Vector2(message.StartX, message.StartY),
-                launchDirection);
+            transform.position = new Vector2(message.StartX, message.StartY);
             IgnoreLocalPlayerCollisions();
 
             if (rb != null)
@@ -90,32 +85,6 @@ namespace TerrainCollapse
             StartCoroutine(NetworkFuseRoutine(message.FuseTime));
             StartCoroutine(BlinkRoutine(message.FuseTime));
             StartTickingSound();
-        }
-
-        // 프리팹의 Collider2D offset까지 반영해, 콜라이더 뒤쪽 끝이 플레이어 중심보다
-        // launchClearance만큼 발사 방향 앞으로 오도록 배치한다.
-        private Vector2 GetSeparatedLaunchPosition(
-            Vector2 ownerPosition,
-            Vector2 launchDirection)
-        {
-            if (projectileCollider == null)
-                return ownerPosition + launchDirection * launchClearance;
-
-            // bounds는 현재 transform 위치를 기준으로 계산되므로, 우선 owner 위치에 둔다.
-            transform.position = ownerPosition;
-            Bounds bounds = projectileCollider.bounds;
-            Vector2 colliderCenterOffset =
-                (Vector2)bounds.center - ownerPosition;
-            Vector2 extents = bounds.extents;
-            float forwardExtent =
-                Mathf.Abs(launchDirection.x) * extents.x +
-                Mathf.Abs(launchDirection.y) * extents.y;
-            float distance = Mathf.Max(
-                launchClearance,
-                forwardExtent - Vector2.Dot(colliderCenterOffset, launchDirection) +
-                launchClearance);
-
-            return ownerPosition + launchDirection * distance;
         }
 
         // 투사체는 타일에는 부딪혀 튕기지만, 플레이어 물리로 밀려서는 안 된다.

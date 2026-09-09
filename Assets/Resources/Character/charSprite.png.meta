@@ -240,10 +240,10 @@ TextureImporter:
       name: charSprite_0
       rect:
         serializedVersion: 2
-        x: 0
+        x: 1
         y: 288
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -262,10 +262,10 @@ TextureImporter:
       name: charSprite_1
       rect:
         serializedVersion: 2
-        x: 48
+        x: 49
         y: 288
-        width: 48
-        height: 48
+        width: 26
+        height: 33
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -284,10 +284,10 @@ TextureImporter:
       name: charSprite_2
       rect:
         serializedVersion: 2
-        x: 96
+        x: 99
         y: 288
-        width: 48
-        height: 48
+        width: 22
+        height: 37
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -306,10 +306,10 @@ TextureImporter:
       name: charSprite_3
       rect:
         serializedVersion: 2
-        x: 144
+        x: 151
         y: 288
-        width: 48
-        height: 48
+        width: 32
+        height: 36
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -328,10 +328,10 @@ TextureImporter:
       name: charSprite_4
       rect:
         serializedVersion: 2
-        x: 192
+        x: 199
         y: 288
-        width: 48
-        height: 48
+        width: 40
+        height: 28
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -350,10 +350,10 @@ TextureImporter:
       name: charSprite_5
       rect:
         serializedVersion: 2
-        x: 240
+        x: 247
         y: 288
-        width: 48
-        height: 48
+        width: 26
+        height: 30
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -372,10 +372,10 @@ TextureImporter:
       name: charSprite_6
       rect:
         serializedVersion: 2
-        x: 0
+        x: 6
         y: 240
-        width: 48
-        height: 48
+        width: 20
+        height: 33
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -394,10 +394,10 @@ TextureImporter:
       name: charSprite_7
       rect:
         serializedVersion: 2
-        x: 48
-        y: 240
-        width: 48
-        height: 48
+        x: 53
+        y: 241
+        width: 22
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -416,10 +416,10 @@ TextureImporter:
       name: charSprite_8
       rect:
         serializedVersion: 2
-        x: 96
-        y: 240
-        width: 48
-        height: 48
+        x: 101
+        y: 241
+        width: 22
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -438,10 +438,10 @@ TextureImporter:
       name: charSprite_9
       rect:
         serializedVersion: 2
-        x: 144
+        x: 148
         y: 240
-        width: 48
-        height: 48
+        width: 24
+        height: 33
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -460,10 +460,10 @@ TextureImporter:
       name: charSprite_10
       rect:
         serializedVersion: 2
-        x: 192
-        y: 240
-        width: 48
-        height: 48
+        x: 197
+        y: 241
+        width: 22
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -482,10 +482,10 @@ TextureImporter:
       name: charSprite_11
       rect:
         serializedVersion: 2
-        x: 240
-        y: 240
-        width: 48
-        height: 48
+        x: 245
+        y: 241
+        width: 22
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -504,10 +504,10 @@ TextureImporter:
       name: charSprite_12
       rect:
         serializedVersion: 2
-        x: 0
+        x: 1
         y: 192
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -526,10 +526,10 @@ TextureImporter:
       name: charSprite_13
       rect:
         serializedVersion: 2
-        x: 48
+        x: 51
         y: 192
-        width: 48
-        height: 48
+        width: 26
+        height: 29
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -548,10 +548,10 @@ TextureImporter:
       name: charSprite_14
       rect:
         serializedVersion: 2
-        x: 96
+        x: 100
         y: 192
-        width: 48
-        height: 48
+        width: 27
+        height: 23
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -570,10 +570,10 @@ TextureImporter:
       name: charSprite_15
       rect:
         serializedVersion: 2
-        x: 144
+        x: 151
         y: 192
-        width: 48
-        height: 48
+        width: 27
+        height: 19
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -592,10 +592,10 @@ TextureImporter:
       name: charSprite_16
       rect:
         serializedVersion: 2
-        x: 192
+        x: 199
         y: 192
-        width: 48
-        height: 48
+        width: 27
+        height: 14
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -614,10 +614,10 @@ TextureImporter:
       name: charSprite_17
       rect:
         serializedVersion: 2
-        x: 240
+        x: 247
         y: 192
-        width: 48
-        height: 48
+        width: 32
+        height: 6
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -636,10 +636,10 @@ TextureImporter:
       name: charSprite_18
       rect:
         serializedVersion: 2
-        x: 0
+        x: 1
         y: 144
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -658,10 +658,10 @@ TextureImporter:
       name: charSprite_19
       rect:
         serializedVersion: 2
-        x: 48
+        x: 51
         y: 144
-        width: 48
-        height: 48
+        width: 26
+        height: 33
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -680,10 +680,10 @@ TextureImporter:
       name: charSprite_20
       rect:
         serializedVersion: 2
-        x: 96
+        x: 98
         y: 144
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -702,10 +702,10 @@ TextureImporter:
       name: charSprite_21
       rect:
         serializedVersion: 2
-        x: 144
+        x: 145
         y: 144
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -724,10 +724,10 @@ TextureImporter:
       name: charSprite_22
       rect:
         serializedVersion: 2
-        x: 192
+        x: 193
         y: 144
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -746,10 +746,10 @@ TextureImporter:
       name: charSprite_23
       rect:
         serializedVersion: 2
-        x: 240
+        x: 241
         y: 144
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -770,8 +770,8 @@ TextureImporter:
         serializedVersion: 2
         x: 0
         y: 96
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -792,8 +792,8 @@ TextureImporter:
         serializedVersion: 2
         x: 48
         y: 96
-        width: 48
-        height: 48
+        width: 26
+        height: 32
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -812,10 +812,10 @@ TextureImporter:
       name: charSprite_26
       rect:
         serializedVersion: 2
-        x: 96
+        x: 100
         y: 96
-        width: 48
-        height: 48
+        width: 26
+        height: 28
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -834,10 +834,10 @@ TextureImporter:
       name: charSprite_27
       rect:
         serializedVersion: 2
-        x: 144
+        x: 148
         y: 96
-        width: 48
-        height: 48
+        width: 26
+        height: 29
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -856,10 +856,10 @@ TextureImporter:
       name: charSprite_28
       rect:
         serializedVersion: 2
-        x: 192
+        x: 198
         y: 96
-        width: 48
-        height: 48
+        width: 26
+        height: 31
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -878,10 +878,10 @@ TextureImporter:
       name: charSprite_29
       rect:
         serializedVersion: 2
-        x: 240
-        y: 96
-        width: 48
-        height: 48
+        x: 244
+        y: 100
+        width: 26
+        height: 31
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -900,10 +900,10 @@ TextureImporter:
       name: charSprite_30
       rect:
         serializedVersion: 2
-        x: 0
-        y: 48
-        width: 48
-        height: 48
+        x: 3
+        y: 51
+        width: 26
+        height: 29
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -922,10 +922,10 @@ TextureImporter:
       name: charSprite_31
       rect:
         serializedVersion: 2
-        x: 48
+        x: 54
         y: 48
-        width: 48
-        height: 48
+        width: 26
+        height: 29
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -944,10 +944,10 @@ TextureImporter:
       name: charSprite_32
       rect:
         serializedVersion: 2
-        x: 96
+        x: 99
         y: 48
-        width: 48
-        height: 48
+        width: 29
+        height: 30
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -966,10 +966,10 @@ TextureImporter:
       name: charSprite_33
       rect:
         serializedVersion: 2
-        x: 144
+        x: 152
         y: 48
-        width: 48
-        height: 48
+        width: 17
+        height: 29
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -988,10 +988,10 @@ TextureImporter:
       name: charSprite_34
       rect:
         serializedVersion: 2
-        x: 192
+        x: 193
         y: 48
-        width: 48
-        height: 48
+        width: 30
+        height: 29
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -1010,10 +1010,10 @@ TextureImporter:
       name: charSprite_35
       rect:
         serializedVersion: 2
-        x: 240
+        x: 243
         y: 48
-        width: 48
-        height: 48
+        width: 28
+        height: 30
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -1032,10 +1032,10 @@ TextureImporter:
       name: charSprite_36
       rect:
         serializedVersion: 2
-        x: 0
+        x: 8
         y: 0
-        width: 48
-        height: 48
+        width: 17
+        height: 29
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -1054,10 +1054,10 @@ TextureImporter:
       name: charSprite_37
       rect:
         serializedVersion: 2
-        x: 48
+        x: 49
         y: 0
-        width: 48
-        height: 48
+        width: 32
+        height: 29
       alignment: 7
       pivot: {x: 0.5, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -1086,7 +1086,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries:
       - key: SpriteEditor.SliceSettings
-        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":48.0,"y":48.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.0},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":7,"pivotUnitMode":0,"slicingType":1,"keepEmptyRects":false,"isAlternate":false}'
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.0},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":7,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
       charSprite_0: -6642629256665560572
       charSprite_1: -9094028663050655455
