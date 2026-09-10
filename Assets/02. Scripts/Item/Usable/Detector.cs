@@ -31,10 +31,7 @@ namespace TerrainCollapse
 
             List<(Vector3 worldPos, float distance)> found = ScanResources(terrainManager, ownerPos, centerCell, cellSize);
 
-            if (waveCoroutine != null)
-                StopCoroutine(waveCoroutine);
-
-            waveCoroutine = StartCoroutine(RunDetectionWave(ownerPos, found));
+            PlayDetectionWave(ownerPos, found);
 
             return true;
         }
@@ -42,20 +39,36 @@ namespace TerrainCollapse
         public void ShowConfirmedResults(Vector3 ownerPos, GridCoord[] cells)
         {
             TerrainManager terrainManager = FindFirstObjectByType<TerrainManager>();
-            if (terrainManager == null || cells == null) return;
-
-            if (cells.Length == 0)
-            {
-                RoomClient.Instance?.ShowLocalSystemMessage("범위 내에 탐지된 자원이 없습니다.");
-                return;
-            }
+            if (terrainManager == null) return;
 
             List<(Vector3 worldPos, float distance)> found = new();
-            foreach (GridCoord cell in cells)
-                if (terrainManager.TryCellToWorldCenter(new Vector2Int(cell.X, cell.Y), out Vector3 worldPos))
-                    found.Add((worldPos, Vector3.Distance(ownerPos, worldPos)));
-            found.Sort((a, b) => a.distance.CompareTo(b.distance));
-            if (waveCoroutine != null) StopCoroutine(waveCoroutine);
+
+            if (cells != null)
+            {
+                foreach (GridCoord cell in cells)
+                    if (terrainManager.TryCellToWorldCenter(new Vector2Int(cell.X, cell.Y), out Vector3 worldPos))
+                        found.Add((worldPos, Vector3.Distance(ownerPos, worldPos)));
+
+                found.Sort((a, b) => a.distance.CompareTo(b.distance));
+            }
+
+            // 자원이 없어도 "탐지했지만 없었다"는 피드백은 필요하므로
+            // 메시지 출력과 음파 재생을 분리한다. return으로 코루틴 생성을 막지 않는다.
+            if (found.Count == 0)
+                RoomClient.Instance?.ShowLocalSystemMessage("범위 내에 탐지된 자원이 없습니다.");
+
+            PlayDetectionWave(ownerPos, found);
+        }
+
+        /// <summary>
+        /// 음파 링 재생을 시작한다. found가 비어 있어도 항상 실행되어야 한다.
+        /// (마커 배치 유무와 음파 발생 유무는 서로 독립적인 관심사)
+        /// </summary>
+        private void PlayDetectionWave(Vector3 ownerPos, List<(Vector3 worldPos, float distance)> found)
+        {
+            if (waveCoroutine != null)
+                StopCoroutine(waveCoroutine);
+
             waveCoroutine = StartCoroutine(RunDetectionWave(ownerPos, found));
         }
 
@@ -91,6 +104,7 @@ namespace TerrainCollapse
         {
             float waveDuration = detectRadius / waveSpeed;
 
+            // 음파 링은 found 유무와 무관하게 항상 재생된다.
             SpawnWaveRing(ownerPos, waveDuration);
 
             float elapsed = 0f;

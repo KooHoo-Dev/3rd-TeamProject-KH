@@ -104,8 +104,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d9d3f147ccfa482b8cf61ecf38a37dfb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.DetectionWaveRing
-  ringThickness: 0.05
+  ringThickness: 0.021
   edgeSoftness: 0.01
   textureResolution: 256
   sortingLayerName: Default
-  sortingOrder: 9999
+  sortingOrder: 100
