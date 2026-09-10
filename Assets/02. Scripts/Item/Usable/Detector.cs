@@ -17,7 +17,11 @@ namespace TerrainCollapse
         [SerializeField] private DetectionWaveRing waveRingPrefab;        // 중심에서 퍼져나가는 소나 링 이펙트
         [SerializeField] private Color waveRingColor;
 
-        private Coroutine waveCoroutine;
+        // 로컬(오프라인/예측) 사용에 한해서만 "새 프리뷰가 이전 프리뷰를 대체"하는 의미로 사용.
+        // 서버가 확정해준 결과(ShowConfirmedResults)에는 절대 관여시키지 않는다 —
+        // 광클로 인해 확정 응답 두 개가 겹쳐 도착하면, 이 슬롯 하나를 공유하는 순간
+        // 먼저 온 응답의 연출이 나중 응답에 의해 강제로 끊겨버린다.
+        private Coroutine previewWaveCoroutine;
 
         public override bool Use(Vector3 ownerPos, Vector3 targetPos)
         {
@@ -31,7 +35,9 @@ namespace TerrainCollapse
 
             List<(Vector3 worldPos, float distance)> found = ScanResources(terrainManager, ownerPos, centerCell, cellSize);
 
-            PlayDetectionWave(ownerPos, found);
+            if (previewWaveCoroutine != null)
+                StopCoroutine(previewWaveCoroutine);
+            previewWaveCoroutine = StartCoroutine(RunDetectionWave(ownerPos, found));
 
             return true;
         }
@@ -57,19 +63,10 @@ namespace TerrainCollapse
             if (found.Count == 0)
                 RoomClient.Instance?.ShowLocalSystemMessage("범위 내에 탐지된 자원이 없습니다.");
 
-            PlayDetectionWave(ownerPos, found);
-        }
-
-        /// <summary>
-        /// 음파 링 재생을 시작한다. found가 비어 있어도 항상 실행되어야 한다.
-        /// (마커 배치 유무와 음파 발생 유무는 서로 독립적인 관심사)
-        /// </summary>
-        private void PlayDetectionWave(Vector3 ownerPos, List<(Vector3 worldPos, float distance)> found)
-        {
-            if (waveCoroutine != null)
-                StopCoroutine(waveCoroutine);
-
-            waveCoroutine = StartCoroutine(RunDetectionWave(ownerPos, found));
+            // 서버가 확정해준 결과는 각각 독립된 유효한 스캔이다.
+            // 광클로 여러 요청의 응답이 겹쳐 도착해도 서로 취소하지 않도록
+            // 공유 슬롯을 쓰지 않고 매번 독립적인 코루틴으로 실행한다.
+            StartCoroutine(RunDetectionWave(ownerPos, found));
         }
 
         private List<(Vector3, float)> ScanResources(
@@ -132,7 +129,6 @@ namespace TerrainCollapse
             }
 
             Debug.Log($"[Detector] 반경 {detectRadius} 내 자원 {found.Count}개를 발견했습니다.");
-            waveCoroutine = null;
         }
 
         private void SpawnWaveRing(Vector3 ownerPos, float waveDuration)
