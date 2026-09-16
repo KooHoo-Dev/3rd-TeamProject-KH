@@ -1358,6 +1358,7 @@ namespace TerrainCollapse
             }
             terrainWorld.LoadSnapshot(snapshot);
             collapseManager?.ClearActiveChunks();
+            collapseCoordinator?.ResetAuthoritativeChain();
 
             if (pendingInitialSpawn.HasValue)
             {
@@ -1486,7 +1487,10 @@ namespace TerrainCollapse
             if (isLocalCollapsePlacementResult) ClearPendingCollapsePlacement(message.RequestId);
             if (isLocalDynamiteExplosionResult) pendingDynamiteExplosions.Remove(message.RequestId);
 
-            if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
+            TerrainChangeReason changeReason = batch.CollapseId > 0
+                ? TerrainChangeReason.CollapsePlacement
+                : TerrainChangeReason.AuthoritativeBatch;
+            if (terrainManager.ApplyAuthoritativeBatch(batch, changeReason, out string error) == false)
             {
                 Debug.LogWarning($"[RoomClient] Terrain batch rejected. {error}", this);
                 return false;
@@ -1901,6 +1905,9 @@ namespace TerrainCollapse
                     collapse.OwnerPlayerID,
                     localPlayerId,
                     StringComparison.Ordinal);
+                collapseCoordinator?.NotifyCollapseStarted(
+                    collapse.CollapseID,
+                    isPlacementOwner);
                 collapseManager.CreateChunk(
                     sourceCells,
                     collapse.CollapseID,
