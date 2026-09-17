@@ -76,6 +76,11 @@ namespace TerrainCollapse
         {
             if (TryGetServerClient(out RoomClient roomClient))
             {
+                // 게임 시작 전에는 서버가 상점 세션을 승인하지 않는다. 이 경우는
+                // 네트워크 전송 실패가 아니므로 사용자에게 오류 알림을 띄우지 않는다.
+                if (roomClient.IsGameplayActive == false)
+                    return;
+
                 if (roomClient.RequestShop(ShopActions.Begin) == false)
                     ShowNotification("상점 이용 요청을 보내지 못했습니다.");
                 return;
@@ -142,12 +147,22 @@ namespace TerrainCollapse
                 if (listing.Category != currentCategory) continue;
 
                 bool isLocked = listing.Category == ShopCategory.Pickaxe && listing.DigPower <= currentDigPower;
+                int discountedPrice = isLocked ? -1 : GetDiscountedPrice(listing);
 
                 ShopItemRowView row = Instantiate(rowTemplate, itemListContent);
                 row.gameObject.SetActive(true);
-                row.Bind(listing, HandlePurchaseRequested, isLocked);
+                row.Bind(listing, HandlePurchaseRequested, isLocked, discountedPrice);
                 spawnedRows.Add(row);
             }
+        }
+
+        private int GetDiscountedPrice(ShopListing listing)
+        {
+            if (listing.Category != ShopCategory.Pickaxe ||
+                pickaxeInventory?.CurrentDef == null)
+                return -1;
+
+            return Mathf.Max(0, listing.Price - pickaxeInventory.CurrentDef.Price);
         }
 
         private void ClearSpawnedRows()

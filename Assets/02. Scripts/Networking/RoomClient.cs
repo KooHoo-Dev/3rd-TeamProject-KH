@@ -98,6 +98,7 @@ namespace TerrainCollapse
         private bool isGameStarted;
         private bool isGameEnded;
         private bool hasAnnouncedGameplayStart;
+        private float nextOverweightSystemMessageTime;
         private string pendingInventorySellRequestId;
         private string pendingShopRequestId;
         private string pendingDebugGoldRequestId;
@@ -1358,6 +1359,7 @@ namespace TerrainCollapse
             }
             terrainWorld.LoadSnapshot(snapshot);
             collapseManager?.ClearActiveChunks();
+            collapseCoordinator?.ResetAuthoritativeChain();
 
             if (pendingInitialSpawn.HasValue)
             {
@@ -1486,7 +1488,10 @@ namespace TerrainCollapse
             if (isLocalCollapsePlacementResult) ClearPendingCollapsePlacement(message.RequestId);
             if (isLocalDynamiteExplosionResult) pendingDynamiteExplosions.Remove(message.RequestId);
 
-            if (terrainManager.ApplyAuthoritativeBatch(batch, out string error) == false)
+            TerrainChangeReason changeReason = batch.CollapseId > 0
+                ? TerrainChangeReason.CollapsePlacement
+                : TerrainChangeReason.AuthoritativeBatch;
+            if (terrainManager.ApplyAuthoritativeBatch(batch, changeReason, out string error) == false)
             {
                 Debug.LogWarning($"[RoomClient] Terrain batch rejected. {error}", this);
                 return false;
@@ -1557,13 +1562,26 @@ namespace TerrainCollapse
             }
 
             bool isHealthFull = message?.Code == "player.health_full";
-            SystemMessageReceived?.Invoke(new ChatSystemMessage
+            bool isOverweight = message?.Code == "inventory.overweight";
+            bool isTerrainCellDiagnostic = IsTerrainCellDiagnosticError(message?.Code);
+            bool canDisplayOverweightMessage = isOverweight == false ||
+                                               Time.unscaledTime >= nextOverweightSystemMessageTime;
+
+            // 지형 좌표/서버 장착 상태 불일치는 일반 플레이 중에는 복구 가능한 내부 진단 정보다.
+            // 디버그 접속에서만 채팅에 노출하고, 에디터/플레이어 로그는 기존처럼 남긴다.
+            if (canDisplayOverweightMessage && (isTerrainCellDiagnostic == false || debugMode))
             {
-                ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
-                Text = isHealthFull || ShouldDisplayErrorWithoutPrefix(message?.Code)
-                    ? errorText
-                    : $"요청 처리에 실패했습니다: {errorText}",
-            });
+                if (isOverweight)
+                    nextOverweightSystemMessageTime = Time.unscaledTime + 3f;
+
+                SystemMessageReceived?.Invoke(new ChatSystemMessage
+                {
+                    ElapsedSeconds = Mathf.FloorToInt((float)GameElapsedSeconds),
+                    Text = isHealthFull || ShouldDisplayErrorWithoutPrefix(message?.Code)
+                        ? errorText
+                        : $"요청 처리에 실패했습니다: {errorText}",
+                });
+            }
             if (isHealthFull)
                 Debug.Log($"[RoomClient] {errorText}", this);
             else
@@ -1582,6 +1600,17 @@ namespace TerrainCollapse
                 "item.spawn_restricted" or
                 "inventory.sell_outside_spawn" or
                 "player.dead";
+        }
+
+        private static bool IsTerrainCellDiagnosticError(string errorCode)
+        {
+            return errorCode is
+                "terrain.invalid_request" or
+                "terrain.invalid_pickaxe" or
+                "terrain.out_of_range" or
+                "terrain.empty_cell" or
+                "terrain.not_mineable" or
+                "terrain.invalid_death_loot";
         }
 
         private void HandleWorldItemSnapshot(WorldItemSnapshotMessage message)
@@ -1901,6 +1930,9 @@ namespace TerrainCollapse
                     collapse.OwnerPlayerID,
                     localPlayerId,
                     StringComparison.Ordinal);
+                collapseCoordinator?.NotifyCollapseStarted(
+                    collapse.CollapseID,
+                    isPlacementOwner);
                 collapseManager.CreateChunk(
                     sourceCells,
                     collapse.CollapseID,

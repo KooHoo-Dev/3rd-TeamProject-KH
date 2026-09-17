@@ -121,6 +121,7 @@ namespace TerrainCollapse
             if (collapseManager == null || message?.CollapseIDs == null) return;
 
             ClearPendingCollapsePlacements(message.CollapseIDs);
+            collapseCoordinator?.NotifyCollapsesCancelled(message.CollapseIDs);
 
             foreach (long collapseID in message.CollapseIDs)
                 collapseManager.CancelChunk(collapseID);

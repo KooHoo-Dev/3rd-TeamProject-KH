@@ -53,6 +53,7 @@ namespace TerrainCollapse
                     itemDto.DigPower  = int.Parse(cells[8]);
                     itemDto.Weight = int.Parse(cells[9]);
                     itemDto.Cooldown = int.Parse(cells[10]);
+                    itemDto.InventoryCapacityBonus = int.Parse(cells[11]);
                     
                     rows.Add(itemDto);
                 }

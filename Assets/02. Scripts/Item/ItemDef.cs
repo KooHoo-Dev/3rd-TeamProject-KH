@@ -21,6 +21,7 @@ namespace TerrainCollapse
         public string SpriteKey; // 스프라이트 리소스 경로 키
         public int Weight;
         public float Cooldown;
+        public int InventoryCapacityBonus;
 
         // 곡괭이 전용 데이터
         public float PickaxeRange;
@@ -46,6 +47,7 @@ namespace TerrainCollapse
         public Sprite Sprite { get; private set; }  // 키 해석 완료된 실제 스프라이트
         public int Weight { get; private set; }
         public float Cooldown { get; private set; }
+        public int InventoryCapacityBonus { get; private set; }
 
         // 타입에 따라 안전하게 제공되는 스탯 정보
         public PickaxeInfo? PickaxeData { get; private set; }
@@ -61,6 +63,7 @@ namespace TerrainCollapse
             Sprite = sprite;
             Weight = dto.Weight;
             Cooldown = dto.Cooldown;
+            InventoryCapacityBonus = dto.InventoryCapacityBonus;
 
             // 아이템 타입에 맞게 데이터 조립
             if (Type == ItemType.Pickaxe)
