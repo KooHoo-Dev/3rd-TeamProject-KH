@@ -37,6 +37,8 @@ namespace GameAudio
         private static float[] nextPlayTimes;
         private static AudioSource musicSource;
         private static readonly HashSet<AudioSource> activeEffectSources = new();
+        private static AudioListener activeListener;
+        private static bool didWarnMissingListener;
         private static float musicVolume = 1f;
         private static float effectVolume = 1f;
         private static float sceneMusicVolume = 1f;
@@ -176,9 +178,44 @@ namespace GameAudio
 
         private static Vector3 ResolveEffectPosition(Vector3 worldPosition)
         {
-            AudioListener listener = Object.FindFirstObjectByType<AudioListener>();
-            if (listener != null) worldPosition.z = listener.transform.position.z;
+            AudioListener listener = GetActiveListener();
+            if (listener != null)
+            {
+                worldPosition.z = listener.transform.position.z;
+                didWarnMissingListener = false;
+            }
+            else if (didWarnMissingListener == false)
+            {
+                didWarnMissingListener = true;
+                Debug.LogWarning(
+                    "[GameSound] 활성 AudioListener를 찾지 못해 효과음의 2D 거리 감쇠 평면을 보정할 수 없습니다.");
+            }
+
             return worldPosition;
+        }
+
+        private static AudioListener GetActiveListener()
+        {
+            if (activeListener != null && activeListener.isActiveAndEnabled)
+                return activeListener;
+
+            activeListener = null;
+            AudioListener[] listeners = Object.FindObjectsByType<AudioListener>(
+                FindObjectsInactive.Exclude,
+                FindObjectsSortMode.None);
+            foreach (AudioListener listener in listeners)
+            {
+                // FindObjectsByType는 활성 GameObject의 비활성 Behaviour도 반환할 수 있다.
+                // 카메라 씬에는 비활성 Cinemachine Listener와 실제 Main Camera Listener가
+                // 함께 있으므로 enabled까지 확인해야 거리 기준 평면이 안정적이다.
+                if (listener != null && listener.isActiveAndEnabled)
+                {
+                    activeListener = listener;
+                    break;
+                }
+            }
+
+            return activeListener;
         }
 
         private static void ConfigureEffectSource(AudioSource source)
