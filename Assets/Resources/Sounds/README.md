@@ -13,6 +13,7 @@ Inspector에서 연결하거나 씬/프리팹을 수정할 필요는 없습니�
 | player_run.wav | 지상에서 실제 수평 이동 중 0.3초 간격. 짧은 발소리 한 번짜리 파일 권장 |
 | explosion.wav | 다이너마이트 또는 지뢰의 폭발 확정 |
 | dynamite_tick.wav | 다이너마이트 투척 직후부터 폭발 확정 전까지 반복되는 시계음 |
+| potion_drink.wav | 포션 사용이 확정되어 체력이 회복될 때 |
 
 ### 효과음 변형
 
@@ -28,6 +29,7 @@ Inspector에서 연결하거나 씬/프리팹을 수정할 필요는 없습니�
 | `Assets/Resources/Sounds/LandVariants/` | 플레이어 착지음 | `land_01.wav`, `land_02.ogg` |
 | `Assets/Resources/Sounds/RunVariants/` | 플레이어 달리기 발소리 | `step_01.wav`, `step_02.ogg` |
 | `Assets/Resources/Sounds/ExplosionVariants/` | 다이너마이트·지뢰 공용 폭발음 | `explosion_01.wav`, `explosion_02.ogg` |
+| `Assets/Resources/Sounds/PotionDrinkVariants/` | 포션 사용음 | `potion_01.wav`, `potion_02.ogg` |
 
 클립이 둘 이상이면 직전에 재생한 클립은 다음 선택에서 제외합니다. 변형 폴더에 오디오가 하나라도
 있으면 해당 효과음의 기존 단일 파일 대신 폴더 안의 파일만 사용합니다.
@@ -71,6 +73,7 @@ Play Mode 도중 파일을 추가했다면 Play Mode를 다시 시작하세요.
 2유닛까지는 원본 음량이며 18유닛에서 들리지 않도록 선형 감쇠합니다. 2D 게임의 XY 거리만
 반영되도록 효과음 원점의 Z 좌표는 활성 AudioListener와 맞춥니다. 배경음악은 감쇠 없는 2D입니다.
 로컬과 원격 플레이어 모두 이동, 착지, 피해, 사망 효과음이 각 플레이어 위치에서 재생됩니다.
+포션 사용음도 실제 회복이 확정된 플레이어 위치에서 재생되어 같은 거리 감쇠를 적용받습니다.
 로컬 채굴음은 실제 타격 타일 중심에서, 원격 채굴음은 플레이어의 곡괭이 방향 타격 지점에서 재생됩니다.
 게임 씬에는 활성 AudioListener가 필요합니다.
 달리기를 멈추면 추가 발소리가 발생하지 않으며 이미 시작한 짧은 소리는 끝까지 재생됩니다.

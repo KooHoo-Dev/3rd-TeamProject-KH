@@ -77,6 +77,8 @@ namespace TerrainCollapse.Networking
             Vector3 soundPosition = transform.position;
             if (hasHealthState && currentHealth - state.CurrentHealth >= 3)
                 GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerHurt, soundPosition);
+            if (hasHealthState && state.CurrentHealth > currentHealth && state.IsDead == false)
+                GameAudio.GameSound.Play(GameAudio.SoundCue.PotionDrink, soundPosition);
             if (healthIsDead == false && state.IsDead)
                 GameAudio.GameSound.Play(GameAudio.SoundCue.PlayerDeath, soundPosition);
 

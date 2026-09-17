@@ -30,7 +30,7 @@ namespace TerrainCollapse
                 return false;
 
             playerHp.RestoreHp(healAmount);
-            SpawnHealEffects(ownerPos, playerHp.transform);
+            PlayConfirmedFeedback(ownerPos, playerHp.transform);
             
             return true;
         }
@@ -38,11 +38,19 @@ namespace TerrainCollapse
         public void PlayConfirmedEffect(Vector3 ownerPos)
         {
             PlayerHp playerHp = FindFirstObjectByType<PlayerHp>();
-            if (playerHp != null) SpawnHealEffects(ownerPos, playerHp.transform);
+            PlayConfirmedFeedback(ownerPos, playerHp != null ? playerHp.transform : null);
+        }
+
+        private void PlayConfirmedFeedback(Vector3 ownerPos, Transform followTarget)
+        {
+            GameAudio.GameSound.Play(GameAudio.SoundCue.PotionDrink, ownerPos);
+            SpawnHealEffects(ownerPos, followTarget);
         }
 
         private void SpawnHealEffects(Vector3 centerPos, Transform followTarget)
         {
+            if (healEffectPrefab == null) return;
+
             int effectCount = Random.Range(minEffectCount, maxEffectCount);
 
             for (int i = 0; i < effectCount; i++)

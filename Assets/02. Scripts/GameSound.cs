@@ -14,6 +14,7 @@ namespace GameAudio
         PlayerRun,
         Explosion,
         DynamiteTick,
+        PotionDrink,
     }
 
     /// <summary>Resources/Sounds에서 효과음과 배경음악을 로드하는 클라이언트 재생 도우미.</summary>
@@ -29,9 +30,9 @@ namespace GameAudio
         private const float DefaultEffectVolumeScale = 1f;
         private const float PlayerReactionVolumeScale = 3.5f;
         private static readonly string[] Names =
-            { "dig", "collapse", "player_hurt", "player_death", "player_land", "player_run", "explosion", "dynamite_tick" };
+            { "dig", "collapse", "player_hurt", "player_death", "player_land", "player_run", "explosion", "dynamite_tick", "potion_drink" };
         private static readonly string[] VariantFolders =
-            { "DigVariants", "CollapseVariants", "HurtVariants", "DeathVariants", "LandVariants", "RunVariants", "ExplosionVariants", null };
+            { "DigVariants", "CollapseVariants", "HurtVariants", "DeathVariants", "LandVariants", "RunVariants", "ExplosionVariants", null, "PotionDrinkVariants" };
         private static AudioClip[][] clips;
         private static int[] lastPlayedVariantIndices;
         private static float[] nextPlayTimes;
