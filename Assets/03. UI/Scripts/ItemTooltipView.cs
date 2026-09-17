@@ -157,6 +157,7 @@ namespace TerrainCollapse
                 PickaxeInfo pickaxe = itemDef.PickaxeData.Value;
                 lines.Add($"채굴력: {pickaxe.DigPower}");
                 lines.Add($"사거리: {pickaxe.Range:0.#}");
+                lines.Add($"수용량: +{itemDef.InventoryCapacityBonus}");
             }
             else if (itemDef.Type == ItemType.Usable &&
                      string.IsNullOrWhiteSpace(itemDef.Description) == false)

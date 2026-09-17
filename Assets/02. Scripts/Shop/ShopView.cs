@@ -142,12 +142,22 @@ namespace TerrainCollapse
                 if (listing.Category != currentCategory) continue;
 
                 bool isLocked = listing.Category == ShopCategory.Pickaxe && listing.DigPower <= currentDigPower;
+                int discountedPrice = isLocked ? -1 : GetDiscountedPrice(listing);
 
                 ShopItemRowView row = Instantiate(rowTemplate, itemListContent);
                 row.gameObject.SetActive(true);
-                row.Bind(listing, HandlePurchaseRequested, isLocked);
+                row.Bind(listing, HandlePurchaseRequested, isLocked, discountedPrice);
                 spawnedRows.Add(row);
             }
+        }
+
+        private int GetDiscountedPrice(ShopListing listing)
+        {
+            if (listing.Category != ShopCategory.Pickaxe ||
+                pickaxeInventory?.CurrentDef == null)
+                return -1;
+
+            return Mathf.Max(0, listing.Price - pickaxeInventory.CurrentDef.Price);
         }
 
         private void ClearSpawnedRows()

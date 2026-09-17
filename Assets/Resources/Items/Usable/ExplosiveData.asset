@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2259480ac954577afb997f306cdded0, type: 3}
   m_Name: ExplosiveData
   m_EditorClassIdentifier: Assembly-CSharp::TerrainCollapse.ExplosiveData
-  fuseTime: 5
+  fuseTime: 3
   power: 6
   radius: 2.5
   throwSpeed: 10

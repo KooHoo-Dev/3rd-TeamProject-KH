@@ -15,12 +15,15 @@ namespace TerrainCollapse
         [SerializeField] private Image iconImage;
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text priceText;
+        [SerializeField] private TMP_Text discountedPriceText;
         [SerializeField] private Button buyButton;
         [SerializeField] private CanvasGroup canvasGroup;
 
         private ShopListing listing;
         private Action<ShopListing> onBuyClicked;
         private bool hasListing;
+        private FontStyles originalPriceFontStyle;
+        private bool cachedOriginalPriceStyle;
 
         public int ItemID => hasListing ? listing.ItemID : -1;
 
@@ -36,11 +39,20 @@ namespace TerrainCollapse
 
         private void Awake()
         {
+            if (priceText != null)
+            {
+                originalPriceFontStyle = priceText.fontStyle;
+                cachedOriginalPriceStyle = true;
+            }
             if (buyButton != null)
                 buyButton.onClick.AddListener(HandleBuyClicked);
         }
 
-        public void Bind(ShopListing shopListing, Action<ShopListing> buyCallback, bool isLocked = false)
+        public void Bind(
+            ShopListing shopListing,
+            Action<ShopListing> buyCallback,
+            bool isLocked = false,
+            int discountedPrice = -1)
         {
             listing = shopListing;
             hasListing = true;
@@ -48,8 +60,27 @@ namespace TerrainCollapse
 
             if (nameText != null) nameText.text = listing.Name;
 
+            bool hasDiscount = discountedPrice >= 0 && discountedPrice < listing.Price;
             if (priceText != null)
+            {
+                if (cachedOriginalPriceStyle == false)
+                {
+                    originalPriceFontStyle = priceText.fontStyle;
+                    cachedOriginalPriceStyle = true;
+                }
+
                 priceText.text = $"{listing.Price:N0} 골드";
+                priceText.fontStyle = hasDiscount
+                    ? originalPriceFontStyle | FontStyles.Strikethrough
+                    : originalPriceFontStyle;
+            }
+
+            if (discountedPriceText != null)
+            {
+                discountedPriceText.gameObject.SetActive(hasDiscount);
+                if (hasDiscount)
+                    discountedPriceText.text = $"→ {discountedPrice:N0} 골드";
+            }
 
             if (iconImage != null)
             {
