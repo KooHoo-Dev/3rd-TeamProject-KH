@@ -899,7 +899,7 @@ MonoBehaviour:
   groundColor: {r: 0.32, g: 0.22, b: 0.12, a: 1}
   dirtColor: {r: 0.43, g: 0.27, b: 0.14, a: 1}
   stoneColor: {r: 0.42, g: 0.45, b: 0.5, a: 1}
-  bedrockColor: {r: 0.08, g: 0.08, b: 0.1, a: 0}
+  bedrockColor: {r: 0.08, g: 0.08, b: 0.1, a: 1}
   topBedrockColor: {r: 0.1882353, g: 0.12156863, b: 0.08235294, a: 1}
   deepStoneColor: {r: 0.2, g: 0.22, b: 0.28, a: 1}
   spawnPlatformColor: {r: 0.5372549, g: 0.4, b: 0.31764707, a: 1}

@@ -15,7 +15,6 @@ namespace TerrainCollapse
         [SerializeField] private Image iconImage;
         [SerializeField] private TMP_Text nameText;
         [SerializeField] private TMP_Text priceText;
-        [SerializeField] private TMP_Text discountedPriceText;
         [SerializeField] private Button buyButton;
         [SerializeField] private CanvasGroup canvasGroup;
 
@@ -69,17 +68,10 @@ namespace TerrainCollapse
                     cachedOriginalPriceStyle = true;
                 }
 
-                priceText.text = $"{listing.Price:N0} 골드";
-                priceText.fontStyle = hasDiscount
-                    ? originalPriceFontStyle | FontStyles.Strikethrough
-                    : originalPriceFontStyle;
-            }
-
-            if (discountedPriceText != null)
-            {
-                discountedPriceText.gameObject.SetActive(hasDiscount);
-                if (hasDiscount)
-                    discountedPriceText.text = $"→ {discountedPrice:N0} 골드";
+                priceText.fontStyle = originalPriceFontStyle;
+                priceText.text = hasDiscount
+                    ? $"<color=#E14B4B><s>{listing.Price:N0} 골드</s></color> → {discountedPrice:N0} 골드"
+                    : $"{listing.Price:N0} 골드";
             }
 
             if (iconImage != null)
